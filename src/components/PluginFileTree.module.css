@@ -1,0 +1,247 @@
+/* src/components/PluginFileTree.module.css */
+
+/* ---- container ---- */
+.tree {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 12px;
+  background-color: var(--ifm-background-surface-color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  user-select: none;
+}
+
+.tree:hover {
+  border-color: var(--ifm-color-emphasis-300);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 22px rgba(0, 0, 0, 0.08);
+}
+
+/* ---- macOS-style toolbar ---- */
+.toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 14px;
+  background-color: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.trafficLights {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.lightRed {
+  background-color: #ff5f57;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15);
+}
+
+.lightYellow {
+  background-color: #febc2e;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15);
+}
+
+.lightGreen {
+  background-color: #28c840;
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15);
+}
+
+.toolbarTitle {
+  font-size: 0.85em;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--ifm-color-content-secondary);
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- scrollable tree body ---- */
+.body {
+  position: relative;
+  overflow: auto;
+  padding: 10px 6px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox: hide native */
+}
+
+.body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none; /* WebKit: hide native */
+}
+
+/* ---- overlay scrollbar thumb (rendered into document.body, position:fixed) ---- */
+.overlayThumb {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 6px;
+  border-radius: 999px;
+  background-color: var(--ifm-color-emphasis-400);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1000;
+  transition: opacity 0.28s ease;
+}
+
+.overlayThumbVisible {
+  opacity: 0.55;
+}
+
+[data-theme='dark'] .overlayThumb {
+  background-color: var(--ifm-color-emphasis-300);
+}
+
+/* ---- row ---- */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding-right: 8px;
+  padding-left: calc(var(--indent, 0px) + 6px);
+  border-radius: 8px;
+  color: var(--ifm-color-content);
+  white-space: nowrap;
+  min-width: fit-content;
+  cursor: default;
+  transition: background-color 0.14s ease, color 0.14s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.row:hover {
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+.rowSelected {
+  background-color: rgba(var(--ifm-color-primary-rgb, 37, 99, 235), 0.12);
+}
+
+.rowSelected:hover {
+  background-color: rgba(var(--ifm-color-primary-rgb, 37, 99, 235), 0.16);
+}
+
+/* ---- chevron (rotates on open, like Details) ---- */
+.chevronWrap {
+  width: 18px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ifm-color-content-secondary);
+}
+
+.chevron {
+  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.chevronSpacer {
+  width: 18px;
+  flex-shrink: 0;
+}
+
+/* ---- icons ---- */
+.iconWrap {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.folderIcon {
+  color: #f59e0b;
+}
+
+.fileIcon {
+  color: var(--ifm-color-content-secondary);
+}
+
+.name {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 0.92em;
+  line-height: 1.4;
+}
+
+/* ---- question affordance ---- */
+.question {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  flex-shrink: 0;
+  cursor: pointer;
+  color: var(--ifm-color-content-secondary);
+  border-radius: 999px;
+  transition: color 0.14s ease, background-color 0.14s ease;
+}
+
+.question:hover {
+  color: var(--ifm-color-primary);
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+/* ---- hover card (portaled) ---- */
+.card {
+  max-width: min(90vw, 400px);
+  padding: 12px 14px;
+  background-color: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  font-size: 0.9em;
+  line-height: 1.55;
+  color: var(--ifm-color-content);
+  word-break: break-word;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+/* ---- dark mode refinements ---- */
+[data-theme='dark'] .rowSelected {
+  background-color: rgba(96, 165, 250, 0.16);
+}
+
+[data-theme='dark'] .rowSelected:hover {
+  background-color: rgba(96, 165, 250, 0.22);
+}
+
+[data-theme='dark'] .tree {
+  border-color: var(--ifm-color-emphasis-200);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme='dark'] .tree:hover {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 22px rgba(0, 0, 0, 0.34);
+}
+
+[data-theme='dark'] .toolbar {
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+[data-theme='dark'] .folderIcon {
+  color: #fbbf24;
+}

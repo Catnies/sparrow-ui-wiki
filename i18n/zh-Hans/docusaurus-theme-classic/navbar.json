@@ -1,0 +1,10 @@
+{
+  "title": {
+    "message": "Sparrow UI",
+    "description": "导航栏中的标题"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "导航栏中 GitHub 链接的标签"
+  }
+}

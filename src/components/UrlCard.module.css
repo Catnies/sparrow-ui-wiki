@@ -1,0 +1,153 @@
+/* UrlCard.module.css */
+
+/* 定义一个边框渐变颜色，这将是我们“加载条”的颜色 */
+:root {
+  --active-border-color: linear-gradient(90deg, #6a82fb, #fc5c7d, #00d2ff, #6a82fb);
+  --border-size: 2px; /* 环绕边框的粗细 */
+  --animation-speed: 2s; /* 动画循环一次的速度 */
+
+  /* 定义卡片在浅色主题下的颜色变量。
+     全部接 Docusaurus 的 --ifm-* 体系，这样主题色/护眼色覆盖这些变量时，
+     卡片自动跟随，不再需要单独为护眼色写规则。
+
+     注意 hover 背景：不用固定的 --ifm-color-emphasis-100（它是预设灰阶
+     #eee，在护眼黄底上会显脏），而用 color-mix 在当前 surface 上叠加极
+     少量黑/白（仅 4%）——浅色域（含护眼色）叠黑 → 白底近乎不变、黄底微
+     深；暗色域叠白 → 卡片微提亮。light-dark() 依据 Infima 设的 color-scheme
+     自动切换。比例刻意压低以还原原本“hover 几乎不变色”的克制观感。 */
+  --url-card-background-color: var(--ifm-background-surface-color);
+  --url-card-border-color: var(--ifm-color-emphasis-300);
+  --url-card-box-shadow: var(--ifm-global-shadow-lw);
+  --url-card-hover-background-color: color-mix(in srgb, var(--ifm-background-surface-color) 96%, light-dark(#000, #fff));
+  --url-card-hover-box-shadow: var(--ifm-global-shadow-md);
+  --url-card-title-color: var(--ifm-font-color-base);
+  --url-card-url-color: var(--ifm-color-emphasis-600);
+  --url-card-hover-title-color: var(--ifm-color-primary); /* 悬停时的标题颜色 */
+  --url-card-hover-url-color: var(--ifm-font-color-base); /* 悬停时的URL颜色 */
+}
+
+/* 深色主题：浅色块已全部接 --ifm-* 体系，Infima 在暗色下会自动给出对应
+   暗色值，无需再单独覆盖。主题色、护眼色同理跟随。 */
+
+
+.cardWrapper {
+  margin: 10px; 
+  width: 300px;
+  position: relative; /* 为伪元素定位提供上下文 */
+  display: inline-block;
+  overflow: hidden; /* 隐藏超出边框的伪元素部分 */
+  border-radius: 8px; /* 确保伪元素的圆角与卡片一致 */
+}
+
+/* 伪元素用于创建环绕动画边框 */
+.cardWrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* 使用 background-clip 配合 border-box 模拟边框 */
+  background: var(--active-border-color); /* 应用渐变色 */
+  background-size: 300% 100%; /* 关键：让渐变足够长，以便移动 */
+  border-radius: inherit; /* 继承父元素的圆角 */
+  z-index: 1; /* 放在卡片内容之下，但要盖住部分卡片边框 */
+  pointer-events: none; /* 确保不影响鼠标事件 */
+  opacity: 0; /* 默认隐藏 */
+  /* 通过调整 background-position 制作动画 */
+  background-position: 0% 0%; /* 初始位置 */
+  transition: opacity 0.3s ease-out; /* 显隐过渡 */
+}
+
+/* 实际的卡片链接内容 */
+.cardLink {
+  display: flex;
+  flex-direction: column;
+  padding: 15px 20px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  height: 100%;
+  box-sizing: border-box;
+
+  /* 使用定义的 CSS 变量 */
+  background-color: var(--url-card-background-color);
+  border: 1px solid var(--url-card-border-color); /* 默认的静态边框 */
+  border-radius: 8px;
+  box-shadow: var(--url-card-box-shadow);
+
+  /* 为所有变化的属性添加过渡，保持平滑 */
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out, background-color 0.2s ease-out;
+  position: relative; /* 确保内容在伪元素之上 */
+  z-index: 2; /* 确保卡片内容层级高于伪元素 */
+}
+
+/* 鼠标悬停动画 */
+.cardWrapper:hover .cardLink {
+  /* 轻微的上浮效果，或保持不动，根据喜好调整 */
+  transform: translateY(-2px); 
+  box-shadow: var(--url-card-hover-box-shadow); /* 悬停时阴影略微增强 */
+  border-color: transparent; /* 悬停时隐藏自身边框，让伪元素动画边框显现 */
+  background-color: var(--url-card-hover-background-color); /* 悬停时背景色轻微变化 */
+}
+
+/* 鼠标悬停时激活伪元素动画 */
+.cardWrapper:hover::before {
+  opacity: 1; /* 显示伪元素 */
+  animation: border-flow var(--animation-speed) linear infinite; /* 循环播放边框流动动画 */
+}
+
+/* 定义环绕边框的动画 */
+@keyframes border-flow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 0%; }
+}
+
+/* 针对无法点击的卡片 */
+.disabledCard {
+  cursor: not-allowed;
+  opacity: 0.8;
+  transform: none !important;
+  box-shadow: var(--url-card-box-shadow) !important; /* 保持与正常卡片一致 */
+  border-color: var(--url-card-border-color) !important;
+  background-color: var(--url-card-background-color) !important;
+}
+
+.cardContent {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  overflow: hidden;
+}
+
+.cardTitle {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--url-card-title-color); /* 使用变量 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+  width: 100%;
+  transition: color 0.2s ease-out;
+}
+
+.cardWrapper:hover .cardTitle {
+  color: var(--url-card-hover-title-color); /* 悬停时的标题颜色 */
+}
+
+.cardUrl {
+  font-size: 0.9em;
+  color: var(--url-card-url-color); /* 使用变量 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  transition: color 0.2s ease-out;
+}
+
+.cardWrapper:hover .cardUrl {
+  color: var(--url-card-hover-url-color); /* 悬停时的URL颜色 */
+}

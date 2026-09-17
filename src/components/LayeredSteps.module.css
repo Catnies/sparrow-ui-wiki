@@ -1,0 +1,177 @@
+/* src/components/LayeredSteps.module.css */
+
+.container {
+  margin: 1.4rem 0;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tab {
+  appearance: none;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background-color: var(--ifm-background-color);
+  color: var(--ifm-color-content-secondary);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 0.88em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.tab:hover {
+  background-color: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-content);
+}
+
+.tabActive {
+  background-color: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary-contrast-background, #fff);
+}
+
+.tabActive:hover {
+  background-color: var(--ifm-color-primary-dark);
+  color: var(--ifm-color-primary-contrast-background, #fff);
+}
+
+.card {
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  background-color: var(--ifm-code-background);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+  background-color: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.caption {
+  flex: 1 1 auto;
+  font-size: 0.9em;
+  color: var(--ifm-color-content);
+  line-height: 1.5;
+}
+
+.copyBtn {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  background-color: var(--ifm-background-color);
+  color: var(--ifm-color-content-secondary);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.copyBtn:hover {
+  background-color: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-content);
+  border-color: var(--ifm-color-emphasis-400);
+}
+
+.body {
+  overflow-x: auto;
+}
+
+.pre {
+  margin: 0;
+  padding: 12px 0;
+  background-color: transparent !important;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: var(--ifm-code-font-size);
+  line-height: 1.65;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  padding: 0 16px 0 16px;
+  min-height: 1.65em;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Left accent bar via pseudo-element so the green fill and the bar sit on the
+   same baseline across added / non-added rows — no layout shift. */
+.row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: transparent;
+}
+
+.gutter {
+  flex: 0 0 1.5em;
+  user-select: none;
+  color: var(--ifm-color-emphasis-400);
+  text-align: center;
+}
+
+.code {
+  white-space: pre;
+  flex: 1 1 auto;
+}
+
+/* newly-added line (diff style) */
+.added {
+  background-color: rgba(46, 204, 113, 0.14);
+}
+
+.added::before {
+  background-color: #2ecc71;
+}
+
+.added .gutter {
+  color: #2ecc71;
+  font-weight: 600;
+}
+
+/* hover lift on any row */
+.row:hover {
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+.row:hover::before {
+  background-color: var(--ifm-color-primary);
+}
+
+.added:hover {
+  background-color: rgba(46, 204, 113, 0.2);
+}
+
+.added:hover::before {
+  background-color: #27ae60;
+}
+
+[data-theme='dark'] .card {
+  border-color: var(--ifm-color-emphasis-200);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme='dark'] .header {
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+[data-theme='dark'] .added {
+  background-color: rgba(46, 204, 113, 0.18);
+}

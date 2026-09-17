@@ -1,0 +1,23 @@
+/* src/components/OverallYamlConfig.module.css */
+.overallContainer {
+  border: 2px solid #3498db; /* 这个边框可能也需要适配，但目前保持不变 */
+  border-radius: 8px;
+  padding: 10px 20px; 
+  margin: 30px 0;
+  background-color: var(--docusaurus-background-color); /* 适配整体背景色 */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* 阴影可能在深色模式下需要调整 */
+}
+
+.overallTitle {
+  margin-top: 0;
+  margin-bottom: 5px;
+  color: var(--docusaurus-text-color); /* 适配标题文本颜色 */
+  font-size: 1.5em;
+  padding-left: 10px;
+}
+
+.fragmentsWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px; 
+}

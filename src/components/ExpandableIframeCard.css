@@ -1,0 +1,152 @@
+/* ========== 卡片容器 ========== */
+.iframe-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin: 16px 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    background-color: #f5f7f9;        /* 和 header 同色，避免按压时顶部露白 */
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+/* ========== 卡片头部 ========== */
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background-color: #f5f7f9;
+    cursor: pointer;
+    user-select: none;
+    transition:
+        background-color 0.2s,
+        box-shadow 0.25s ease;
+}
+
+.card-header:hover {
+    background-color: #e8eaed;
+}
+
+
+/* ── 展开后 header 下沉感：底部加一道阴影分隔线 ── */
+.iframe-card.expanded .card-header {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* ── 点击时 header 单独下压 1px ── */
+.card-header:active {
+    transform: translateY(1px);
+}
+
+/* ── 固定标题 ── */
+.card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+/* ── 尾部开关提示 ── */
+.toggle-indicator {
+    font-size: 0.9rem;
+    color: #888;
+    transition: color 0.2s;
+    flex-shrink: 0;
+    margin-left: 16px;
+}
+
+/* ============================================ */
+/* ========== 抽屉式卡片内容（按压强化版） ===== */
+/* ============================================ */
+
+/*
+ * 双层动画分工：
+ *   .card-body        → max-height  推开 / 收纳纵向空间
+ *   .card-body-inner  → transform   抽拉位移 + 缩放 + 阴影
+ * 两者叠加 → 抽屉"弹出来 / 按回去"的力度感
+ */
+
+.card-body {
+    max-height: 0;
+    overflow: hidden;
+    /* 空间推拉：略快、略陡 */
+    transition: max-height 0.38s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.iframe-card.expanded .card-body {
+    max-height: 2000px;
+}
+
+.card-body-inner {
+    position: relative;
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    /* ── 抽屉起始状态：藏深一点 + 微缩 + 全透明 + 无阴影 ── */
+    transform: translateY(-48px) scale(0.96);
+    opacity: 0;
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    transition:
+        transform   0.42s cubic-bezier(0.22, 1.3, 0.36, 1),
+        opacity     0.3s  ease,
+        box-shadow  0.42s ease;
+    /* 内容布局 */
+    padding: 16px;
+    aspect-ratio: 1280 / 870;
+    box-sizing: border-box;
+    background-color: #ffffff;        /* 亮色模式白底，避免空内容时透黑 */
+}
+
+.iframe-card.expanded .card-body-inner {
+    /* ── 抽屉终点：弹到正常位 + 原尺寸 + 阴影浮现 ── */
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+}
+
+.card-body-inner iframe {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #d0d0d0;
+    border-radius: 4px;
+    display: block;
+    background-color: #fff;
+}
+
+/* ============================================ */
+/* ========== 深色模式适配（自动生效） ========== */
+/* ============================================ */
+[data-theme='dark'] .iframe-card {
+    border-color: #3a3a3a;
+    background-color: #2a2a2a;        /* 和 header 同色，按压无缝 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme='dark'] .card-header {
+    background-color: #2a2a2a;
+}
+
+[data-theme='dark'] .card-header:hover {
+    background-color: #333333;
+}
+
+.iframe-card.expanded[data-theme='dark'] .card-header,
+[data-theme='dark'] .iframe-card.expanded .card-header {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .card-title {
+    color: #e8e8e8;
+}
+
+[data-theme='dark'] .toggle-indicator {
+    color: #aaa;
+}
+
+[data-theme='dark'] .card-body-inner {
+    background-color: #1e1e1e;
+}
+
+[data-theme='dark'] .card-body-inner iframe {
+    border-color: #444;
+    background-color: #1e1e1e;
+}

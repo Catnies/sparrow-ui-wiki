@@ -1,30 +1,1158 @@
-/**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
- */
-
-/* You can override the default Infima variables here. */
-:root {
-  --ifm-color-primary: #2e8555;
-  --ifm-color-primary-dark: #29784c;
-  --ifm-color-primary-darker: #277148;
-  --ifm-color-primary-darkest: #205d3b;
-  --ifm-color-primary-light: #33925d;
-  --ifm-color-primary-lighter: #359962;
-  --ifm-color-primary-lightest: #3cad6e;
-  --ifm-code-font-size: 95%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+@font-face {
+  font-family: 'Segoe UI Emoji';
+  src: local('Segoe UI Emoji'),
+       local('Noto Color Emoji'),
+       url('../fonts/seguiemj.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
 
-/* For readability concerns, you should choose a lighter palette in dark mode. */
+:root {
+  --ifm-color-primary: #2563eb;
+  --ifm-color-primary-dark: #1d4ed8;
+  --ifm-color-primary-darker: #1e40af;
+  --ifm-color-primary-darkest: #1e3a8a;
+  --ifm-color-primary-light: #3b82f6;
+  --ifm-color-primary-lighter: #60a5fa;
+  --ifm-color-primary-lightest: #93c5fd;
+  /* RGB triplet of --ifm-color-primary, for rgba() tints (active pills, rails).
+     Defined per palette below so every rgba(var(--ifm-color-primary-rgb)…)
+     rule adapts when the user picks a theme color. */
+  --ifm-color-primary-rgb: 37, 99, 235;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+
+  /* Wider sidebar + slightly smaller menu text so long labels fit comfortably. */
+  --doc-sidebar-width: 320px;
+  --ifm-menu-link-padding-horizontal: 0.7rem;
+  --ifm-menu-link-padding-vertical: 0.34rem;
+}
+
 [data-theme='dark'] {
-  --ifm-color-primary: #25c2a0;
-  --ifm-color-primary-dark: #21af90;
-  --ifm-color-primary-darker: #1fa588;
-  --ifm-color-primary-darkest: #1a8870;
-  --ifm-color-primary-light: #29d5b0;
-  --ifm-color-primary-lighter: #32d8b4;
-  --ifm-color-primary-lightest: #4fddbf;
+  --ifm-color-primary: #60a5fa;
+  --ifm-color-primary-dark: #3b82f6;
+  --ifm-color-primary-darker: #2563eb;
+  --ifm-color-primary-darkest: #1d4ed8;
+  --ifm-color-primary-light: #93c5fd;
+  --ifm-color-primary-lighter: #bfdbfe;
+  --ifm-color-primary-lightest: #dbeafe;
+  --ifm-color-primary-rgb: 96, 165, 250;
+  --ifm-background-color: #222223;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* =========================================================================
+   Theme-color palettes. Selected via the navbar picker, which sets
+   <html data-theme-color="…">. Blue is the :root default above (no override
+   block needed); each non-default palette overrides BOTH the light vars
+   (html[data-theme-color]) and the dark vars (html…[data-theme='dark']).
+
+   Selector specificity: html[data-theme-color] (0,1,1) beats :root (0,1,0);
+   html[data-theme-color][data-theme='dark'] (0,2,1) beats
+   [data-theme='dark'] (0,1,0) — so overrides always win for both modes.
+   ========================================================================= */
+
+/* ---- Cyan (青) ---- */
+html[data-theme-color='cyan'] {
+  --ifm-color-primary: #0891b2;
+  --ifm-color-primary-dark: #0e7490;
+  --ifm-color-primary-darker: #155e75;
+  --ifm-color-primary-darkest: #164e63;
+  --ifm-color-primary-light: #06b6d4;
+  --ifm-color-primary-lighter: #22d3ee;
+  --ifm-color-primary-lightest: #67e8f9;
+  --ifm-color-primary-rgb: 8, 145, 178;
+}
+html[data-theme-color='cyan'][data-theme='dark'] {
+  --ifm-color-primary: #22d3ee;
+  --ifm-color-primary-dark: #06b6d4;
+  --ifm-color-primary-darker: #0891b2;
+  --ifm-color-primary-darkest: #0e7490;
+  --ifm-color-primary-light: #67e8f9;
+  --ifm-color-primary-lighter: #a5f3fc;
+  --ifm-color-primary-lightest: #cffafe;
+  --ifm-color-primary-rgb: 34, 211, 238;
+}
+
+/* ---- Orange (橙) ---- */
+html[data-theme-color='orange'] {
+  --ifm-color-primary: #ea580c;
+  --ifm-color-primary-dark: #c2410c;
+  --ifm-color-primary-darker: #9a3412;
+  --ifm-color-primary-darkest: #7c2d12;
+  --ifm-color-primary-light: #f97316;
+  --ifm-color-primary-lighter: #fb923c;
+  --ifm-color-primary-lightest: #fdba74;
+  --ifm-color-primary-rgb: 234, 88, 12;
+}
+html[data-theme-color='orange'][data-theme='dark'] {
+  --ifm-color-primary: #fb923c;
+  --ifm-color-primary-dark: #f97316;
+  --ifm-color-primary-darker: #ea580c;
+  --ifm-color-primary-darkest: #c2410c;
+  --ifm-color-primary-light: #fdba74;
+  --ifm-color-primary-lighter: #fed7aa;
+  --ifm-color-primary-lightest: #ffedd5;
+  --ifm-color-primary-rgb: 251, 146, 60;
+}
+
+/* ---- Purple (紫) ---- */
+html[data-theme-color='purple'] {
+  --ifm-color-primary: #7c3aed;
+  --ifm-color-primary-dark: #6d28d9;
+  --ifm-color-primary-darker: #5b21b6;
+  --ifm-color-primary-darkest: #4c1d95;
+  --ifm-color-primary-light: #8b5cf6;
+  --ifm-color-primary-lighter: #a78bfa;
+  --ifm-color-primary-lightest: #c4b5fd;
+  --ifm-color-primary-rgb: 124, 58, 237;
+}
+html[data-theme-color='purple'][data-theme='dark'] {
+  --ifm-color-primary: #a78bfa;
+  --ifm-color-primary-dark: #8b5cf6;
+  --ifm-color-primary-darker: #7c3aed;
+  --ifm-color-primary-darkest: #6d28d9;
+  --ifm-color-primary-light: #c4b5fd;
+  --ifm-color-primary-lighter: #ddd6fe;
+  --ifm-color-primary-lightest: #ede9fe;
+  --ifm-color-primary-rgb: 167, 139, 250;
+}
+
+/* ---- Green (绿) ---- */
+html[data-theme-color='green'] {
+  --ifm-color-primary: #16a34a;
+  --ifm-color-primary-dark: #15803d;
+  --ifm-color-primary-darker: #166534;
+  --ifm-color-primary-darkest: #14532d;
+  --ifm-color-primary-light: #22c55e;
+  --ifm-color-primary-lighter: #4ade80;
+  --ifm-color-primary-lightest: #86efac;
+  --ifm-color-primary-rgb: 22, 163, 74;
+}
+html[data-theme-color='green'][data-theme='dark'] {
+  --ifm-color-primary: #4ade80;
+  --ifm-color-primary-dark: #22c55e;
+  --ifm-color-primary-darker: #16a34a;
+  --ifm-color-primary-darkest: #15803d;
+  --ifm-color-primary-light: #86efac;
+  --ifm-color-primary-lighter: #bbf7d0;
+  --ifm-color-primary-lightest: #dcfce7;
+  --ifm-color-primary-rgb: 74, 222, 128;
+}
+
+/* Inline Markdown code; fenced blocks and component-specific code keep their styles. */
+.markdown :not(pre) > code:not([class]) {
+  color: color-mix(in srgb, var(--ifm-color-primary) 20%, var(--ifm-font-color-base));
+  background-color: color-mix(in srgb, var(--ifm-color-primary) 4%, var(--ifm-code-background));
+  border: none;
+  border-radius: 0.35em;
+  box-shadow: inset 0 0 0 1px rgba(var(--ifm-color-primary-rgb), 0.1);
+  padding: 0.12em 0.35em;
+  font-size: 0.88em;
+  vertical-align: baseline;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.markdown a > code:not([class]) {
+  color: inherit;
+}
+
+/* Admonitions share one layout, with semantic colors independent of the site palette. */
+.theme-admonition {
+  --ce-admonition-color: #64748b;
+  --ce-admonition-accent: var(--ce-admonition-color);
+  --ifm-alert-background-color: color-mix(in srgb, var(--ce-admonition-accent) 6%, var(--ifm-background-surface-color));
+  --ifm-alert-background-color-highlight: color-mix(in srgb, var(--ce-admonition-accent) 10%, transparent);
+  --ifm-alert-foreground-color: var(--ifm-font-color-base);
+  --ifm-alert-border-color: color-mix(in srgb, var(--ce-admonition-accent) 22%, transparent);
+  --ifm-alert-border-width: 1px;
+  --ifm-alert-border-left-width: 3px;
+  --ifm-alert-border-radius: 12px;
+  --ifm-alert-shadow: none;
+  --ifm-alert-padding-vertical: 1rem;
+  --ifm-alert-padding-horizontal: 1.2rem;
+  border-left-color: var(--ce-admonition-accent);
+  margin-bottom: 1.25rem;
+}
+
+.theme-admonition.alert--success {
+  --ce-admonition-color: #16a34a;
+}
+
+.theme-admonition.alert--info {
+  --ce-admonition-color: #0284c7;
+}
+
+.theme-admonition.alert--warning {
+  --ce-admonition-color: #d97706;
+}
+
+.theme-admonition.alert--danger {
+  --ce-admonition-color: #dc2626;
+}
+
+[data-theme='dark'] .theme-admonition {
+  --ce-admonition-accent: color-mix(in srgb, var(--ce-admonition-color) 70%, white);
+}
+
+.theme-admonition > [class*='admonitionHeading'] {
+  color: color-mix(in srgb, var(--ce-admonition-accent) 65%, var(--ifm-font-color-base));
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-transform: none;
+  margin-bottom: 0.5rem;
+}
+
+.theme-admonition > [class*='admonitionHeading'] [class*='admonitionIcon'] {
+  margin-right: 0.5rem;
+  vertical-align: -0.2em;
+}
+
+.theme-admonition > [class*='admonitionHeading'] svg {
+  width: 1.2em;
+  height: 1.2em;
+  fill: currentColor;
+}
+
+.file-tree [aria-expanded="false"] + .tree-node-children-wrapper {
+  display: none;
+}
+
+/* =========================================================================
+   Left sidebar — GitBook-style rounded pills + floating panel
+   ========================================================================= */
+
+/* The whole doc sidebar becomes an independent, floating rounded card.
+   Structure: aside.theme-doc-sidebar-container > div(sticky viewport) > div(.sidebar)
+*/
+@media (min-width: 997px) {
+  .theme-doc-sidebar-container {
+    border-right: none;
+    background-color: transparent;
+    /* clip-path would crop the card's box-shadow — relax it so the shadow shows */
+    clip-path: none;
+  }
+
+  /* sticky viewport: float gap on all sides so the card breathes.
+     top clears the navbar, right separates it from the content area. */
+  .theme-doc-sidebar-container > div {
+    padding: calc(var(--ifm-navbar-height) + 14px) 12px 14px 14px;
+  }
+
+  /* the .sidebar itself becomes the rounded card */
+  .theme-doc-sidebar-container > div > div {
+    width: 100%;
+    height: 100%;
+    background-color: var(--ifm-background-surface-color);
+    border: 1px solid var(--ifm-color-emphasis-300);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    /* the navbar-height spacer now lives on the viewport padding above */
+    padding-top: 0;
+  }
+
+  /* keep the menu scrolling inside the card.
+     NOTE: the scroller is <nav class="menu thin-scrollbar">, NOT the
+     <ul class="theme-doc-sidebar-menu"> list inside it. */
+  .theme-doc-sidebar-container .menu {
+    position: relative;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0; /* allow flex child to shrink and scroll */
+    scrollbar-width: none !important; /* Firefox: hide native */
+    font-size: 0.9rem; /* slightly smaller menu text */
+  }
+
+  .theme-doc-sidebar-container .menu::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none; /* WebKit: hide native */
+  }
+}
+
+.menu__list {
+  /* a little breathing room so the rounded corners of each item are visible */
+  padding: 0 0.35rem;
+}
+
+.menu__list .menu__list {
+  padding-left: 0.35rem;
+}
+
+/* =========================================================================
+   Sub-folder grouping: a category's children live in a nested .menu__list.
+   Each nested level is a "folder panel" with a left rail. Depth encodes into
+   the rail intensity: the DEEPER the folder, the DARKER its rail — so 4 levels
+   produce a visible gradient. Backgrounds stay transparent at every level.
+
+   Depth + active state are applied as PLAIN CLASSES (.osb-depth-N,
+   .osb-active-folder) by initSidebarActiveFolder.js — NOT via :has() or deep
+   descendant selectors. :has() is expensive to re-evaluate on a ~200-item
+   sidebar every route change; plain classes are O(1) to match.
+   ========================================================================= */
+
+/* Base shape shared by every nested level. */
+.theme-doc-sidebar-container .menu__list .menu__list {
+  position: relative;
+  margin: 4px 0 4px 10px;
+  padding: 4px 4px 4px 6px;
+  border-left: 2px solid var(--ifm-color-emphasis-100);
+  border-radius: 0 8px 8px 0;
+  /* Only animate the left-rail color; height changes snap instantly so
+     expand/collapse has no visible animation.  !important overrides the
+     inline `transition: height …` that Docusaurus' Collapsible sets. */
+  transition: border-left-color 0.18s ease !important;
+  /* Docusaurus' Collapsible sets will-change: height during animation but
+     never cleans it up. Prevent it from sticking and holding a layer open. */
+  will-change: auto !important;
+}
+
+/* ---- Fix: disabled height transition breaks Collapsible cleanup. ----
+   Collapsible only writes its final layout state from onTransitionEnd('height'):
+     • expanded  → height: auto;  overflow: visible
+     • collapsed → display: none; height: 0; overflow: hidden
+   By killing the height transition above, that handler never fires, so the
+   <ul> is stuck mid-animation. Two failure modes:
+     • Expanding a nested category (e.g. S3 inside "Set Up Pack Host") can't
+       grow its parent — content clips/overlaps instead of pushing siblings.
+     • After expand→collapse the <ul> keeps display:block; height:0, so its
+       margins (4px+4px) still reserve space — collapsed groups gain a gap.
+   Replicate BOTH cleanup states from the <li>'s collapsed class, which
+   Docusaurus toggles the instant a category is clicked. */
+.theme-doc-sidebar-container
+  .menu__list-item:not(.menu__list-item--collapsed)
+  > .menu__list {
+  height: auto !important;
+  overflow: visible !important;
+}
+.theme-doc-sidebar-container
+  .menu__list-item.menu__list-item--collapsed
+  > .menu__list {
+  display: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* ---- Depth gradient: ONLY the left rail darkens with depth. ---- */
+.theme-doc-sidebar-container .menu__list.osb-depth-1 {
+  margin-left: 10px;
+  border-left-color: var(--ifm-color-emphasis-100);
+}
+.theme-doc-sidebar-container .menu__list.osb-depth-2 {
+  margin-left: 8px;
+  border-left-color: var(--ifm-color-emphasis-200);
+}
+.theme-doc-sidebar-container .menu__list.osb-depth-3 {
+  margin-left: 8px;
+  border-left-color: var(--ifm-color-emphasis-300);
+}
+.theme-doc-sidebar-container .menu__list.osb-depth-4 {
+  margin-left: 8px;
+  border-left-color: var(--ifm-color-emphasis-400);
+}
+
+/* ---- Dark mode: same depth ramp (tokens are already theme-aware). ---- */
+
+/* =========================================================================
+   Active folder highlight.
+   ONLY the list that directly holds the active page's <li> turns blue; every
+   other level (including ancestor folders) stays grey. The owning list gets
+   .osb-active-folder (plus its .osb-depth-N), so we combine the two classes
+   to pick the right blue opacity per depth.
+   ========================================================================= */
+.theme-doc-sidebar-container .menu__list.osb-active-folder.osb-depth-1 {
+  border-left-color: rgba(var(--ifm-color-primary-rgb), 0.5);
+}
+.theme-doc-sidebar-container .menu__list.osb-active-folder.osb-depth-2 {
+  border-left-color: rgba(var(--ifm-color-primary-rgb), 0.65);
+}
+.theme-doc-sidebar-container .menu__list.osb-active-folder.osb-depth-3 {
+  border-left-color: rgba(var(--ifm-color-primary-rgb), 0.8);
+}
+.theme-doc-sidebar-container .menu__list.osb-active-folder.osb-depth-4 {
+  border-left-color: rgba(var(--ifm-color-primary-rgb), 0.95);
+}
+
+[data-theme='dark']
+  .theme-doc-sidebar-container
+  .menu__list.osb-active-folder.osb-depth-1 {
+  border-left-color: rgba(var(--ifm-color-primary-rgb), 0.55);
+}
+[data-theme='dark']
+  .theme-doc-sidebar-container
+  .menu__list.osb-active-folder.osb-depth-2 {
+  border-left-color: rgba(var(--ifm-color-primary-rgb), 0.68);
+}
+[data-theme='dark']
+  .theme-doc-sidebar-container
+  .menu__list.osb-active-folder.osb-depth-3 {
+  border-left-color: rgba(var(--ifm-color-primary-rgb), 0.82);
+}
+[data-theme='dark']
+  .theme-doc-sidebar-container
+  .menu__list.osb-active-folder.osb-depth-4 {
+  border-left-color: rgba(var(--ifm-color-primary-rgb), 0.95);
+}
+
+/* Every clickable item becomes a rounded block instead of a full-bleed bar */
+.menu__link,
+.theme-doc-sidebar-item-link .menu__link,
+.theme-doc-sidebar-item-category .menu__link {
+  border-radius: 6px;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+/* Hover: soft neutral fill, rounded */
+.menu__link:hover,
+.menu__caret:hover,
+.menu__list-item-collapsible:hover {
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+/* Active leaf: soft primary fill + primary text, rounded */
+.menu__link--active:not(.menu__link--sublist) {
+  background-color: rgba(var(--ifm-color-primary-rgb, 37, 99, 235), 0.12);
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+}
+
+.menu__link--active:not(.menu__link--sublist):hover {
+  background-color: rgba(var(--ifm-color-primary-rgb, 37, 99, 235), 0.18);
+}
+
+/* Active category (expanded parent of the current page) is bolded so the
+   owning folder stands out from its siblings. Docusaurus marks every ancestor
+   category LINK active — the <li> does NOT get an --active class — so we
+   target the link itself, which carries both .menu__link--active and
+   .menu__link--sublist. Color is intentionally left at the default neutral so
+   only the weight (not the hue) signals the active ancestor chain. */
+.menu__link--active.menu__link--sublist {
+  /* Override Infima's .menu__link--active primary tint so the active ancestor
+     category is signaled by weight alone, not color. */
+  color: var(--ifm-menu-color);
+  font-weight: 700;
+}
+
+/* When the category itself is the current page (you clicked INTO it), give it
+   the same active-pill treatment as a leaf page: primary fill + primary text.
+   Docusaurus signals this distinct state with .menu__list-item-collapsible--active
+   (set only when the category's own href equals the active path) — separate from
+   the ancestor-chain case above, which stays neutral+bold.
+
+   The .theme-doc-sidebar-container prefix raises specificity ABOVE Infima's
+   `.menu__list-item-collapsible .menu__link--active { background: none
+   !important }` (2 classes) so the fill actually applies in light mode; the dark
+   block below already carries an extra [data-theme] attribute for the same
+   reason. !important is still needed to beat the none!important on background. */
+.theme-doc-sidebar-container
+  .menu__list-item-collapsible--active
+  .menu__link--sublist {
+  background-color: rgba(var(--ifm-color-primary-rgb, 37, 99, 235), 0.12) !important;
+  color: var(--ifm-color-primary) !important;
+  font-weight: 700;
+}
+
+.theme-doc-sidebar-container
+  .menu__list-item-collapsible--active
+  .menu__link--sublist:hover {
+  background-color: rgba(var(--ifm-color-primary-rgb, 37, 99, 235), 0.18) !important;
+}
+
+[data-theme='dark']
+  .theme-doc-sidebar-container
+  .menu__list-item-collapsible--active
+  .menu__link--sublist {
+  background-color: rgba(var(--ifm-color-primary-rgb), 0.16) !important;
+}
+
+[data-theme='dark']
+  .theme-doc-sidebar-container
+  .menu__list-item-collapsible--active
+  .menu__link--sublist:hover {
+  background-color: rgba(var(--ifm-color-primary-rgb), 0.22) !important;
+}
+
+/* The sublist caret inherits the rounded treatment */
+.menu__link--sublist-caret:after {
+  border-radius: 6px;
+}
+
+/* =========================================================================
+   Sidebar utility toolbar — compact icon row above the menu tree
+   ========================================================================= */
+
+.sb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  margin: 0;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.sb-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ifm-color-emphasis-600);
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease;
+  flex-shrink: 0;
+}
+
+.sb-toolbar-btn:hover {
+  background-color: var(--ifm-color-emphasis-100);
+  color: var(--ifm-color-primary);
+}
+
+.sb-toolbar-btn:active {
+  background-color: var(--ifm-color-emphasis-200);
+}
+
+[data-theme='dark'] .sb-toolbar-btn:hover {
+  background-color: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-primary-light);
+}
+
+/* Push the color picker to the right edge so the toolbar reads as two groups:
+   [expand][collapse] ……… [color]. */
+
+
+/* =========================================================================
+   Fold/unfold caret: smaller and fainter so it recedes behind the labels.
+   ========================================================================= */
+.menu__link--sublist-caret:after,
+.menu__caret:before {
+  opacity: 0.5;
+  background-size: 1.5rem 1.5rem;
+}
+
+/* Keep the caret legible on hover and when its category is active. */
+.menu__link--sublist-caret:hover:after,
+.menu__caret:hover:before,
+.menu__list-item--active > .menu__list-item-collapsible .menu__link--sublist-caret:after {
+  opacity: 0.85;
+}
+
+/* Dark mode: emphasis-100 is already theme-aware, just soften the primary tint
+   fallback so the active pill reads well on dark surfaces. */
+[data-theme='dark'] .menu__link--active:not(.menu__link--sublist) {
+  background-color: rgba(var(--ifm-color-primary-rgb), 0.16);
+}
+
+[data-theme='dark'] .menu__link--active:not(.menu__link--sublist):hover {
+  background-color: rgba(var(--ifm-color-primary-rgb), 0.22);
+}
+
+/* Dark mode: deeper shadow on the floating sidebar card */
+[data-theme='dark'] .theme-doc-sidebar-container > div > div {
+  border-color: var(--ifm-color-emphasis-300);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* =========================================================================
+   Overlay scrollbar for the sidebar menu (vanilla, since Docusaurus owns the DOM)
+   Hide native; show a custom thumb that fades in only while scrolling.
+   ========================================================================= */
+.osb-thumb {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 6px;
+  border-radius: 999px;
+  background-color: var(--ifm-color-emphasis-400);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1000;
+  /* Only transition opacity (compositor-friendly). transform is set every
+     scroll frame and promotes to its own layer automatically; avoid a
+     permanent will-change that would hold a layer open while hidden. */
+  transition: opacity 0.28s ease;
+}
+
+.osb-thumb--visible {
+  opacity: 0.55;
+}
+
+[data-theme='dark'] .osb-thumb {
+  background-color: var(--ifm-color-emphasis-300);
+}
+
+/* =========================================================================
+   Right-side TOC: prepend a filled dot to the active heading link so the
+   selected title is marked with a circular prefix, not just a color shift.
+   ========================================================================= */
+.table-of-contents__link--active::before {
+  content: "";
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-right: 0.4rem;
+  /* vertically center on the text's x-height */
+  vertical-align: 0.05rem;
+  border-radius: 50%;
+  background-color: var(--ifm-color-primary);
+}
+
+.theme-doc-markdown > header > h1::first-letter {
+  font-family: var(--ifm-font-family-base);
+}
+
+/* =========================================================================
+   文档正文图片：统一圆角。
+   作用于 .theme-doc-markdown 内的所有 <img>，覆盖 markdown 的 ![]()
+   与 MDX 里的 <img>。navbar / sidebar / footer 等非正文图片不受影响。
+   ========================================================================= */
+.theme-doc-markdown img {
+  border-radius: 8px;
+}
+
+/* =========================================================================
+   Custom YAML syntax highlighting (high-contrast vibrant)
+   Applies ONLY to language-yaml code blocks; other languages keep the
+   default github / dracula themes. Overrides prism-react-renderer's inline
+   token styles via !important, scoped to .language-yaml.
+   ========================================================================= */
+
+/* ---- Light mode ---- */
+.language-yaml .token.key {
+  color: #6182f0 !important;          /* 蓝 — keys */
+}
+.language-yaml .token.string,
+.language-yaml .token.scalar {        /* block scalars (| >) alias to string */
+  color: #1ca6a6 !important;          /* 青蓝 — string values */
+}
+.language-yaml .token.number,
+.language-yaml .token.datetime {      /* datetime aliases number */
+  color: #ff8c42 !important;          /* 橙 — numbers / dates */
+}
+.language-yaml .token.comment {
+  color: #5c6b6b !important;          /* 灰绿 — comments */
+  font-style: italic !important;
+}
+.language-yaml .token.important {     /* &anchor / *alias */
+  color: #f06595 !important;          /* 粉 — anchors & aliases */
+  font-weight: normal !important;
+}
+.language-yaml .token.tag {           /* !tag */
+  color: #f06595 !important;
+}
+/* boolean / null / directive also carry the `important` alias — override
+   AFTER .token.important so source order wins. */
+.language-yaml .token.boolean,
+.language-yaml .token.null,
+.language-yaml .token.directive {
+  color: #c678dd !important;          /* 紫 — constants / directives */
+}
+.language-yaml .token.punctuation,
+.language-yaml .token.operator {
+  color: #8b93a7 !important;          /* 中性灰 — punctuation */
+}
+
+/* ---- Dark mode ---- */
+[data-theme='dark'] .language-yaml .token.key {
+  color: #8aa0ff !important;
+}
+[data-theme='dark'] .language-yaml .token.string,
+[data-theme='dark'] .language-yaml .token.scalar {
+  color: #4fd1d1 !important;
+}
+[data-theme='dark'] .language-yaml .token.number,
+[data-theme='dark'] .language-yaml .token.datetime {
+  color: #ffa45c !important;
+}
+[data-theme='dark'] .language-yaml .token.comment {
+  color: #7d8a8a !important;
+  font-style: italic !important;
+}
+[data-theme='dark'] .language-yaml .token.important {
+  color: #ff7eb0 !important;
+  font-weight: normal !important;
+}
+[data-theme='dark'] .language-yaml .token.tag {
+  color: #ff7eb0 !important;
+}
+[data-theme='dark'] .language-yaml .token.boolean,
+[data-theme='dark'] .language-yaml .token.null,
+[data-theme='dark'] .language-yaml .token.directive {
+  color: #d39bff !important;
+}
+[data-theme='dark'] .language-yaml .token.punctuation,
+[data-theme='dark'] .language-yaml .token.operator {
+  color: #9aa3b8 !important;
+}
+
+/* Search bar: keep it wide enough and hide the "Ctrl+Shift+F" hint that
+   overlaps the input text, making it unreadable. */
+.navbar__search [class*="searchHintContainer"] {
+  display: none;
+}
+.navbar__search-input {
+  width: 10rem;
+}
+
+/* =========================================================================
+   Navbar layout: search box centered, Discord icon on the right.
+   On desktop the search bar is lifted out of the left item group and
+   absolutely centered within .navbar__inner. Mobile keeps the default
+   layout (search lives in the mobile sidebar there), so we gate on width.
+   ========================================================================= */
+@media (min-width: 997px) {
+  .navbar__inner {
+    position: relative;
+  }
+
+  .navbar .navbar__search {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
+  .navbar__search-input {
+    width: 16rem;
+  }
+
+  /* Space out the right-side icon cluster (locale switch, Discord, color
+     mode toggle) so they don't bunch together. */
+  .navbar .navbar__items--right {
+    gap: 0.6rem;
+  }
+
+  .navbar .navbar__items--right > * + * {
+    margin-left: 0.4rem;
+  }
+
+  /* ---- Lively hover for the right-side icon cluster ----
+     Springy scale + color shift on every icon button (locale switch,
+     Discord, color-mode toggle). transform-origin center keeps the pop
+     stable; a cubic-bezier overshoot gives the bounce. */
+  .navbar .navbar__items--right .navbar__link,
+  .navbar .navbar__items--right button[class*="toggle"],
+  .navbar .navbar__items--right .navbar__toggle {
+    transform-origin: center;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .navbar .navbar__items--right .navbar__link:hover,
+  .navbar .navbar__items--right button[class*="toggle"]:hover,
+  .navbar .navbar__items--right .navbar__toggle:hover {
+    transform: scale(1.18) rotate(-4deg);
+  }
+
+  .navbar .navbar__items--right .navbar__link:active,
+  .navbar .navbar__items--right button[class*="toggle"]:active,
+  .navbar .navbar__items--right .navbar__toggle:active {
+    transform: scale(0.92);
+  }
+}
+
+@media (min-width: 1280px) {
+  .navbar__search-input {
+    width: 20rem;
+  }
+}
+
+/* Discord icon link. The <a> carries a "Discord" text label for screen
+   readers; we hide it visually (font-size: 0) and render the logo via a
+   CSS mask so it inherits currentColor and adapts to light/dark themes. */
+.navbar-discord-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  font-size: 0;
+  color: var(--ifm-color-emphasis-800);
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.211.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.617-1.25.077.077 0 0 0-.079-.037 19.74 19.74 0 0 0-4.885 1.515.07.07 0 0 0-.032.028C.533 9.046-.319 13.58.099 18.058a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.029.078.078 0 0 0 .084-.027c.462-.63.873-1.295 1.226-1.994a.076.076 0 0 0-.042-.106 12.3 12.3 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.011c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .079.01c.12.099.246.198.373.292a.077.077 0 0 1-.007.128 12.3 12.3 0 0 1-1.873.891.076.076 0 0 0-.041.107c.36.698.772 1.363 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.029.077.077 0 0 0 .031-.055c.501-5.177-.838-9.674-3.548-13.66a.061.061 0 0 0-.031-.029zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.419 0 1.333-.946 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.419 0 1.333-.946 2.419-2.157 2.419z'/%3E%3C/svg%3E") no-repeat center / 1.4rem 1.4rem;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M20.317 4.369a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.211.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.6 12.6 0 0 0-.617-1.25.077.077 0 0 0-.079-.037 19.74 19.74 0 0 0-4.885 1.515.07.07 0 0 0-.032.028C.533 9.046-.319 13.58.099 18.058a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.029.078.078 0 0 0 .084-.027c.462-.63.873-1.295 1.226-1.994a.076.076 0 0 0-.042-.106 12.3 12.3 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.011c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .079.01c.12.099.246.198.373.292a.077.077 0 0 1-.007.128 12.3 12.3 0 0 1-1.873.891.076.076 0 0 0-.041.107c.36.698.772 1.363 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.029.077.077 0 0 0 .031-.055c.501-5.177-.838-9.674-3.548-13.66a.061.061 0 0 0-.031-.029zM8.02 15.331c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.419 0 1.333-.946 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.419 0 1.333-.946 2.419-2.157 2.419z'/%3E%3C/svg%3E") no-repeat center / 1.4rem 1.4rem;
+  transform-origin: center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              color 0.25s ease, background-color 0.25s ease;
+}
+
+.navbar-discord-link:hover {
+  color: #5865f2; /* Discord blurple */
+  background-color: currentColor;
+  transform: scale(1.18) rotate(-6deg);
+  animation: discord-wiggle 0.5s ease;
+}
+
+.navbar-discord-link:active {
+  transform: scale(0.9);
+}
+
+/* One-shot wiggle on hover: a quick back-and-foroth tilt for personality. */
+@keyframes discord-wiggle {
+  0%   { transform: scale(1.18) rotate(-6deg); }
+  30%  { transform: scale(1.22) rotate(5deg); }
+  55%  { transform: scale(1.18) rotate(-3deg); }
+  100% { transform: scale(1.18) rotate(-6deg); }
+}
+
+[data-theme='dark'] .navbar-discord-link {
+  /* Don't use --ifm-color-emphasis-N here: in dark mode those tokens are
+     remapped so low numbers go DARK. Aiteral light gray keeps the icon
+     bright on the dark navbar. */
+  color: #e6edf3;
+}
+
+/* =========================================================================
+   QQ link — only visible on zh-Hans locale (alongside Discord).
+   ========================================================================= */
+.navbar-qq-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  font-size: 0;
+  color: var(--ifm-color-emphasis-800);
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Cpath d='M824.8 613.2c-16-51.4-34.4-94.6-62.7-165.3C766.5 262.2 689.3 112 511.5 112 331.7 112 256.2 265.2 261 447.9c-28.4 70.8-46.7 113.7-62.7 165.3-34 109.5-23 154.8-14.6 155.8 18 2.2 70.1-82.4 70.1-82.4 0 49 25.2 112.9 79.8 159-26.4 8.1-85.7 29.9-71.6 53.8 11.4 19.3 196.2 12.3 249.5 6.3 53.3 6 238.1 13 249.5-6.3 14.1-23.8-45.3-45.7-71.6-53.8 54.6-46.2 79.8-110.1 79.8-159 0 0 52.1 84.6 70.1 82.4 8.5-1.1 19.5-46.4-14.5-155.8z'/%3E%3C/svg%3E") no-repeat center / 1.4rem 1.4rem;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Cpath d='M824.8 613.2c-16-51.4-34.4-94.6-62.7-165.3C766.5 262.2 689.3 112 511.5 112 331.7 112 256.2 265.2 261 447.9c-28.4 70.8-46.7 113.7-62.7 165.3-34 109.5-23 154.8-14.6 155.8 18 2.2 70.1-82.4 70.1-82.4 0 49 25.2 112.9 79.8 159-26.4 8.1-85.7 29.9-71.6 53.8 11.4 19.3 196.2 12.3 249.5 6.3 53.3 6 238.1 13 249.5-6.3 14.1-23.8-45.3-45.7-71.6-53.8 54.6-46.2 79.8-110.1 79.8-159 0 0 52.1 84.6 70.1 82.4 8.5-1.1 19.5-46.4-14.5-155.8z'/%3E%3C/svg%3E") no-repeat center / 1.4rem 1.4rem;
+  transform-origin: center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              color 0.25s ease, background-color 0.25s ease;
+}
+
+.navbar-qq-link:hover {
+  color: #12B7F5; /* QQ blue */
+  background-color: currentColor;
+  transform: scale(1.18) rotate(-6deg);
+  animation: qq-wiggle 0.5s ease;
+}
+
+.navbar-qq-link:active {
+  transform: scale(0.9);
+}
+
+/* One-shot wiggle on hover: a quick back-and-forth tilt for personality. */
+@keyframes qq-wiggle {
+  0%   { transform: scale(1.18) rotate(-6deg); }
+  30%  { transform: scale(1.22) rotate(5deg); }
+  55%  { transform: scale(1.18) rotate(-3deg); }
+  100% { transform: scale(1.18) rotate(-6deg); }
+}
+
+[data-theme='dark'] .navbar-qq-link {
+  color: #e6edf3;
+}
+
+/* Hide QQ on non-Chinese locales; Discord stays visible everywhere. */
+html:not([lang='zh-Hans']) .navbar-qq-link {
+  display: none !important;
+}
+
+/* On mobile, Discord/QQ icons are moved into the sidebar brand area
+   by JavaScript (initSidebarToolbar.js). CSS only handles styling. */
+@media (max-width: 996px) {
+  /* Hide ALL Docusaurus-rendered social links on mobile */
+  .navbar__items--right .navbar-discord-link,
+  .navbar__items--right .navbar-qq-link,
+  .navbar-sidebar .menu__list-item .navbar-discord-link,
+  .navbar-sidebar .menu__list-item .navbar-qq-link {
+    display: none !important;
+  }
+
+  /* Also hide the entire menu list items that contain social links */
+  .navbar-sidebar .menu__list-item:has(.navbar-discord-link),
+  .navbar-sidebar .menu__list-item:has(.navbar-qq-link) {
+    display: none !important;
+  }
+
+  /* Show the cloned social links in sidebar brand area */
+  #mobile-social-links .navbar-discord-link {
+    display: inline-flex !important;
+    width: 1.4rem;
+    height: 1.4rem;
+    vertical-align: middle;
+  }
+
+  #mobile-social-links .navbar-qq-link {
+    display: inline-flex !important;
+    width: 1.4rem;
+    height: 1.4rem;
+    vertical-align: middle;
+  }
+
+  /* Hide QQ for non-Chinese locales — must override the #mobile-social-links
+     rule above (1,1,0) so the language gate actually works on mobile clones. */
+  html:not([lang='zh-Hans']) #mobile-social-links .navbar-qq-link {
+    display: none !important;
+  }
+
+  /* Hide locale dropdown in sidebar (already in top bar) */
+  .navbar-sidebar .navbar__item.dropdown {
+    display: none !important;
+  }
+
+  /* Theme color dropdown in mobile sidebar menu */
+  #mobile-color-dropdown .menu__list {
+    transition: max-height 0.3s ease;
+  }
+  #mobile-color-dropdown.menu__list-item--collapsed .menu__list {
+    max-height: 0px !important;
+    overflow: hidden !important;
+  }
+  .mobile-color-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+  .mobile-color-dot--blue   { background-color: #2563eb; }
+  .mobile-color-dot--cyan   { background-color: #0891b2; }
+  .mobile-color-dot--orange { background-color: #ea580c; }
+  .mobile-color-dot--purple { background-color: #7c3aed; }
+  .mobile-color-dot--green  { background-color: #16a34a; }
+  [data-theme='dark'] .mobile-color-dot--blue   { background-color: #60a5fa; }
+  [data-theme='dark'] .mobile-color-dot--cyan   { background-color: #22d3ee; }
+  [data-theme='dark'] .mobile-color-dot--orange { background-color: #fb923c; }
+  [data-theme='dark'] .mobile-color-dot--purple { background-color: #a78bfa; }
+  [data-theme='dark'] .mobile-color-dot--green  { background-color: #4ade80; }
+
+}
+
+/* =========================================================================
+   Theme-color picker (sidebar toolbar's last slot).
+   A 32px toolbar button (.sb-toolbar-btn) opens a popover of color swatches;
+   the active swatch gets a ring + check. Swatch fills are fixed per palette so
+   the dot always reads as that color, with a brighter dot in dark mode.
+   ========================================================================= */
+.theme-color-slot {
+  position: relative;
+  display: inline-flex;
+  margin-left: auto;
+}
+
+.theme-color-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background-color: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+  /* Closed state: scaled down + faded out. The --open class (toggled in JS)
+     animates to the visible state. transform-origin top-right keeps the popover
+     anchored to its button as it grows/shrinks. */
+  opacity: 0;
+  transform: scale(0.9) translateY(-6px);
+  transform-origin: top right;
+  pointer-events: none;
+  transition: opacity 0.28s ease, transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Each row of swatches is itself a horizontal flex line. */
+.theme-color-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* The background-tint row is a light-mode-only feature: hide it in dark mode
+   (the tints carry a :not([data-theme='dark']) guard, so they wouldn't show
+   there anyway). */
+[data-theme='dark'] .theme-color-row--bg {
+  display: none;
+}
+
+.theme-color-popover--open {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  pointer-events: auto;
+}
+
+/* `[hidden]` defaults to display:none via the UA stylesheet, but our
+   .theme-color-popover { display: flex } above has higher specificity and would
+   override it — so the popover would show even when closed. Force-hide it. */
+.theme-color-popover[hidden] {
+  display: none;
+}
+
+[data-theme='dark'] .theme-color-popover {
+  border-color: var(--ifm-color-emphasis-300);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Each swatch is a colored circle. The check inside is hidden unless active. */
+.theme-color-swatch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  /* Closed state: shrunk + faded, lifted slightly. --n (set inline per swatch,
+     0..4) drives a stagger so swatches exit/enter in sequence, not in unison —
+     that sequence is what makes the animation feel "designed". */
+  opacity: 0;
+  transform: scale(0.3) translateY(-10px);
+  transition: transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.26s ease,
+              box-shadow 0.15s ease;
+  /* Closing stagger: rightmost swatch (highest --n) leaves first — reads as
+     the row collapsing toward the button on the right. */
+  transition-delay: calc((4 - var(--n, 0)) * 0.045s);
+}
+
+/* Opening stagger: leftmost swatch arrives first — the row unfurls outward. */
+.theme-color-popover--open .theme-color-swatch {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+  transition-delay: calc(var(--n, 0) * 0.05s);
+}
+
+.theme-color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.theme-color-swatch--active {
+  box-shadow: 0 0 0 2px var(--ifm-background-surface-color),
+    0 0 0 4px var(--ifm-color-emphasis-600);
+}
+
+.theme-color-check {
+  color: #fff;
+  opacity: 0;
+  /* The check sits on top of the swatch fill; nudge it up slightly so it
+     optically centers in the circle. */
+  transform: translateY(-1px);
+}
+
+.theme-color-swatch--active .theme-color-check {
+  opacity: 1;
+}
+
+/* Fixed swatch fills per palette. Dark mode uses the brighter shade so the
+   dot pops on dark surfaces. */
+.theme-color-swatch--blue   { background-color: #2563eb; }
+.theme-color-swatch--cyan   { background-color: #0891b2; }
+.theme-color-swatch--orange { background-color: #ea580c; }
+.theme-color-swatch--purple { background-color: #7c3aed; }
+.theme-color-swatch--green  { background-color: #16a34a; }
+
+[data-theme='dark'] .theme-color-swatch--blue   { background-color: #60a5fa; }
+[data-theme='dark'] .theme-color-swatch--cyan   { background-color: #22d3ee; }
+[data-theme='dark'] .theme-color-swatch--orange { background-color: #fb923c; }
+[data-theme='dark'] .theme-color-swatch--purple { background-color: #a78bfa; }
+[data-theme='dark'] .theme-color-swatch--green  { background-color: #4ade80; }
+
+/* =========================================================================
+   Eye-care mode — a warm page tint, light mode only.
+   Enabled via <html data-eyecare="warm|green|sepia|mist"> (picked from the
+   sidebar toolbar). The :not([data-theme='dark']) guard keeps it from bleeding
+   into dark mode even if the attribute persists across a mode switch.
+
+   Specificity: html[data-eyecare='…']:not([data-theme='dark']) is (0,2,1),
+   which beats the palette blocks html[data-theme-color='…'] (0,1,1) — so the
+   tint applies on top of whichever theme color is selected, and the chosen
+   primary color still flows through the rest of the UI.
+   ========================================================================= */
+
+/* ---- Warm yellow (暖黄) ---- */
+html[data-eyecare='warm']:not([data-theme='dark']) {
+  --ifm-background-color: #f4ecd0;
+  --ifm-background-surface-color: #faf4e1;
+  --ifm-navbar-background-color: rgba(250, 244, 225, 0.95);
+  --ifm-code-background: rgba(150, 110, 30, 0.10);
+  /* Prism code blocks read their background from --prism-background-color,
+     which Docusaurus injects as an INLINE style (github theme = #fff). Inline
+     styles beat normal CSS, so we need !important to tint code blocks too.
+     Value is a touch darker than the page so the code card still reads as a
+     raised surface. */
+  --prism-background-color: #efe4c2 !important;
+}
+
+/* ---- Eye-care green (豆绿) ---- */
+html[data-eyecare='green']:not([data-theme='dark']) {
+  --ifm-background-color: #e3edd6;
+  --ifm-background-surface-color: #eef4e4;
+  --ifm-navbar-background-color: rgba(238, 244, 228, 0.95);
+  --ifm-code-background: rgba(60, 120, 40, 0.10);
+  --prism-background-color: #d8e8c8 !important;
+}
+
+/* ---- Sepia (羊皮纸) ---- */
+html[data-eyecare='sepia']:not([data-theme='dark']) {
+  --ifm-background-color: #ece0c8;
+  --ifm-background-surface-color: #f4ead4;
+  --ifm-navbar-background-color: rgba(244, 234, 212, 0.95);
+  --ifm-code-background: rgba(120, 90, 30, 0.12);
+  --prism-background-color: #e6d6b2 !important;
+}
+
+/* ---- Mist blue (雾蓝) ---- */
+html[data-eyecare='mist']:not([data-theme='dark']) {
+  --ifm-background-color: #dde9ee;
+  --ifm-background-surface-color: #e8f0f4;
+  --ifm-navbar-background-color: rgba(232, 240, 244, 0.95);
+  --ifm-code-background: rgba(40, 90, 120, 0.10);
+  --prism-background-color: #d2e0e4 !important;
+}
+
+/* prism-react-renderer applies the github theme's background (#f6f8fa) as an
+   INLINE style directly on <pre> — inline beats normal CSS, so we need
+   !important to tint the code block. We hard-set the color per tint (rather
+   than var(--prism-background-color)) so the <pre> background is guaranteed
+   regardless of how the custom-property cascade resolves from the container's
+   inline --prism-background-color declaration. Scoped to light mode only. */
+html[data-eyecare='warm']:not([data-theme='dark']) .theme-code-block pre,
+html[data-eyecare='warm']:not([data-theme='dark']) pre[class*='language-'] {
+  background-color: #efe4c2 !important;
+}
+html[data-eyecare='green']:not([data-theme='dark']) .theme-code-block pre,
+html[data-eyecare='green']:not([data-theme='dark']) pre[class*='language-'] {
+  background-color: #d8e8c8 !important;
+}
+html[data-eyecare='sepia']:not([data-theme='dark']) .theme-code-block pre,
+html[data-eyecare='sepia']:not([data-theme='dark']) pre[class*='language-'] {
+  background-color: #e6d6b2 !important;
+}
+html[data-eyecare='mist']:not([data-theme='dark']) .theme-code-block pre,
+html[data-eyecare='mist']:not([data-theme='dark']) pre[class*='language-'] {
+  background-color: #d2e0e4 !important;
+}
+
+/* Background-tint swatch fills (the dot users pick from). 'none' shows the
+   default page background so the cancel position reads as "no tint". Reuse the
+   theme-color-swatch base styling (circle / check / stagger) — only the fill
+   differs, so the two rows read as one consistent UI. */
+.bg-swatch--none  { background-color: var(--ifm-background-color); border-color: var(--ifm-color-emphasis-300); }
+.bg-swatch--warm  { background-color: #d9c878; }
+.bg-swatch--green { background-color: #a8c886; }
+.bg-swatch--sepia { background-color: #c4a96a; }
+.bg-swatch--mist  { background-color: #8fb3bd; }
+
+/* The check mark defaults to white (`.theme-color-check { color: #fff }`),
+   which is invisible on the near-white 'none' swatch — flip it dark there so
+   the selected state reads on the default/cancel position. */
+.bg-swatch--none .theme-color-check {
+  color: var(--ifm-color-emphasis-700);
 }
