@@ -15,7 +15,7 @@
 - 全站 41 个页面的骨架文件已生成（英文占位 + 中文占位各一份）
 - `sidebars/zh-hans.ts` 与 `sidebars/en.ts` 已按本文第 5 节的章节结构落好
 - 第 4.1 节的**通用组件全部完成**并已全局注册，预览页挂在两个 sidebar 的根层级最后一项
-- 1.1 `intro`（介绍与安装）已完成
+- 根文档 `intro`（介绍）与 1.1 `getting-started/installation`（安装）已完成
 - 1.2 `getting-started/quick-start`（快速开始）已完成，连带做出 `<CodeSteps>`
 
 未开始：
@@ -239,11 +239,13 @@ npm run build
 
 下表的「路径」同时是 `docs/` 与 `i18n/zh-Hans/.../current/` 下的相对路径（省略 `.mdx`）。
 
+根文档 `intro` 位于侧栏首项，不归入「入门」：介绍 Sparrow UI 的定位、能力与 Beta 状态，并引导到安装页。
+
 ### 5.1 入门（3 页）
 
 | 节 | 路径 | 内容 |
 |---|---|---|
-| 1.1 | `intro` | Sparrow UI 是什么（3 句）+ 能力速览表；兼容性（Paper / Folia `1.21.4`~`26.3`，Java 21，单构件跨版本）；Gradle 依赖 + Shadow `relocate`（**必须**，一句话说明代理类进服务端类加载器、不 relocate 会与其它插件撞类名）；`SparrowUI.getInstance().setUp(plugin)`。**只讲介绍与安装启动，不放示例菜单。** |
+| 1.1 | `getting-started/installation` | 兼容性；Gradle / Maven 依赖；必须配置的 Shadow / Shade relocate；`SparrowUI.getInstance().setUp(plugin)` 初始化与生命周期要求。 |
 | 1.2 | `getting-started/quick-start` | 一个完整、能直接跑的菜单，配分步演示组件。从空插件到玩家看见菜单为止，每一步都给代码 |
 | 1.3 | `getting-started/concepts` | 核心组件与层级关系：`Window ← Pane ← Element(Item / 子 Pane / Inventory)`，Signal 横穿、Visual 叠加、Session 串联。主体是交互式层级图，配每个概念 2~3 句 + 一行代码。术语表放 `appendix/glossary`，这页只做概念图 |
 

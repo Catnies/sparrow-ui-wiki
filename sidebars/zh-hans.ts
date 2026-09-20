@@ -4,12 +4,13 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
 const sidebars: SidebarsConfig = {
   tutorialSidebar: [
+    'intro',
     {
       type: 'category',
       label: '🚀 入门',
       collapsed: false,
       items: [
-        'intro',
+        'getting-started/installation',
         'getting-started/quick-start',
         'getting-started/concepts',
       ],
