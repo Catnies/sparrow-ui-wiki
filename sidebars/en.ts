@@ -4,7 +4,6 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 //
 // Mirrors sidebars/zh-hans.ts. The Chinese version is written first; the pages
 // under docs/ are English placeholders until translation starts.
-// See WIKI-PLAN.md at the repository root for the chapter plan.
 
 const sidebars: SidebarsConfig = {
   tutorialSidebar: [

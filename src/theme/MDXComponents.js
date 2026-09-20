@@ -4,8 +4,6 @@
 // 全站 41 页、每页都要用到 NextStep，再加上 MinecraftSlotGrid、ApiTable、ThreadBadge
 // 这些高频组件，逐页 import 既啰嗦又容易漏。注册在这里之后，所有 mdx
 // （包括 src/pages 下的页面）都能直接使用。
-//
-// 新增通用组件时记得同步加到这里，并在 WIKI-PLAN.md 第 4.1 节登记。
 
 import MDXComponents from '@theme-original/MDXComponents';
 import Tabs from '@theme/Tabs';
@@ -21,8 +19,6 @@ import NextStep from '@site/src/components/NextStep';
 import SignalHint from '@site/src/components/SignalHint';
 import ThreadBadge from '@site/src/components/ThreadBadge';
 import VersionBadge from '@site/src/components/VersionBadge';
-
-// 从 craft-engine-wiki 继承下来、本站仍然复用的组件
 import Details from '@site/src/components/Details';
 import EmbedCard from '@site/src/components/EmbedCard';
 import Highlight from '@site/src/components/Highlight';

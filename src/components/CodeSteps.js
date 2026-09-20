@@ -16,7 +16,7 @@
 //
 // lines 用 Docusaurus 代码块的高亮语法，'3'、'3-8'、'3,7-9' 都可以。
 
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useLayoutEffect, useRef, useState} from 'react';
 import CodeBlock from '@theme/CodeBlock';
 import {translate} from '@docusaurus/Translate';
 import styles from './CodeSteps.module.css';
@@ -42,23 +42,72 @@ export default function CodeSteps({code, language = 'java', title, steps = [], m
   const [expanded, setExpanded] = useState(false);
   const codeRef = useRef(null);
 
-  // 切步骤之后，把这一步的第一行高亮滚进视野。
-  // 不做这件事的话，稍长一点的类在浏览器里只露出开头几十行，
-  // 读者选了第 5 步却完全看不到高亮跑到哪去了。
-  useEffect(() => {
+  const bodyRef = useRef(null);
+  const noteRef = useRef(null);
+  const previousHeight = useRef(null);
+  const initialized = useRef(false);
+
+  const selectStep = (next) => {
+    if (next === active) return;
+    // 连续切换时从当前动画高度接续，不回到上一步的起点。
+    previousHeight.current = bodyRef.current.getBoundingClientRect().height;
+    setActive(next);
+  };
+
+  useLayoutEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const height = body.getBoundingClientRect().height;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const animations = [];
+    if (!reduceMotion && previousHeight.current !== null) {
+      if (Math.abs(previousHeight.current - height) > 1) {
+        animations.push(body.animate(
+          [{height: `${previousHeight.current}px`}, {height: `${height}px`}],
+          {duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)'},
+        ));
+      }
+      if (noteRef.current) {
+        animations.push(noteRef.current.animate([{opacity: 0.55}, {opacity: 1}], {duration: 180}));
+      }
+    }
+    previousHeight.current = null;
+    return () => animations.forEach((animation) => animation.cancel());
+  }, [active]);
+
+  useLayoutEffect(() => {
     const container = codeRef.current;
-    if (!container) return;
-    // 展开状态下没有滚动条，也就没有"滚到哪"这回事
-    if (expanded) return;
+    if (!container || expanded) return;
     const pre = container.querySelector('pre');
     const first = container.querySelector('.theme-code-block-highlighted-line');
     if (!pre || !first) return;
 
-    // 只动代码块自己的滚动条，不碰页面滚动——用 scrollIntoView 会把整页也带着跑
-    const target = first.offsetTop - pre.clientHeight / 2 + first.offsetHeight / 2;
-    const top = Math.max(0, Math.min(target, pre.scrollHeight - pre.clientHeight));
-    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-    pre.scrollTo({top, behavior: reduceMotion ? 'auto' : 'smooth'});
+    // 用滚动容器内的坐标判断可见性，避免 offsetTop 相对于外部祖先造成偏移。
+    const preRect = pre.getBoundingClientRect();
+    const firstRect = first.getBoundingClientRect();
+    const lineTop = firstRect.top - preRect.top + pre.scrollTop;
+    const start = pre.scrollTop;
+    const padding = firstRect.height * 2;
+    const alreadyVisible = lineTop >= start + padding && lineTop + firstRect.height <= start + pre.clientHeight - padding;
+    const firstRender = !initialized.current;
+    initialized.current = true;
+    if (alreadyVisible) return;
+
+    const top = Math.max(0, Math.min(lineTop - pre.clientHeight / 2 + firstRect.height / 2, pre.scrollHeight - pre.clientHeight));
+    if (firstRender || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      pre.scrollTop = top;
+      return;
+    }
+
+    let frame;
+    const started = performance.now();
+    const scroll = (now) => {
+      const progress = Math.min((now - started) / 280, 1);
+      pre.scrollTop = start + (top - start) * (1 - (1 - progress) ** 3);
+      if (progress < 1) frame = requestAnimationFrame(scroll);
+    };
+    frame = requestAnimationFrame(scroll);
+    return () => cancelAnimationFrame(frame);
   }, [active, expanded]);
 
   if (!Array.isArray(steps) || steps.length === 0 || typeof code !== 'string') {
@@ -85,10 +134,10 @@ export default function CodeSteps({code, language = 'java', title, steps = [], m
   const onKeyDown = (event) => {
     if (event.key === 'ArrowRight') {
       event.preventDefault();
-      setActive(Math.min(index + 1, steps.length - 1));
+      selectStep(Math.min(index + 1, steps.length - 1));
     } else if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      setActive(Math.max(index - 1, 0));
+      selectStep(Math.max(index - 1, 0));
     }
   };
 
@@ -101,7 +150,7 @@ export default function CodeSteps({code, language = 'java', title, steps = [], m
               type="button"
               className={`${styles.railItem} ${itemIndex === index ? styles.railItemActive : ''}`}
               aria-current={itemIndex === index ? 'step' : undefined}
-              onClick={() => setActive(itemIndex)}
+              onClick={() => selectStep(itemIndex)}
             >
               <span className={styles.railIndex}>{itemIndex + 1}</span>
               <span className={styles.railTitle}>{item.title}</span>
@@ -110,9 +159,9 @@ export default function CodeSteps({code, language = 'java', title, steps = [], m
         ))}
       </ol>
 
-      {/* key 换了就重新挂载，说明和预览的淡入动画因此每步重播一次 */}
-      <div className={styles.body} key={index}>
-        {step.note && <p className={styles.note}>{step.note}</p>}
+      {/* 保留预览节点，只过渡高度和说明文字，避免整个容器反复闪入。 */}
+      <div className={styles.body} ref={bodyRef}>
+        {step.note && <p className={styles.note} ref={noteRef}>{step.note}</p>}
         {step.preview && <div className={styles.preview}>{step.preview}</div>}
       </div>
 

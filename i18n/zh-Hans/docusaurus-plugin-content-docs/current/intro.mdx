@@ -8,11 +8,9 @@ slug: /
 
 ## 这是什么
 
-Sparrow UI 是一个**基于数据包的响应式 UI 库**，支持 Paper 与 Folia。菜单直接建立在协议层，不经过 Bukkit 容器，因此可以精确控制客户端看到的每一格、每一个原版控件。在这之上，它把菜单状态、库存交互、渲染和会话管理收进一套可复用的组件模型，让同一组 Item、Pane 和 Inventory 能够安全地服务多名玩家。
+Sparrow UI 是一个**基于数据包的响应式 UI 库**，支持 Paper 与 Folia。菜单直接建立在协议层，不经过 Bukkit 容器，因此可以精确控制客户端看到的每一格、每一个原版控件。在这之上，Sparrow UI 把菜单状态、库存交互、渲染和会话管理收进一套可复用的组件模型，让同一组 Item、Pane 和 Inventory 能够安全地服务多名玩家。
 
-它是一个**库**，随你的插件一起打包，服务端不需要额外装一份。
-
-用它可以做到：
+Sparrow UI 可以做到：
 
 - 覆盖全部原生容器菜单，箱子、铁砧、村民交易、制图台、附魔台、熔炉等各有独立的 Window API，连进度条、交易列表、配方书这些原版功能都能直接操控
 - 画面只是发给客户端的一层，视觉效果和动画可以随便叠，不会动到真实数据
@@ -87,8 +85,6 @@ shadowJar {
 
 :::warning[relocate 不是可选项]
 Sparrow UI 会把一份反射代理装进**服务端类加载器**，代理类的包名跟着库的运行时包名走。不 relocate 的话，任何两个携带 Sparrow UI 的插件都会在服务端类加载器里撞上同名类。
-
-目标包名要用你插件独有的前缀，不要用别人也可能选中的通用名字。
 :::
 
 ## 初始化
@@ -116,10 +112,6 @@ public final class MyPlugin extends JavaPlugin {
 
 :::danger[必须先 setUp，再碰 Sparrow UI 的任何类]
 在 `setUp` 完成之前，不要访问 Sparrow UI 的任何类，也不要构建 Item、Pane 或 Window。
-:::
-
-:::warning[setUp 只能调用一次]
-重复调用会抛 `IllegalStateException`。
 :::
 
 <NextStep

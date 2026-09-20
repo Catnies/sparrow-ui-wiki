@@ -1,10 +1,6 @@
 import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
-//
-// 章节顺序与页面清单由项目根目录的 WIKI-PLAN.md 定义, 改动请同步那份文档。
-// 阅读路径是一条直线: 先用静态写法讲完菜单的每个零件 (2~8 组),
-// 再由 Signal (9 组) 统一把它们点亮, 最后是进阶、附属内容与实战示例。
 
 const sidebars: SidebarsConfig = {
   tutorialSidebar: [
