@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunksparrow_ui_wiki=self.webpackChunksparrow_ui_wiki||[]).push([["1668"],{6569(r,e,s){s.r(e),s.d(e,{default:()=>t});var a=s(4848);s(6540);var u=s(4164),i=s(4308),c=s(8287),n=s(2831),p=s(6149);function t(r){return(0,a.jsx)(i.e3,{className:(0,u.A)(c.G.wrapper.docsPages),children:(0,a.jsx)(p.A,{children:(0,n.v)(r.route.routes)})})}}}]);
