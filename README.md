@@ -28,16 +28,21 @@ This command generates static content into the `build` directory and can be serv
 
 ## Deployment
 
-Using SSH:
+GitHub Actions builds and deploys the documentation whenever commits are pushed to
+`master`. The workflow can also be started manually from the Actions tab.
 
-```bash
-USE_SSH=true npm run deploy
-```
+The deployment follows the same workflow as Sparrow Sync Wiki:
 
-Not using SSH:
+1. Install locked dependencies with `npm ci` using Node.js 22.
+2. Build both English and Simplified Chinese documentation with `npm run build`.
+3. Update the `gh-pages` branch with the generated site and `.nojekyll`.
+4. Upload the Pages artifact and deploy it to GitHub Pages.
 
-```bash
-GIT_USER=<Your GitHub username> npm run deploy
-```
+The `gh-pages` branch contains generated output only; edit documentation on
+`master`. In repository **Settings → Pages**, the source must be **GitHub Actions**.
+The workflow uses the built-in `GITHUB_TOKEN`; no personal token is required.
 
-If you are using GitHub Pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+- English: https://catnies.github.io/sparrow-ui-wiki/
+- 简体中文: https://catnies.github.io/sparrow-ui-wiki/zh-Hans/
+
+Workflow: [deploy-pages.yml](.github/workflows/deploy-pages.yml).
