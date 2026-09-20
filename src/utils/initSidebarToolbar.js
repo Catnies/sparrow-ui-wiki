@@ -569,7 +569,6 @@ export default function initSidebarToolbar() {
     structObserver.disconnect();
     bodyObserver.disconnect();
     window.removeEventListener('resize', onResize);
-    if (scanRaf) cancelAnimationFrame(scanRaf);
     if (resizeRaf) cancelAnimationFrame(resizeRaf);
     // Remove all injected toolbars.
     document.querySelectorAll(`#${TOOLBAR_ID}`).forEach((el) => el.remove());

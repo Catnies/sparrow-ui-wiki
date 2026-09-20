@@ -14,11 +14,17 @@
 }
 
 .title {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   margin-bottom: 0.35rem;
   font-size: 0.95rem;
   font-weight: 600;
   color: color-mix(in srgb, hsl(var(--signal-hue) 70% 35%) 85%, var(--ifm-font-color-base));
+}
+
+.icon {
+  flex: none;
 }
 
 [data-theme='dark'] .title {

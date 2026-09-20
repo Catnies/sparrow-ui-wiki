@@ -518,5 +518,33 @@
   "signalHint.link": {
     "message": "前往 Signal 章节",
     "description": "SignalHint 提示卡的链接文案"
+  },
+  "exercise.tag": {
+    "message": "思考题",
+    "description": "Exercise 组件左上角的标记"
+  },
+  "exercise.approach": {
+    "message": "实现思路",
+    "description": "Exercise 组件中思路折叠段的标题"
+  },
+  "exercise.answer": {
+    "message": "参考实现",
+    "description": "Exercise 组件中参考代码折叠段的标题"
+  },
+  "minecraftSlotGrid.aria": {
+    "message": "容器风格的 Pane 结构预览",
+    "description": "MinecraftSlotGrid 网格的无障碍标签"
+  },
+  "codeSteps.expand": {
+    "message": "展开完整文件",
+    "description": "CodeSteps 组件中取消限高的按钮文案"
+  },
+  "codeSteps.collapse": {
+    "message": "收起",
+    "description": "CodeSteps 组件中恢复限高的按钮文案"
+  },
+  "minecraftWindow.inventory": {
+    "message": "物品栏",
+    "description": "Minecraft 容器内的玩家物品栏标题"
   }
 }

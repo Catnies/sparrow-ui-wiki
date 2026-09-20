@@ -1,0 +1,341 @@
+/* MinecraftSlotGrid.module.css
+   几何与配色逐条对齐 minecraft.wiki 的 mcui / invslot 体系，数值全部来自那边的
+   实际 CSS，不是目测：
+
+     .mcui     #c6c6c6 底，padding 6px，border 8px solid +
+               border-image: url(Inventory_background.png) 4 / 1 / 0 repeat，
+               background-clip: padding-box，image-rendering: pixelated
+     .invslot  32×32 content-box，#8b8b8b 底，border 2px solid
+               #373737 #fff #fff #373737，::before/::after 两个 2px 方块收角
+     hover     覆盖 50% 白
+
+   所有尺寸乘以 --mc-scale，scale={2} 时整体等比放大且保持像素对齐。
+   游戏 GUI 没有深浅色模式，任何文档主题下都是同一套配色。 */
+
+.wrapper {
+  margin: 1.2rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 24px;
+  width: 100%;
+  padding: 16px 0;
+  border-block: 1px solid var(--ifm-color-emphasis-200);
+  container-type: inline-size;
+}
+
+.viewport {
+  max-width: 100%;
+  overflow-x: auto;
+  line-height: 0;
+}
+
+.panel {
+  --mc-slot: calc(32px * var(--mc-scale));
+  --mc-edge: calc(2px * var(--mc-scale));
+
+  display: inline-block;
+  position: relative;
+  width: fit-content;
+  padding: calc(6px * var(--mc-scale));
+  background-color: #c6c6c6;
+  border-style: solid;
+  border-width: calc(8px * var(--mc-scale));
+  border-image: url('../../static/img/mc/inventory-background.png') 4 / 1 / 0 repeat;
+  background-clip: padding-box;
+  image-rendering: pixelated;
+  text-align: left;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* 面板自身要像素化放大边框贴图，里面的内容不该跟着糊 */
+.panel > * {
+  image-rendering: auto;
+}
+
+/* 标题与成品容器使用相同的 16px 字号和 2px 像素间距。 */
+.header {
+  display: block;
+  position: relative;
+  top: calc(-2px * var(--mc-scale));
+  padding-left: calc(2px * var(--mc-scale));
+  margin: 0 0 calc(4px * var(--mc-scale));
+  font-family: var(--mc-font);
+  font-size: calc(16px * var(--mc-scale));
+  line-height: calc(16px * var(--mc-scale));
+  font-synthesis: none;
+  color: #3f3f3f;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grid {
+  display: block;
+}
+
+.row {
+  display: flex;
+}
+
+/* ── 槽位 ───────────────────────────────────────────────────── */
+
+.slot {
+  position: relative;
+  box-sizing: content-box;
+  width: var(--mc-slot);
+  height: var(--mc-slot);
+  background-color: #8b8b8b;
+  border-style: solid;
+  border-width: var(--mc-edge);
+  border-color: #373737 #ffffff #ffffff #373737;
+  cursor: default;
+}
+
+/* 两个 2px 方块：把斜边边框相交处的生硬外角填平，和 invslot 的做法一致 */
+.slot::before,
+.slot::after {
+  content: '';
+  position: absolute;
+  width: var(--mc-edge);
+  height: var(--mc-edge);
+  background-color: #8b8b8b;
+  pointer-events: none;
+}
+
+.slot::before {
+  bottom: calc(-1 * var(--mc-edge));
+  left: calc(-1 * var(--mc-edge));
+}
+
+.slot::after {
+  top: calc(-1 * var(--mc-edge));
+  right: calc(-1 * var(--mc-edge));
+}
+
+/* 悬停盖白：游戏里鼠标指着哪一格哪一格发白，只有一格 */
+.slotLit {
+  background-color: #c5c5c5;
+}
+
+.slotActive {
+  outline: var(--mc-edge) solid #ffffff;
+  outline-offset: calc(-1 * var(--mc-edge));
+  z-index: 1;
+}
+
+.slot .icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  image-rendering: pixelated;
+}
+
+.slotLit .icon {
+  filter: brightness(1.5);
+}
+
+.slotLit .item {
+  box-shadow:
+    inset var(--mc-edge) var(--mc-edge) 0 rgb(255 255 255 / 35%),
+    inset calc(-1 * var(--mc-edge)) calc(-1 * var(--mc-edge)) 0 rgb(0 0 0 / 25%),
+    inset 0 0 0 999px rgb(255 255 255 / 45%);
+}
+
+/* ── 槽位里的"物品" ─────────────────────────────────────────── */
+
+/* 游戏里这里是物品贴图，这里换成一块按标志符着色的方块。
+   内嵌的两道 inset 阴影让它读起来像一个有厚度的方块图标，而不是一块色板。 */
+.item {
+  position: absolute;
+  inset: calc(2px * var(--mc-scale));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: hsl(var(--slot-hue) 48% 52%);
+  box-shadow:
+    inset var(--mc-edge) var(--mc-edge) 0 rgb(255 255 255 / 35%),
+    inset calc(-1 * var(--mc-edge)) calc(-1 * var(--mc-edge)) 0 rgb(0 0 0 / 25%);
+  transition: box-shadow 0.12s ease-out;
+}
+
+/* 同标志符联动：白色外框指认，不压暗别的格子 */
+.itemActive {
+  box-shadow:
+    inset var(--mc-edge) var(--mc-edge) 0 rgb(255 255 255 / 35%),
+    inset calc(-1 * var(--mc-edge)) calc(-1 * var(--mc-edge)) 0 rgb(0 0 0 / 25%),
+    0 0 0 var(--mc-edge) #ffffff;
+  z-index: 2;
+}
+
+.slotLit .itemActive {
+  box-shadow:
+    inset var(--mc-edge) var(--mc-edge) 0 rgb(255 255 255 / 35%),
+    inset calc(-1 * var(--mc-edge)) calc(-1 * var(--mc-edge)) 0 rgb(0 0 0 / 25%),
+    inset 0 0 0 999px rgb(255 255 255 / 45%),
+    0 0 0 var(--mc-edge) #ffffff;
+}
+
+/* 标志符字样照搬物品堆叠数的写法：白字 + 右下 1.5px 深影 */
+.itemLabel {
+  font-family: var(--mc-font);
+  font-size: calc(15px * var(--mc-scale));
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: calc(1.5px * var(--mc-scale)) calc(1.5px * var(--mc-scale)) 0 #3f3f3f;
+  max-width: 100%;
+  padding: 0 calc(1px * var(--mc-scale));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* 反引号写法的多字符标志符换小字号，常见的 6~8 字符能完整显示 */
+.itemLabelLong {
+  font-size: calc(7px * var(--mc-scale));
+}
+
+/* 留空位的标志符：不套彩色方块，字符直接压在槽底上，
+   看得见但不抢镜，读者数格子时仍然有参照。 */
+.emptyLabel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mc-font);
+  font-size: calc(13px * var(--mc-scale));
+  line-height: 1;
+  color: #6f6f6f;
+  text-shadow: calc(1px * var(--mc-scale)) calc(1px * var(--mc-scale)) 0 rgb(255 255 255 / 22%);
+  pointer-events: none;
+}
+
+/* 槽号角标，位置与 invslot-stacksize 一致（游戏里没有槽号，纯文档辅助） */
+.stackSize {
+  position: absolute;
+  right: calc(2px * var(--mc-scale));
+  bottom: calc(1px * var(--mc-scale));
+  font-family: var(--mc-font);
+  font-size: calc(9px * var(--mc-scale));
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: calc(1.5px * var(--mc-scale)) calc(1.5px * var(--mc-scale)) 0 #3f3f3f;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* 宽版面中图例列在容器右侧；窄版面移到下方，保持相同的分隔关系。 */
+
+.legend {
+  list-style: none;
+  flex: 1 1 180px;
+  margin: 0;
+  padding: 0 0 0 24px;
+  border-left: 1px solid var(--ifm-color-emphasis-300);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: default;
+  transition: background-color 0.15s ease-out;
+}
+
+.legendItemActive {
+  background-color: var(--ifm-color-emphasis-200);
+}
+
+.legendItem .legendIcon {
+  width: 14px;
+  height: 14px;
+  border-radius: 0;
+  image-rendering: pixelated;
+}
+
+/* 色块直接用槽位里那块方块的配色和厚度，两边对得上 */
+.swatch {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  background-color: hsl(var(--slot-hue) 48% 52%);
+  box-shadow:
+    inset 2px 2px 0 rgb(255 255 255 / 35%),
+    inset -2px -2px 0 rgb(0 0 0 / 25%);
+}
+
+/* 留空标志符没有方块，图例里画一个空槽 */
+.swatchEmpty {
+  background-color: #8b8b8b;
+  box-shadow:
+    inset 2px 2px 0 #373737,
+    inset -2px -2px 0 #ffffff;
+}
+
+.legendIdentifier {
+  font-size: 0.8rem;
+  padding: 0.05em 0.35em;
+}
+
+.legendText {
+  font-size: 0.85rem;
+  color: var(--ifm-font-color-base);
+}
+
+/* 占用格数，弱化显示，读者想数的时候才会注意到 */
+.legendCount {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.caption {
+  flex-basis: 100%;
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+@container (max-width: 600px) {
+  .legend {
+    flex-basis: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 12px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--ifm-color-emphasis-200);
+  }
+}
+
+/* 模板写错时就地报错，不要让页面静默画出一块错的网格 */
+.error {
+  margin: 1.2rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+  color: color-mix(in srgb, hsl(0 70% 40%) 85%, var(--ifm-font-color-base));
+  background-color: color-mix(in srgb, hsl(0 70% 50%) 8%, var(--ifm-background-surface-color));
+  border: 1px solid color-mix(in srgb, hsl(0 70% 50%) 35%, var(--ifm-background-surface-color));
+}
+
+[data-theme='dark'] .error {
+  color: color-mix(in srgb, hsl(0 70% 70%) 85%, var(--ifm-font-color-base));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .legendItem {
+    transition: none;
+  }
+}

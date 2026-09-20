@@ -118,7 +118,7 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     zoom: {
-      selector: '.markdown img',
+      selector: '.markdown img:not(.no-zoom)',
       background: {
         light: 'rgba(255,255,255,0.8)',
         dark: 'rgba(36,36,36,0.8)',

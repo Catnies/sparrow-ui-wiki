@@ -25,6 +25,22 @@ export default function SignalHint({to = '/signal/why', linkText, children}) {
   return (
     <aside className={styles.card}>
       <span className={styles.title}>
+        {/* 闪电：和 Signal 章节在侧边栏用的 ⚡ 对应上。
+            画成内联 SVG 而不是 emoji，免得再撞上字体缺字的问题。 */}
+        <svg
+          className={styles.icon}
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
         {translate({
           id: 'signalHint.title',
           message: 'Want this to update by itself?',

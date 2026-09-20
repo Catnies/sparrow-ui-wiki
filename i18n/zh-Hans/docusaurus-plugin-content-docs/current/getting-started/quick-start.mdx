@@ -3,8 +3,221 @@ title: 快速开始
 sidebar_label: 快速开始
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 1.2 节。 */}
+## 快速编写一个简单菜单
 
-:::info
-本页尚未撰写。
+这里我们尝试编写一个欢迎示例菜单，它是一个三行箱子容器，一圈装饰背景，中间两个按钮，一个向玩家问好，一个关掉菜单。
+
+把鼠标放到物品上查看名称和说明：
+
+<MinecraftWindow
+  type="chest"
+  rows={3}
+  title="欢迎菜单"
+  layout={["#########", "###G#C###", "#########"]}
+  items={{
+    '#': {icon: 'gray_stained_glass_pane'},
+    G: {
+      icon: 'lime_dye',
+      name: '打个招呼',
+      nameColor: '#ffff55',
+      lore: ['点一下, 向自己问好。'],
+    },
+    C: {
+      icon: 'barrier',
+      name: '关闭',
+      nameColor: '#ff5555',
+      lore: ['点一下, 关掉这个菜单。'],
+    },
+  }}
+/>
+
+## 定义菜单的布局
+
+布局由三行字符串声明，一个字符一格：
+
+```java
+Pane.builder(
+        "#########",
+        "###G#C###",
+        "#########"
+)
+```
+
+`#` 那一圈是不可点的装饰，`G` 和 `C` 是两个按钮。每个字符落在哪一格：
+
+<MinecraftSlotGrid
+  rows={["#########", "###G#C###", "#########"]}
+  legend={{'#': '装饰背景', G: '打招呼', C: '关闭菜单'}}
+/>
+
+## 一步步写出来
+
+菜单就是下面这一个类。点步骤条看每一段分别在做什么，没被选中的行会压暗，代码始终是同一份。
+
+<CodeSteps
+  language="java"
+  steps={[
+    {
+      title: '画出布局',
+      lines: '27-31',
+      note: '三行字符串就是菜单的形状：一个字符一格，三行九列就是一个 27 格的箱子。字符本身随便挑，它只是个代号，用来在下一步指认"这些格子放什么"。',
+      preview: (
+        <MinecraftSlotGrid
+          rows={["#########", "###G#C###", "#########"]}
+          legend={{'#': '还没安排', G: '还没安排', C: '还没安排'}}
+        />
+      ),
+    },
+    {
+      title: '铺上背景',
+      lines: '32,64-68',
+      note: 'setBackground 管的是所有没被单独安排的格子，也就是这里的一整圈 #。背景物品点不动，用来占位和分区。',
+      preview: (
+        <MinecraftSlotGrid
+          rows={["#########", "###G#C###", "#########"]}
+          icons={{'#': 'gray_stained_glass_pane'}}
+          legend={{'#': '灰色玻璃板', G: '还没安排', C: '还没安排'}}
+        />
+      ),
+    },
+    {
+      title: '把按钮填进格子',
+      lines: '33-34',
+      note: 'addIngredient 把一个字符和一个 Item 绑在一起。绑一次，这个字符出现在布局里的每一格都会用它——两个按钮各只出现一次，所以各占一格。',
+      preview: (
+        <MinecraftSlotGrid
+          rows={["#########", "###G#C###", "#########"]}
+          icons={{'#': 'gray_stained_glass_pane', G: 'lime_dye', C: 'barrier'}}
+          legend={{'#': '灰色玻璃板', G: '打招呼按钮', C: '关闭按钮'}}
+        />
+      ),
+    },
+    {
+      title: '按钮长什么样',
+      lines: '40-42',
+      note: '外观就是一个普通的 ItemStack。名称和描述用 Paper 的数据组件 API 设置，不要再用 ItemMeta。关掉默认斜体是个习惯，否则原版会把自定义名称显示成斜体。',
+    },
+    {
+      title: '点下去做什么',
+      lines: '46-47,59',
+      note: 'addClickHandler 收到的 click 里有这次点击的全部上下文：谁点的、点在哪一格、哪种点击、当时光标上拿着什么、属于哪扇窗口。关闭按钮要用的就是其中的 window()。',
+    },
+    {
+      title: '打开它',
+      lines: '19-23',
+      note: 'Window.builder 接一块 Pane 作为上半部分，下半部分自动映射玩家自己的物品栏。open 把菜单发给玩家。',
+    },
+  ]}
+  code={`
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.momirealms.sparrow.ui.item.Item;
+import net.momirealms.sparrow.ui.pane.NormalPane;
+import net.momirealms.sparrow.ui.pane.Pane;
+import net.momirealms.sparrow.ui.window.Window;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+public final class WelcomeMenu {
+
+    private WelcomeMenu() {
+    }
+
+    /** 给一名玩家打开欢迎菜单。 */
+    public static void open(Player viewer) {
+        Window.builder(buildPane())
+                .setTitle(Component.text("欢迎菜单"))
+                .open(viewer);
+    }
+
+    /** 菜单的布局：一圈背景，中间两个按钮。 */
+    private static NormalPane buildPane() {
+        return Pane.builder(
+                        "#########",
+                        "###G#C###",
+                        "#########"
+                )
+                .setBackground(background())
+                .addIngredient('G', greetButton())
+                .addIngredient('C', closeButton())
+                .build();
+    }
+
+    /** 点一下向玩家问好。 */
+    private static Item greetButton() {
+        ItemStack itemStack = new ItemStack(Material.LIME_DYE);
+        itemStack.setData(DataComponentTypes.CUSTOM_NAME,
+                Component.text("打个招呼", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+
+        return Item.builder()
+                .setItemProviderConstant(itemStack)
+                .addClickHandler(click -> click.player().sendMessage(
+                        Component.text("你好, " + click.player().getName() + "!", NamedTextColor.GREEN)))
+                .build();
+    }
+
+    /** 点一下关掉菜单。 */
+    private static Item closeButton() {
+        ItemStack itemStack = new ItemStack(Material.BARRIER);
+        itemStack.setData(DataComponentTypes.CUSTOM_NAME,
+                Component.text("关闭", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+
+        return Item.builder()
+                .setItemProviderConstant(itemStack)
+                .addClickHandler(click -> click.window().close())
+                .build();
+    }
+
+    /** 空槽位显示的装饰物品。 */
+    private static ItemStack background() {
+        ItemStack itemStack = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+        itemStack.setData(DataComponentTypes.CUSTOM_NAME, Component.empty());
+        return itemStack;
+    }
+}
+`}
+/>
+
+## 添加一个命令打开它
+
+菜单类写完了，还差一个调用它的地方。下面用 Paper 的 Brigadier 命令 API 注册一条 `/welcome`，在 `LifecycleEvents.COMMANDS` 里完成：
+
+```java
+// 在你的 JavaPlugin#onEnable 里
+this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event ->
+        event.registrar().register(
+                Commands.literal("welcome")
+                        .executes(context -> {
+                            if (context.getSource().getExecutor() instanceof Player player) {
+                                WelcomeMenu.open(player);
+                            }
+                            return Command.SINGLE_SUCCESS;
+                        })
+                        .build(),
+                "打开欢迎菜单"));
+```
+
+进服务器打 `/welcome`，菜单就出来了。命令 API 本身的完整说明见 Paper 官方文档的 [Command API](https://docs.papermc.io/paper/dev/command-api/basics/introduction/)。
+
+:::tip[build 和 open 都允许异步调用]
+`build(viewer)` 与 `open()` 都可以在异步线程上调用 <ThreadBadge type="any" />，菜单构建不需要挤在主线程上完成。
+
+需要自己负责的是**从异步开始构建，到菜单真正打开的这段时间里，世界可能已经变了**。例如玩家右键一个潜影盒物品，你异步读出里面的内容构建菜单，等菜单真正打开时，玩家手里拿的可能已经不是那个潜影盒了。这类校验库不会替你做。
 :::
+
+:::info[open 的返回值]
+`open()` 返回 `CompletableFuture<Window.OpenResult>`，结果有三种：`OPENED`、`ALREADY_OPEN`、`VIEWER_UNAVAILABLE`。上面的例子不关心结果所以直接丢掉了。
+:::
+
+<SignalHint>
+这个菜单里的每个物品都是固定的。要让它随数据变化自动更新，见 Signal 章节。
+</SignalHint>
+
+<NextStep
+  to="/getting-started/concepts"
+  title="核心概念与层级"
+  description="Window、Pane、Item 之间到底是什么关系"
+/>

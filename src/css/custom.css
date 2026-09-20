@@ -1,4 +1,27 @@
 @font-face {
+  /* Unifont — Minecraft 自己的 CJK 就是用它渲染的，所以容器里的中文交给它，
+     像素感和拉丁字母那一半对得上。
+     编译后的字体是 SIL OFL 1.1 与 GPL + 字体嵌入例外的双许可，本站按 OFL 1.1 使用，
+     许可证原文在 src/fonts/unifont-LICENSE.txt。
+     子集由 scripts/subset-font.mjs 按文档里实际出现的汉字生成，每次构建自动更新。 */
+  font-family: 'Unifont';
+  src: url('../fonts/unifont.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  /* Hypixel SkyBlock Wiki 的 Minecraft 字体；来源和许可见 src/fonts/minecraft-README.md。 */
+  font-family: 'Minecraft';
+  src: url('../fonts/minecraft.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0020-007E, U+00A0-00FF;
+}
+
+@font-face {
   font-family: 'Segoe UI Emoji';
   src: local('Segoe UI Emoji'),
        local('Noto Color Emoji'),
@@ -25,6 +48,9 @@
 
   /* Wider sidebar + slightly smaller menu text so long labels fit comfortably. */
   --doc-sidebar-width: 320px;
+
+  /* 容器使用游戏比例的拉丁字形，中文使用 Unifont 像素字形。 */
+  --mc-font: 'Minecraft', 'Unifont', monospace;
   --ifm-menu-link-padding-horizontal: 0.7rem;
   --ifm-menu-link-padding-vertical: 0.34rem;
 }

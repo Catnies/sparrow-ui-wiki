@@ -71,18 +71,78 @@ console.log(`[subset-font] ${glyphs.size} glyphs used across docs`);
 // Skip the rebuild if the existing subset already covers every glyph.
 // (Cheap check: keep a manifest of what went in.)
 const manifestPath = FONT_OUT + '.manifest';
-if (fs.existsSync(FONT_OUT) && fs.existsSync(manifestPath)) {
-  const prev = fs.readFileSync(manifestPath, 'utf8');
-  if (prev === text) {
-    console.log('[subset-font] unchanged, skipping');
-    process.exit(0);
-  }
+const prevEmoji =
+  fs.existsSync(FONT_OUT) && fs.existsSync(manifestPath)
+    ? fs.readFileSync(manifestPath, 'utf8')
+    : null;
+
+if (prevEmoji === text) {
+  console.log('[subset-font] unchanged, skipping');
+} else {
+  const full = fs.readFileSync(FONT_IN);
+  const subset = await subsetFont(full, text, {targetFormat: 'woff2'});
+  fs.writeFileSync(FONT_OUT, subset);
+  fs.writeFileSync(manifestPath, text);
+  console.log(
+    `[subset-font] ${(full.length / 1e6).toFixed(2)} MB -> ${(subset.length / 1e3).toFixed(1)} KB`
+  );
 }
 
-const full = fs.readFileSync(FONT_IN);
-const subset = await subsetFont(full, text, {targetFormat: 'woff2'});
-fs.writeFileSync(FONT_OUT, subset);
-fs.writeFileSync(manifestPath, text);
-console.log(
-  `[subset-font] ${(full.length / 1e6).toFixed(2)} MB -> ${(subset.length / 1e3).toFixed(1)} KB`
-);
+// ── Unifont: CJK pixel glyphs for the Minecraft container components ────────
+//
+// Minecraft webfont 提供拉丁字形，容器标题和 tooltip 里的中文由 Unifont 补齐。
+// 整份 Unifont 有 5 MB，这里按文档里实际出现的汉字子集，体积可控，
+// 而且每次构建都会重跑，新加的字自动进子集。
+//
+// 许可证：Unifont 编译后的字体是 SIL OFL 1.1 与 GPL + 字体嵌入例外的**双许可**，
+// 本站按 OFL 1.1 使用。许可证原文在 src/fonts/unifont-LICENSE.txt。
+
+const UNIFONT_IN = path.join(root, 'src/fonts/unifont.full.otf');
+const UNIFONT_OUT = path.join(root, 'src/fonts/unifont.woff2');
+
+function collectCjk() {
+  const chars = new Set();
+  for (const dir of SCAN_DIRS) {
+    const abs = path.join(root, dir);
+    if (!fs.existsSync(abs)) continue;
+    for (const file of walk(abs)) {
+      for (const ch of fs.readFileSync(file, 'utf8')) {
+        const cp = ch.codePointAt(0);
+        if (
+          (cp >= 0x3000 && cp <= 0x303f) || // CJK 标点
+          (cp >= 0x3400 && cp <= 0x4dbf) || // 扩展 A
+          (cp >= 0x4e00 && cp <= 0x9fff) || // 基本区
+          (cp >= 0xf900 && cp <= 0xfaff) || // 兼容汉字
+          (cp >= 0xff00 && cp <= 0xffef) // 全角字符
+        ) {
+          chars.add(ch);
+        }
+      }
+    }
+  }
+  return chars;
+}
+
+if (fs.existsSync(UNIFONT_IN)) {
+  const cjk = collectCjk();
+  const cjkText = [...cjk].join('');
+  console.log(`[subset-font] ${cjk.size} CJK glyphs used across docs`);
+
+  const cjkManifest = UNIFONT_OUT + '.manifest';
+  const prevCjk =
+    fs.existsSync(UNIFONT_OUT) && fs.existsSync(cjkManifest)
+      ? fs.readFileSync(cjkManifest, 'utf8')
+      : null;
+
+  if (prevCjk === cjkText) {
+    console.log('[subset-font] unifont unchanged, skipping');
+  } else {
+    const unifontFull = fs.readFileSync(UNIFONT_IN);
+    const unifontSubset = await subsetFont(unifontFull, cjkText, {targetFormat: 'woff2'});
+    fs.writeFileSync(UNIFONT_OUT, unifontSubset);
+    fs.writeFileSync(cjkManifest, cjkText);
+    console.log(
+      `[subset-font] unifont ${(unifontFull.length / 1e6).toFixed(2)} MB -> ${(unifontSubset.length / 1e3).toFixed(1)} KB`
+    );
+  }
+}

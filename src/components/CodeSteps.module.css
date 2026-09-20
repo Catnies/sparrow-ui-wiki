@@ -1,0 +1,234 @@
+/* CodeSteps.module.css
+   配色一律走 --ifm-* 与 color-mix，浅色 / 深色 / 四种护眼底色自动跟随。 */
+
+.container {
+  margin: 1.4rem 0;
+}
+
+/* ── 步骤条 ─────────────────────────────────────────────────── */
+
+.rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 0 0 0.9rem;
+  padding: 0;
+}
+
+.rail li {
+  margin: 0;
+}
+
+.railItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 6px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  text-align: left;
+
+  color: var(--ifm-color-emphasis-700);
+  background-color: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  transition:
+    background-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    color 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.railItem:hover {
+  border-color: var(--ifm-color-emphasis-500);
+  color: var(--ifm-font-color-base);
+}
+
+.railItemActive,
+.railItemActive:hover {
+  color: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  background-color: color-mix(in srgb, var(--ifm-color-primary) 8%, var(--ifm-background-surface-color));
+}
+
+.railIndex {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 50%;
+  font-size: 0.74rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+
+  color: var(--ifm-background-surface-color);
+  background-color: var(--ifm-color-emphasis-500);
+  transition: background-color 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.railItemActive .railIndex {
+  background-color: var(--ifm-color-primary);
+}
+
+.railTitle {
+  white-space: nowrap;
+}
+
+/* ── 说明与预览 ─────────────────────────────────────────────── */
+
+/* key 变化会让这一块重新挂载，动画因此每步重播。
+   注意这里不做高度过渡：容器一旦为了裁剪加上 overflow: hidden 就会建立 BFC，
+   内部外边距不再穿透折叠，周围正文会被推走——BuildTabs 踩过这个坑。 */
+.body {
+  animation: codeStepsBodyIn 280ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes codeStepsBodyIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.note {
+  margin: 0 0 0.6rem;
+  padding-left: 0.8rem;
+  border-left: 2px solid var(--ifm-color-primary);
+  border-radius: 0; /* 单边边框不能带圆角 */
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--ifm-font-color-base);
+}
+
+.preview {
+  margin-bottom: 0.4rem;
+}
+
+/* 预览里塞的通常是 MinecraftSlotGrid，它自带上下外边距，这里收掉避免间距翻倍 */
+.preview > :first-child {
+  margin-top: 0;
+}
+
+.preview > :last-child {
+  margin-bottom: 0;
+}
+
+/* ── 代码区 ─────────────────────────────────────────────────── */
+
+/* 限高 + 内部滚动。整个类几十行，不限高的话选了靠后的步骤，
+   高亮会落在视野之外，读者只看得到开头一屏。切步骤时由 JS 把第一行高亮
+   滚到中间，见 CodeSteps.js。 */
+.codeArea :global(pre) {
+  max-height: var(--code-max-height, 23rem);
+  scroll-behavior: smooth;
+}
+
+/* 展开：撤掉限高，整份文件一次看完。
+   页面里不需要再贴第二份完整代码，复制也直接用代码块自带的复制按钮。 */
+.codeAreaExpanded :global(pre) {
+  max-height: none;
+}
+
+/* 关键一步：把没被选中的行压暗。
+   Docusaurus 默认只给高亮行加一层很淡的底色，在深色主题下几乎看不出来，
+   读者根本注意不到"这一步在讲哪几行"。反过来压暗其余行，对比才立得住。 */
+.codeArea :global(.token-line:not(.theme-code-block-highlighted-line)) {
+  opacity: 0.32;
+  transition: opacity 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.codeAreaExpanded :global(.token-line:not(.theme-code-block-highlighted-line)) {
+  opacity: 1;
+}
+
+.codeArea :global(.token-line.theme-code-block-highlighted-line) {
+  transition: opacity 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ── 上下步 ─────────────────────────────────────────────────── */
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 0.7rem;
+}
+
+.navButton {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 13px;
+  border-radius: var(--ifm-global-radius, 6px);
+  cursor: pointer;
+  font-size: 0.86rem;
+
+  color: var(--ifm-font-color-base);
+  background-color: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  transition:
+    background-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 220ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.navButton:hover:not(:disabled) {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.chevron {
+  flex: none;
+  transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.progress {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.error {
+  margin: 1.4rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+  color: color-mix(in srgb, hsl(0 70% 40%) 85%, var(--ifm-font-color-base));
+  background-color: color-mix(in srgb, hsl(0 70% 50%) 8%, var(--ifm-background-surface-color));
+  border: 1px solid color-mix(in srgb, hsl(0 70% 50%) 35%, var(--ifm-background-surface-color));
+}
+
+[data-theme='dark'] .error {
+  color: color-mix(in srgb, hsl(0 70% 70%) 85%, var(--ifm-font-color-base));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body {
+    animation: none;
+  }
+
+  .railItem,
+  .railIndex,
+  .navButton,
+  .codeArea :global(.token-line) {
+    transition: none;
+  }
+
+  .codeArea :global(pre) {
+    scroll-behavior: auto;
+  }
+}

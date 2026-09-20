@@ -1,0 +1,137 @@
+/* Exercise.module.css
+   用固定的紫色色相，全站的思考题长一个样，读者扫一眼就知道"这块需要自己先想一下"。
+   不跟随主题色，正因为它需要是个固定标记。 */
+
+.card {
+  --exercise-hue: 268;
+
+  margin: 1.5rem 0;
+  padding: 1rem 1.15rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, hsl(var(--exercise-hue) 60% 50%) 32%, var(--ifm-background-surface-color));
+  background-color: color-mix(in srgb, hsl(var(--exercise-hue) 60% 50%) 5%, var(--ifm-background-surface-color));
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+
+.tag {
+  flex: none;
+  padding: 0.1em 0.55em;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.7;
+  color: color-mix(in srgb, hsl(var(--exercise-hue) 60% 38%) 88%, var(--ifm-font-color-base));
+  background-color: color-mix(in srgb, hsl(var(--exercise-hue) 60% 50%) 14%, var(--ifm-background-surface-color));
+  border: 1px solid color-mix(in srgb, hsl(var(--exercise-hue) 60% 50%) 34%, var(--ifm-background-surface-color));
+}
+
+[data-theme='dark'] .tag {
+  color: color-mix(in srgb, hsl(var(--exercise-hue) 60% 72%) 88%, var(--ifm-font-color-base));
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--ifm-font-color-base);
+}
+
+.problem {
+  font-size: 0.95rem;
+  line-height: 1.75;
+}
+
+.problem > :first-child {
+  margin-top: 0;
+}
+
+.problem > :last-child {
+  margin-bottom: 0;
+}
+
+/* ── 折叠段 ─────────────────────────────────────────────────── */
+
+.stage {
+  margin-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, hsl(var(--exercise-hue) 60% 50%) 22%, var(--ifm-background-surface-color));
+  border-radius: 0; /* 单边边框不能带圆角 */
+  padding-top: 0.7rem;
+}
+
+.stageHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.6;
+  color: color-mix(in srgb, hsl(var(--exercise-hue) 60% 38%) 88%, var(--ifm-font-color-base));
+  transition: opacity 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+[data-theme='dark'] .stageHeader {
+  color: color-mix(in srgb, hsl(var(--exercise-hue) 60% 72%) 88%, var(--ifm-font-color-base));
+}
+
+.stageHeader:hover {
+  opacity: 0.78;
+}
+
+.chevron {
+  flex: none;
+  transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+/* 展开是条件渲染，挂载时淡入。不做高度过渡，也就不需要 overflow 裁剪，
+   避免 BFC 改变外边距折叠把周围正文推走。 */
+.stageBody {
+  margin-top: 0.55rem;
+  font-size: 0.95rem;
+  line-height: 1.75;
+  animation: exerciseStageIn 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.stageBody > :first-child {
+  margin-top: 0;
+}
+
+.stageBody > :last-child {
+  margin-bottom: 0;
+}
+
+@keyframes exerciseStageIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stageBody {
+    animation: none;
+  }
+
+  .chevron,
+  .stageHeader {
+    transition: none;
+  }
+}

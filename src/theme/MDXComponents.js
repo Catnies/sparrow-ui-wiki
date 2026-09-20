@@ -1,7 +1,7 @@
 // src/theme/MDXComponents.js
-// 全局注册文档组件，让 mdx 里直接写 <SlotGrid />，不用每页顶上重复 import。
+// 全局注册文档组件，让 mdx 里直接写 <MinecraftSlotGrid />，不用每页顶上重复 import。
 //
-// 全站 41 页、每页都要用到 NextStep，再加上 SlotGrid、ApiTable、ThreadBadge
+// 全站 41 页、每页都要用到 NextStep，再加上 MinecraftSlotGrid、ApiTable、ThreadBadge
 // 这些高频组件，逐页 import 既啰嗦又容易漏。注册在这里之后，所有 mdx
 // （包括 src/pages 下的页面）都能直接使用。
 //
@@ -13,9 +13,12 @@ import TabItem from '@theme/TabItem';
 
 import ApiTable from '@site/src/components/ApiTable';
 import BuildTabs from '@site/src/components/BuildTabs';
+import CodeSteps from '@site/src/components/CodeSteps';
+import Exercise, {ExerciseApproach, ExerciseAnswer} from '@site/src/components/Exercise';
+import MinecraftSlotGrid from '@site/src/components/MinecraftSlotGrid';
+import MinecraftWindow from '@site/src/components/MinecraftWindow';
 import NextStep from '@site/src/components/NextStep';
 import SignalHint from '@site/src/components/SignalHint';
-import SlotGrid from '@site/src/components/SlotGrid';
 import ThreadBadge from '@site/src/components/ThreadBadge';
 import VersionBadge from '@site/src/components/VersionBadge';
 
@@ -35,9 +38,14 @@ export default {
   // Sparrow UI Wiki 通用组件
   ApiTable,
   BuildTabs,
+  CodeSteps,
+  Exercise,
+  ExerciseApproach,
+  ExerciseAnswer,
+  MinecraftSlotGrid,
+  MinecraftWindow,
   NextStep,
   SignalHint,
-  SlotGrid,
   ThreadBadge,
   VersionBadge,
 

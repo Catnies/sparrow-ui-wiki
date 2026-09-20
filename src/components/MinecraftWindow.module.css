@@ -1,0 +1,124 @@
+/* MinecraftWindow.module.css
+   全部尺寸都是「贴图原始像素 × --mcw-scale」，所以任何倍数下像素都对得齐。
+   贴图一律 image-rendering: pixelated，放大不糊。
+   游戏 GUI 没有深浅色模式，任何文档主题下都是同一套配色。 */
+
+.wrapper {
+  margin: 1.2rem 0;
+  overflow-x: auto;
+}
+
+.stage {
+  --mcw-scale: 2;
+  position: relative;
+  display: inline-block;
+}
+
+.frame {
+  position: relative;
+  image-rendering: pixelated;
+  user-select: none;
+}
+
+/* 窗口本体的一段贴图。定位与背景偏移由组件按 mcWindows.js 的 parts 算好传进来。 */
+.part {
+  position: absolute;
+  left: 0;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+/* 容器标题。原版画在 (8,6) 处，颜色 #404040。 */
+.title {
+  position: absolute;
+  font-family: var(--mc-font);
+  font-size: calc(8px * var(--mcw-scale));
+  font-synthesis: none;
+  line-height: 1;
+  color: #404040;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.slot {
+  position: absolute;
+  image-rendering: pixelated;
+  cursor: default;
+}
+
+.slot:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -2px;
+}
+
+.slot .icon {
+  border-radius: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+/* 悬停盖白：原版是 0x80FFFFFF 覆在 16×16 的物品区上 */
+.highlight {
+  position: absolute;
+  inset: 0;
+  background-color: rgb(255 255 255 / 50%);
+  pointer-events: none;
+}
+
+/* 深色底、单像素紫色内框和阶梯外沿；尺寸随 GUI 倍数一起变化。 */
+.tooltip {
+  position: fixed;
+  z-index: 1000;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  padding: calc(3px * var(--mcw-scale));
+  border: calc(1px * var(--mcw-scale)) solid;
+  border-image: linear-gradient(rgb(80 0 255 / 50%), rgb(40 0 127 / 50%)) 1;
+  background: rgb(16 0 16 / 94%);
+  box-shadow:
+    calc(-1px * var(--mcw-scale)) 0 0 rgb(16 0 16 / 94%),
+    calc(1px * var(--mcw-scale)) 0 0 rgb(16 0 16 / 94%),
+    0 calc(-1px * var(--mcw-scale)) 0 rgb(16 0 16 / 94%),
+    0 calc(1px * var(--mcw-scale)) 0 rgb(16 0 16 / 94%);
+  font-family: var(--mc-font);
+  font-size: calc(8px * var(--mcw-scale));
+  font-weight: normal;
+  font-style: normal;
+  font-synthesis: none;
+  line-height: calc(10px * var(--mcw-scale));
+  text-align: left;
+  text-shadow: calc(1px * var(--mcw-scale)) calc(1px * var(--mcw-scale)) 0 #3f3f3f;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+.tooltipName,
+.tooltipLore {
+  display: block;
+}
+
+.tooltipName:has(+ .tooltipLore) {
+  margin-bottom: calc(2px * var(--mcw-scale));
+}
+
+.tooltipLore {
+  color: #aaaaaa;
+}
+
+.error {
+  margin: 1.2rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+  color: color-mix(in srgb, hsl(0 70% 40%) 85%, var(--ifm-font-color-base));
+  background-color: color-mix(in srgb, hsl(0 70% 50%) 8%, var(--ifm-background-surface-color));
+  border: 1px solid color-mix(in srgb, hsl(0 70% 50%) 35%, var(--ifm-background-surface-color));
+}
+
+[data-theme='dark'] .error {
+  color: color-mix(in srgb, hsl(0 70% 70%) 85%, var(--ifm-font-color-base));
+}

@@ -16,11 +16,14 @@
 - `sidebars/zh-hans.ts` 与 `sidebars/en.ts` 已按本文第 5 节的章节结构落好
 - 第 4.1 节的**通用组件全部完成**并已全局注册，预览页挂在两个 sidebar 的根层级最后一项
 - 1.1 `intro`（介绍与安装）已完成
+- 1.2 `getting-started/quick-start`（快速开始）已完成，连带做出 `<CodeSteps>`
 
 未开始：
 
-- 所有正文（41 页全部是占位）
-- 第 4.2 节的客制化组件（跟随各自章节执行）
+- 41 页正文里剩下的 39 页
+- 第 4.2 节余下的客制化组件（跟随各自章节执行）
+
+下一页是 1.3 `getting-started/concepts`，要连带做 4.2 节的「核心概念层级交互图」。
 
 **当前只做中文版。** 英文占位页保持原样，等中文全部完成后再统一翻译。
 
@@ -67,6 +70,9 @@ npm run build
 
 1. **教会用户怎么用，不解释背后怎么实现。** 内部机制只在「它会改变你怎么写代码」时提一句。例如订阅寿命只说「关窗后不用手动清理」，不讲 `AbstractSignal$Entry` 的弱引用结构。
 2. **不把用户当新手教。** 依赖安装给配置就行，不解释 Gradle 是什么、Shadow 插件怎么工作。
+   - **中立陈述，不用教学口吻。** 直接说事物是什么、怎么用，不写「这一页会带你…」「接下来我们来…」「在现在这份代码上动手，比读十页文档都快」这类话。标题同理：写「菜单布局」不写「你会做出什么」。
+   - 开头那句话描述的是**页面里的东西**，不是页面本身。写「一个可以直接运行的最小菜单：三行箱子…」，不写「这一页从零写出一个能跑的菜单」。
+   - 想让读者动手，用 `<Exercise>` 思考题，不要在正文里写「试试看改改」。
 3. **注意事项优先于原理。** 每页的价值排序是：能跑的代码 > 用错了会怎样 > 为什么这么设计。
 4. **不做与 InvUI 的对比或迁移指引。** 不在任何页面提 InvUI。
 5. **用词**：Sparrow UI 是「UI 库」，不要写成「库存 UI 库」。说到容器时用「容器」或「库存」，不要把两个词叠起来当定语。
@@ -178,7 +184,10 @@ npm run build
 |---|---|---|---|---|
 | `<BuildTabs>` | Gradle Kotlin / Gradle Groovy / Maven 三选一，同 `groupId` 下全站同步 | 1.1 | `kotlin` `groovy` `maven` `title` `groupId` | ✅ |
 | `<ApiTable>` | 方法签名 + 说明 + 线程 + 版本的统一表格，每行自动带锚点 | 几乎每页 | `rows=[{name, summary, thread, since, beta, id}]` `idPrefix` | ✅ |
-| `<SlotGrid>` | 把结构模板渲染成可视网格，悬停点亮同标志符的所有格子 | 3.1 3.2 4.2 4.3 7.2 | `rows` `legend` `empty` `showSlots` `caption` | ✅ |
+| `<MinecraftSlotGrid>` | Minecraft 容器风格的结构网格，支持标志符和物品贴图，图例在宽版面中位于容器右侧，窄版面中移到下方 | 菜单布局与分步示例 | `rows` `legend` `empty` `icons` `showSlots` `caption` `title` `scale` | ✅ |
+| `<MinecraftWindow>` | 用**原版 GUI 贴图 + 原版物品图标**模拟一扇打开的容器，悬停显示跟随鼠标的 Minecraft 样式 Tooltip | 展示"玩家最终看到什么" | `type` `rows` `title` `layout` `items={{标志符: {icon, name, nameColor, lore}}}` `scale`（默认 2）`playerInventory`（默认 false） | ✅ |
+| `<CodeSteps>` | 分步走读同一份代码：代码整份只出现一次，切步骤时移动高亮 | 1.2，以及任何"一个完整文件分段讲"的地方 | `code` `language` `title` `steps=[{title, lines, note, preview}]` | ✅ |
+| `<Exercise>` | 三段式思考题：需求常驻，实现思路与参考实现默认收起 | 讲完一个功能之后 | `title`，children 里用 `<ExerciseApproach>` / `<ExerciseAnswer>` 分段，两个都可选 | ✅ |
 | `<ThreadBadge>` | 行内徽章，标注调用必须在哪条线程 | 4.x 6.x 9.4 10.1 | `type="viewer\|any\|async\|main"`、children 可覆盖文案 | ✅ |
 | `<VersionBadge>` | 标注 API 最低版本 / Beta 期变动风险 | 全站零散 | `since` `beta` | ✅ |
 | `<NextStep>` | 每页结尾统一的「下一步 →」卡片 | 每页 | `to` `title` `description` `label` | ✅ |
@@ -190,22 +199,34 @@ npm run build
 
 几条约定：
 
-- `<SlotGrid>` 的模板解析与 `Structure.of(String...)` **完全一致**：一个 Unicode code point 占一格，反引号包起来的文本算一个多字符标志符，反引号内可用 `\`` 和 `\\` 转义。模板写错会就地渲染成红色错误框，不会静默画出一块错的网格。
-- `<SlotGrid>` 默认把 `#` 当留空位（画成中性虚线格，不参与配色）。需要让 `#` 参与配色时传 `empty={[]}`。
+- `<MinecraftSlotGrid>` 的模板解析与 `Structure.of(String...)` **完全一致**：一个 Unicode code point 占一格，反引号包起来的文本算一个多字符标志符，反引号内可用 `\`` 和 `\\` 转义。模板写错会就地渲染成红色错误框，不会静默画出一块错的网格。
+- `<MinecraftSlotGrid>` 默认把 `#` 当留空位（保留标志符，不参与配色；指定 `icons` 时显示物品贴图）。需要让 `#` 参与配色时传 `empty={[]}`。
 - 组件里的固定文案走 `translate()`，英文默认值写在组件里，中文写在 `i18n/zh-Hans/code.json`。**新增带文案的组件时两边都要加。**
 - 写动画组件时有两个坑，做第 4.2 节那些客制化组件前先看一眼 `BuildTabs` 里的注释：
   - 需要裁剪动画溢出时用 `overflow: clip`，**不要用 `overflow: hidden`**。hidden 会让元素建立 BFC，内部的外边距不再穿透折叠，容器高度凭空变化、后面的正文被推走；动画前后来回切 hidden 就会看到"行距先变宽、结束再弹回来"。clip 只裁绘制，布局与 `visible` 完全一致。
   - 不要用 JS 往 prism 生成的 `.token-line` 上写自定义属性，React 重渲染会把它们抹掉。这类逐元素延迟用 CSS `nth-child` 写。
+- 结构模板的解析在 `src/utils/parseStructure.js`，`<MinecraftWindow>` 与 `<MinecraftSlotGrid>` 共用。这段规则必须跟着库里的 `Structure.of(String...)` 走，**不要在组件里再写一份**。
+- 两个容器组件分工不要搞混：**`<MinecraftSlotGrid>` 讲布局**（默认显示标志符，也可用 `icons` 展示已配置的物品），**`<MinecraftWindow>` 讲成品**（每格显示真实物品）。讲同一个菜单时两个都给，先布局后成品。
+- 像素字体走 `--mc-font`：**Minecraft**（拉丁，Hypixel SkyBlock Wiki Team，CC BY-SA 4.0）+ **Unifont**（CJK，OFL 1.1 与 GPL+嵌入例外双许可，本站按 OFL 用，按文档里实际出现的汉字生成子集）。字体来源和许可证在 `src/fonts/` 下。
+  - Unifont 子集由 `scripts/subset-font.mjs` 在每次构建前自动重算，**新加的汉字会自动进子集**，不需要手动维护。源字体 `src/fonts/unifont.full.otf` 要保留，删了就没法再生成子集。
+  - Minecraft 自己的 CJK 就是 Unifont 渲染的，所以容器里的中文和游戏里长得一样。
+- `<MinecraftWindow>` 的窗口类型、切片与槽位坐标在 `src/components/mcWindows.js`，目前有 `chest`（行数可变）、`crafting`、`anvil`、`hopper`。**加新窗口类型只要照着贴图量一遍坐标填进那张表，不用动组件。**
+  - 窗口本体按原版 blit 的口径**分段贴**：箱子的下半段固定取自图集 `src y=126` 起的 96px。只画上半段的话**窗口没有底边**，看起来像被削掉一截。
+  - Tooltip 使用 CSS 绘制深色底、紫色细边框与文字阴影，通过 Portal 挂到页面上，按浏览器视口避让，不受容器滚动区域裁切。
+  - 组件里的物品 `<img>` 都带 `no-zoom` 类，`docusaurus.config.ts` 的 image-zoom 选择器已改成 `.markdown img:not(.no-zoom)`——否则点按钮会弹出图片预览。**以后新增界面类组件里的 `<img>` 记得也加这个类。**
+  - 容器只展示外观和悬停说明，不模拟点击动作，也不显示点击提示条。
+  - 两个组件的尺寸是对齐的：`<MinecraftSlotGrid>` 默认倍数下槽位步长 36px，`<MinecraftWindow>` 默认 `scale={2}` 也是 36px，两者外框都是 352px 宽。**改其中一个的默认倍数就会错位。**
+- GUI 与物品贴图取自原版客户端（`PatchedMinecraft/Client-1.21.8/assets/minecraft/textures/`），存在 `static/img/mc/`。用到新物品时从那里按需再拷，不要整包搬。
 - 预览页是 `components-preview`，挂在两个 sidebar 的**根层级最后一项**，方便随时打开提改进意见。它是临时页：**全部正文收口之后**才删——删的时候要同时删掉 `docs/components-preview.mdx`、`i18n/zh-Hans/.../components-preview.mdx`，并从两个 sidebar 里摘掉那一项。
 
-`src/components/` 下还有一批从 craft-engine-wiki 继承来的组件（`AnnotatedYaml`、`ClickableYamlFragment`、`OverallYamlConfig`、`PluginFileTree`、`LayeredSteps`、`SkriptCard` 等）。Sparrow UI 不写 YAML 配置，这些大概率用不上，**不要为了复用而硬套**；`LayeredSteps` 值得在做 1.2 的分步演示前先看一眼能不能改。
+`src/components/` 下还有一批从 craft-engine-wiki 继承来的组件（`AnnotatedYaml`、`ClickableYamlFragment`、`OverallYamlConfig`、`PluginFileTree`、`LayeredSteps`、`SkriptCard` 等）。Sparrow UI 不写 YAML 配置，这些大概率用不上，**不要为了复用而硬套**。（继承来的 `LayeredSteps` 评估过，和 `<CodeSteps>` 的思路不一样，没有复用。）
 
 ### 4.2 客制化组件（跟随章节执行）
 
 | 组件 | 章节 | 要做到什么 |
 |---|---|---|
 | 核心概念层级交互图 | 1.3 | 可交互：点 Window / Pane / Element / Item / Inventory 任一层，高亮它在层级中的位置、显示职责一句话、给出跳转链接。这是 1.3 的主体，不是配图 |
-| 快速开始分步演示 | 1.2 | 代码分步高亮：每步高亮对应代码行，右侧同步显示菜单长什么样 |
+| ~~快速开始分步演示~~ ✅ 做成了 `<CodeSteps>` | 1.2 | 已完成，并已提升为通用组件登记在 4.1。代码整份只出现一次，切步骤时移动高亮；`preview` 接任意 ReactNode，1.2 里接的是 `<MinecraftSlotGrid>` |
 | 窗口类型筛选卡片 | 4.3 | 17 种窗口的可筛选卡片（按有无特有 API / 容器尺寸 / 是否支持配方书） |
 | 视觉层叠加演示 | 7.1 | 四层开关（Inventory / Pane / Window / Cursor），看最终渲染怎么叠出来 |
 | 动画预览 | 7.2 | `frames` / `reveal` / `staggeredFrames` 的播放效果预览 |
@@ -238,7 +259,7 @@ npm run build
 
 | 节 | 路径 | 内容 |
 |---|---|---|
-| 3.1 | `pane/structure` | `Pane.builder("行","行","行")` 字符模板；单字符与多字符 identifier；`#` 空位约定；`PaneSize` 与 slot / xy 坐标；`Structure.of(size)`。用 `<SlotGrid>` 把结构串画出来 |
+| 3.1 | `pane/structure` | `Pane.builder("行","行","行")` 字符模板；单字符与多字符 identifier；`#` 空位约定；`PaneSize` 与 slot / xy 坐标；`Structure.of(size)`。用 `<MinecraftSlotGrid>` 把结构串画出来 |
 | 3.2 | `pane/ingredients` | **`addIngredient` 全形态对照表**：`Item`、`ItemStack`、`ItemProvider`、`ItemBuilder`、`Supplier`、`Element`、`ElementSupplier`、`SparrowInventory`、子 `Pane`。`Signal` / `Page` / `Scroll` / `Tab` 在表里列出但只给一句话 + 跳转 |
 | 3.3 | `pane/composition` | `setBackground`、`setFrozen`；嵌套 Pane 与 `offsetX/offsetY`；同一个 Pane 给多扇窗、多名玩家复用 |
 | 3.4 | `pane/programmatic` | **页首写明「优先用 3.2 的结构绑定，这页是程序化批量布局时的下策」**。`setItem`、`setElement`、`fill` / `fillRow` / `fillColumn` / `fillBorders` / `fillRectangle`、`SlotSequence`、`SlotPatterns`、`project` |
@@ -320,6 +341,8 @@ npm run build
 | 节 | 路径 | 内容 |
 |---|---|---|
 | 12.1 | `examples/overview` | 先只做总览页。具体做哪几个示例**等前 11 组写完后再定**。候选：确认框、分页商店、铁砧实时搜索、技能树、数据库背包、编辑潜影盒、坐骑背包、自定义帧动画、制图台画廊、石头鉴定 |
+
+**示例菜单的选题思路**：前面每一章讲完一个功能后，可以配一个**充分用上该功能**的示例菜单。第 12 组的清单优先从这些地方长出来，而不是另想一批需求。同理，章节里想让读者自己过一遍的地方用 `<Exercise>`，思考题的需求也可以从这些示例里裁。
 
 ### 5.13 附录（2 页）
 

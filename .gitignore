@@ -21,3 +21,4 @@ yarn-error.log*
 
 .idea
 src/fonts/seguiemj.woff2.manifest
+src/fonts/unifont.woff2.manifest
