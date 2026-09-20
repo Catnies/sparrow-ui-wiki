@@ -1,0 +1,64 @@
+/* NextStep.module.css
+   悬停时背景用 color-mix 在当前 surface 上叠极少量黑/白（和 UrlCard 一个思路），
+   这样白底、护眼黄底、深色底都不会出现脏色块。 */
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 2rem 0 0;
+  padding: 0.9rem 1.1rem;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+
+  background-color: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  transition: background-color 0.2s ease-out, border-color 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.card:hover {
+  text-decoration: none;
+  color: inherit;
+  transform: translateY(-2px);
+  border-color: var(--ifm-color-primary);
+  background-color: color-mix(in srgb, var(--ifm-background-surface-color) 96%, light-dark(#000, #fff));
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ifm-color-primary);
+}
+
+.title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--ifm-font-color-base);
+}
+
+.description {
+  font-size: 0.88rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.arrow {
+  flex: none;
+  color: var(--ifm-color-emphasis-500);
+  transition: color 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.card:hover .arrow {
+  color: var(--ifm-color-primary);
+  transform: translateX(3px);
+}

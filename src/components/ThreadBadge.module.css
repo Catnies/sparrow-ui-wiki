@@ -1,0 +1,36 @@
+/* ThreadBadge.module.css
+   颜色一律用 color-mix 把色相调和进当前的 surface 色，不写死任何 hex。
+   这样浅色 / 深色 / 四种护眼底色切换时徽章自动跟随，不需要为每种模式各写一遍。 */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.05em 0.5em;
+  margin: 0 0.15em;
+  border-radius: 999px;
+  font-size: 0.78em;
+  font-weight: 500;
+  line-height: 1.6;
+  white-space: nowrap;
+  vertical-align: middle;
+
+  color: color-mix(in srgb, hsl(var(--thread-hue) 70% 42%) 82%, var(--ifm-font-color-base));
+  background-color: color-mix(in srgb, hsl(var(--thread-hue) 70% 50%) 12%, var(--ifm-background-surface-color));
+  border: 1px solid color-mix(in srgb, hsl(var(--thread-hue) 70% 50%) 38%, var(--ifm-background-surface-color));
+}
+
+/* 深色下把文字色往亮的一侧推，否则 42% 明度的色相压在暗背景上读不出来。 */
+[data-theme='dark'] .badge {
+  color: color-mix(in srgb, hsl(var(--thread-hue) 70% 68%) 82%, var(--ifm-font-color-base));
+}
+
+/* 徽章左侧的小圆点，纯装饰，用 ::before 避免在 DOM 里多塞一个空 span。 */
+.badge::before {
+  content: '';
+  width: 0.45em;
+  height: 0.45em;
+  border-radius: 50%;
+  background-color: hsl(var(--thread-hue) 70% 50%);
+  flex: none;
+}

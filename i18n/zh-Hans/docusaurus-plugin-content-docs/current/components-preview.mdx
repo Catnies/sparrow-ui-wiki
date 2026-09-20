@@ -1,0 +1,243 @@
+---
+title: 组件预览（临时页）
+sidebar_label: 组件预览（临时）
+description: Sparrow UI Wiki 通用组件的自查页面，正文收口后删除
+---
+
+:::danger[这是临时页面]
+本页只用于自查通用组件的渲染效果，**不是文档的一部分**。全部正文收口后删掉这一页，同时从两个 sidebar 里摘掉它，并更新 `WIKI-PLAN.md` 第 4.1 节。
+
+组件里的固定文案走 Docusaurus 的 `translate()`，默认是英文。中文效果用 `npm run start-zhcn` 启动后看。
+:::
+
+所有组件都已在 `src/theme/MDXComponents.js` 全局注册，mdx 里可以直接用，不需要 import。
+
+---
+
+## ThreadBadge
+
+标注某个 API 必须在哪条线程上调用。四种类型，另外可以用 children 覆盖文案。
+
+- `Window#open()` <ThreadBadge type="viewer" />
+- `VirtualInventory#add()` <ThreadBadge type="any" />
+- `Signal.async(...)` 的 loader <ThreadBadge type="async" />
+- `Bukkit.getScheduler()` <ThreadBadge type="main" />
+- 自定义文案：<ThreadBadge type="async">Paper 全局异步调度器</ThreadBadge>
+
+在正文里它是行内元素，跟在方法名后面不会撑开行高：调用 `ReferencingInventory#refresh()` <ThreadBadge type="viewer" /> 之前，必须确认当前上下文可以访问被引用的容器，否则平台异常会原样抛出。
+
+---
+
+## VersionBadge
+
+标注最低可用版本，或标注 API 还在 Beta 期可能变动。
+
+- 仅版本：<VersionBadge since="beta.33" />
+- 仅变动提示：<VersionBadge beta />
+- 两者同时：<VersionBadge since="beta.21" beta />
+
+---
+
+## BuildTabs
+
+构建工具三选一，同一个 `groupId` 下全站同步。页面上有两个 `BuildTabs` 时，切换其中一个另一个会跟着切——下面两组可以验证这一点。
+
+仓库：
+
+<BuildTabs
+  kotlin={`repositories {
+    maven("https://repo.momirealms.net/snapshots")
+}`}
+  groovy={`repositories {
+    maven { url 'https://repo.momirealms.net/snapshots' }
+}`}
+  maven={`<repositories>
+  <repository>
+    <id>momirealms</id>
+    <url>https://repo.momirealms.net/snapshots</url>
+  </repository>
+</repositories>`}
+/>
+
+依赖与 relocate：
+
+<BuildTabs
+  title="build.gradle.kts"
+  kotlin={`dependencies {
+    implementation("net.momirealms:sparrow-ui:beta.33")
+}
+
+tasks.shadowJar {
+    relocate("net.momirealms.sparrow.ui", "com.example.myplugin.libraries.sparrow.ui")
+}`}
+  groovy={`dependencies {
+    implementation 'net.momirealms:sparrow-ui:beta.33'
+}
+
+shadowJar {
+    relocate 'net.momirealms.sparrow.ui', 'com.example.myplugin.libraries.sparrow.ui'
+}`}
+  maven={`<dependency>
+  <groupId>net.momirealms</groupId>
+  <artifactId>sparrow-ui</artifactId>
+  <version>beta.33</version>
+</dependency>`}
+/>
+
+只传一种构建工具时，只会渲染那一个标签页：
+
+<BuildTabs kotlin={`implementation("net.momirealms:sparrow-ui:beta.33")`} />
+
+---
+
+## SlotGrid
+
+把结构模板画成网格。悬停任意一格会点亮同标志符的所有格子，图例右侧的数字是该标志符占用的格数。
+
+这是实时搜索菜单的玩家背包区布局（27 格结果 + 一行导航）：
+
+<SlotGrid
+  rows={["MMMMMMMMM", "MMMMMMMMM", "MMMMMMMMM", "P###I###N"]}
+  legend={{
+    M: '搜索结果',
+    P: '上一页',
+    I: '筛选状态与页码',
+    N: '下一页',
+    '#': '空位',
+  }}
+  caption={'对应 Pane.builder("MMMMMMMMM", "MMMMMMMMM", "MMMMMMMMM", "P###I###N")'}
+/>
+
+打开 `showSlots` 会在每格右下角标出槽号，讲 `slot` 与 `x/y` 坐标换算时用得上：
+
+<SlotGrid
+  rows={["BBBBBBBBB", "B#######B", "B#######B", "BBBBBBBBB"]}
+  legend={{B: '边框装饰', '#': '内容区'}}
+  showSlots
+/>
+
+多字符标志符用反引号包起来，一对反引号算一格——语法与 `Structure.of(String...)` 完全一致：
+
+<SlotGrid
+  rows={["`confirm`#`cancel`", "###", "`title`##"]}
+  legend={{
+    confirm: '确认按钮',
+    cancel: '取消按钮',
+    title: '标题物品',
+    '#': '空位',
+  }}
+/>
+
+铁砧上栏这种极小的 Pane 也画得出来：
+
+<SlotGrid rows={["###"]} legend={{'#': '冻结的空槽'}} showSlots />
+
+模板写错时就地报错，不会静默画出一块错的网格：
+
+<SlotGrid rows={["ABCDE", "ABC"]} />
+
+<SlotGrid rows={["A`unterminated"]} />
+
+---
+
+## ApiTable
+
+方法速查表。悬停某一行会在签名右侧浮出 `#`，点击即可得到该行的直链。
+
+<ApiTable
+  idPrefix="preview-window"
+  rows={[
+    {
+      name: 'Window.builder(Pane)',
+      summary: '用一块 Pane 建一扇普通窗口的 Builder',
+      thread: 'any',
+    },
+    {
+      name: 'Window#open()',
+      summary: <>把窗口打开，返回 <code>CompletableFuture&lt;OpenResult&gt;</code>；实际打开动作由库转交给观察者所属的实体线程</>,
+      thread: 'viewer',
+      since: 'beta.33',
+    },
+    {
+      name: 'Window#navigate(Window)',
+      summary: '在同一条会话里前进到下一扇窗口',
+      thread: 'viewer',
+      beta: true,
+    },
+    {
+      name: 'Window#backOrClose()',
+      summary: '回退一步；已经在会话起点时关闭窗口',
+      thread: 'viewer',
+    },
+  ]}
+/>
+
+不填 `thread` 和 `since` 时，那两列不会渲染：
+
+<ApiTable
+  idPrefix="preview-signal"
+  rows={[
+    {name: 'Signal.of(T)', summary: '建一个可写的状态源'},
+    {name: 'Signal#map(Function)', summary: '派生出一个只读的映射视图'},
+    {name: 'Signal#debounce(long)', summary: '按 tick 去抖，搜索框输入用得上'},
+  ]}
+/>
+
+---
+
+## SignalHint
+
+两遍教学的出口。第 2~8 组的页面正文里不出现 `dependsOn`，靠这张卡片把读者引到第 9 组。
+
+默认文案：
+
+<SignalHint />
+
+自定义文案（正文里更常用这种，说清楚"具体缺的是什么"）：
+
+<SignalHint to="/signal/bind-ui">
+页码变化时让翻页按钮变灰，需要读 <code>page()</code> 与 <code>count()</code> 这两个 Signal。
+</SignalHint>
+
+---
+
+## 复用组件
+
+以下四个从 craft-engine-wiki 继承而来，本站继续使用。
+
+### Details
+
+<Details summary="程序化布局（一般不需要）">
+
+`setItem`、`setElement`、`fill*` 这类直接操作 Element 与 slot 的 API 只在 `pane/programmatic` 一页出现。
+其余页面一律用 `Pane.builder` + `addIngredient` 的符号结构绑定写法。
+
+</Details>
+
+### UrlCard
+
+<UrlCard url="https://github.com/Catnies/sparrow-ui" title="Sparrow UI" subtitle="GitHub 仓库" />
+
+### EmbedCard
+
+<EmbedCard
+  url="https://docs.papermc.io/paper/dev/command-api/basics/registration/"
+  title="Paper Command API"
+  description="示例菜单的命令注册参考"
+/>
+
+### Highlight
+
+行内强调：<Highlight color="#2563eb">必须 relocate</Highlight>，否则多个插件携带的副本会发生类名冲突。
+
+---
+
+## NextStep
+
+每页结尾都该有一个。放在最后是因为它自带 `margin-top`，就是为页尾设计的。
+
+<NextStep
+  to="/"
+  title="介绍与安装"
+  description="从这里开始搭起第一个菜单"
+/>

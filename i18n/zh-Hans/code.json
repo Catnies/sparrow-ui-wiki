@@ -458,5 +458,65 @@
   "theme.sidebarToolbar.color.green": {
     "message": "绿色",
     "description": "主题颜色选择器中绿色选项的标签"
+  },
+  "threadBadge.viewer": {
+    "message": "viewer 实体线程",
+    "description": "ThreadBadge 标签：必须在观察者所属的实体线程调用"
+  },
+  "threadBadge.any": {
+    "message": "任意线程",
+    "description": "ThreadBadge 标签：任意线程调用都安全"
+  },
+  "threadBadge.async": {
+    "message": "异步线程",
+    "description": "ThreadBadge 标签：应当在异步线程调用"
+  },
+  "threadBadge.main": {
+    "message": "服务端主线程",
+    "description": "ThreadBadge 标签：必须在服务端主线程调用"
+  },
+  "versionBadge.since": {
+    "message": "自 {version} 起",
+    "description": "VersionBadge 标签：该 API 从哪个版本开始提供"
+  },
+  "versionBadge.beta": {
+    "message": "可能变动",
+    "description": "VersionBadge 标签：该 API 在正式版前仍可能调整"
+  },
+  "apiTable.head.api": {
+    "message": "API",
+    "description": "ApiTable 方法签名列的表头"
+  },
+  "apiTable.head.summary": {
+    "message": "说明",
+    "description": "ApiTable 说明列的表头"
+  },
+  "apiTable.head.thread": {
+    "message": "线程",
+    "description": "ApiTable 线程要求列的表头"
+  },
+  "apiTable.head.version": {
+    "message": "版本",
+    "description": "ApiTable 版本信息列的表头"
+  },
+  "apiTable.anchorLabel": {
+    "message": "{name} 的直接链接",
+    "description": "ApiTable 每行锚点链接的无障碍标签"
+  },
+  "nextStep.label": {
+    "message": "下一步",
+    "description": "NextStep 卡片左上角的引导标签"
+  },
+  "signalHint.title": {
+    "message": "想让它自己更新？",
+    "description": "SignalHint 提示卡的标题"
+  },
+  "signalHint.default": {
+    "message": "这一页的写法都是静态值。要让它随状态变化自动更新，见 Signal 章节。",
+    "description": "SignalHint 提示卡的默认正文"
+  },
+  "signalHint.link": {
+    "message": "前往 Signal 章节",
+    "description": "SignalHint 提示卡的链接文案"
   }
 }

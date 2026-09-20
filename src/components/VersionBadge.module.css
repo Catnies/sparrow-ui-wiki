@@ -1,0 +1,33 @@
+/* VersionBadge.module.css */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05em 0.5em;
+  margin: 0 0.15em;
+  border-radius: 4px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.75em;
+  font-weight: 500;
+  line-height: 1.7;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* 版本徽章走中性灰阶，它只是信息，不该比方法名还抢眼。 */
+.since {
+  color: var(--ifm-color-emphasis-700);
+  background-color: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-300);
+}
+
+/* Beta 徽章是警示，用琥珀色相；和 ThreadBadge 一样靠 color-mix 适配各种底色。 */
+.beta {
+  color: color-mix(in srgb, hsl(32 85% 40%) 85%, var(--ifm-font-color-base));
+  background-color: color-mix(in srgb, hsl(32 85% 50%) 14%, var(--ifm-background-surface-color));
+  border: 1px solid color-mix(in srgb, hsl(32 85% 50%) 42%, var(--ifm-background-surface-color));
+}
+
+[data-theme='dark'] .beta {
+  color: color-mix(in srgb, hsl(32 85% 68%) 85%, var(--ifm-font-color-base));
+}

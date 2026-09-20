@@ -1,0 +1,166 @@
+/* SlotGrid.module.css
+   格子尺寸用 min() 跟着容器走：窄屏时整块网格等比缩小，不横向滚动。
+   颜色全部靠 color-mix 调和进 surface，浅色 / 深色 / 护眼底色都能用。 */
+
+.wrapper {
+  margin: 1.2rem 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--slot-columns), minmax(0, 1fr));
+  gap: 4px;
+  max-width: calc(var(--slot-columns) * 52px);
+  padding: 8px;
+  background-color: var(--ifm-color-emphasis-100);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+}
+
+.cell {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  cursor: default;
+  transition: background-color 0.15s ease-out, border-color 0.15s ease-out, opacity 0.15s ease-out;
+
+  background-color: color-mix(in srgb, hsl(var(--slot-hue) 70% 50%) 16%, var(--ifm-background-surface-color));
+  border: 1px solid color-mix(in srgb, hsl(var(--slot-hue) 70% 50%) 40%, var(--ifm-background-surface-color));
+}
+
+/* 留空位（默认是 #）不参与配色，压成中性灰，让真正有内容的格子跳出来。 */
+.cellEmpty {
+  background-color: var(--ifm-background-surface-color);
+  border: 1px dashed var(--ifm-color-emphasis-300);
+}
+
+.cellActive {
+  background-color: color-mix(in srgb, hsl(var(--slot-hue) 70% 50%) 34%, var(--ifm-background-surface-color));
+  border-color: hsl(var(--slot-hue) 70% 50%);
+}
+
+.cellEmpty.cellActive {
+  background-color: var(--ifm-color-emphasis-200);
+  border: 1px solid var(--ifm-color-emphasis-500);
+}
+
+.cellDimmed {
+  opacity: 0.38;
+}
+
+.cellIdentifier {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ifm-font-color-base);
+
+  /* 多字符标志符（反引号写法）可能很长，超出就省略，完整内容在 title 和图例里 */
+  max-width: 100%;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 反引号写法的多字符标志符（`confirm`）按 0.82rem 排会被省略号吃掉大半，
+   超过两个字符就换一档小字号，常见的 6~8 字符标志符刚好能完整显示。 */
+.cellIdentifierLong {
+  font-size: 0.6rem;
+  font-weight: 500;
+}
+
+.cellEmpty .cellIdentifier {
+  color: var(--ifm-color-emphasis-500);
+}
+
+/* 槽号贴在右下角，showSlots 打开时才渲染 */
+.cellSlot {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.55rem;
+  line-height: 1;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.legend {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 2px 8px 2px 4px;
+  border-radius: 6px;
+  cursor: default;
+  transition: background-color 0.15s ease-out;
+}
+
+.legendItemActive {
+  background-color: var(--ifm-color-emphasis-200);
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  border-radius: 3px;
+  background-color: color-mix(in srgb, hsl(var(--slot-hue) 70% 50%) 34%, var(--ifm-background-surface-color));
+  border: 1px solid hsl(var(--slot-hue) 70% 50%);
+}
+
+.swatchEmpty {
+  background-color: var(--ifm-background-surface-color);
+  border: 1px dashed var(--ifm-color-emphasis-400);
+}
+
+.legendIdentifier {
+  font-size: 0.8rem;
+  padding: 0.05em 0.35em;
+}
+
+.legendText {
+  font-size: 0.85rem;
+  color: var(--ifm-font-color-base);
+}
+
+/* 占用格数，弱化显示，读者想数的时候才会注意到 */
+.legendCount {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.72rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.caption {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* 模板写错时就地报错，不要让页面静默画出一块错的网格 */
+.error {
+  margin: 1.2rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+  color: color-mix(in srgb, hsl(0 70% 40%) 85%, var(--ifm-font-color-base));
+  background-color: color-mix(in srgb, hsl(0 70% 50%) 8%, var(--ifm-background-surface-color));
+  border: 1px solid color-mix(in srgb, hsl(0 70% 50%) 35%, var(--ifm-background-surface-color));
+}
+
+[data-theme='dark'] .error {
+  color: color-mix(in srgb, hsl(0 70% 70%) 85%, var(--ifm-font-color-base));
+}

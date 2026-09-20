@@ -1,0 +1,96 @@
+/* ApiTable.module.css */
+
+/* 签名列可能很长，窄屏时整表横向滚动，不让方法名折成几行。 */
+.scroll {
+  margin: 1.2rem 0;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.table th,
+.table td {
+  padding: 0.55rem 0.8rem;
+  text-align: left;
+  vertical-align: top;
+  border: none;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.table thead th {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* 锚点跳转后高亮一下目标行，否则长表里跳过去根本看不出停在哪。 */
+.table tbody tr:target {
+  background-color: color-mix(in srgb, var(--ifm-color-primary) 9%, var(--ifm-background-surface-color));
+}
+
+.nameHead {
+  width: 34%;
+}
+
+.metaHead {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.nameCell {
+  white-space: nowrap;
+}
+
+.name {
+  font-size: 0.85rem;
+  padding: 0.1em 0.4em;
+}
+
+.metaCell {
+  white-space: nowrap;
+}
+
+/* 锚点符号平时藏起来，悬停该行才浮出来，避免每行都挂一个 # 干扰阅读。 */
+.anchor {
+  margin-left: 0.4em;
+  font-family: var(--ifm-font-family-monospace);
+  color: var(--ifm-color-emphasis-500);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s ease-out, color 0.15s ease-out;
+}
+
+.table tbody tr:hover .anchor,
+.anchor:focus-visible {
+  opacity: 1;
+}
+
+.anchor:hover {
+  color: var(--ifm-color-primary);
+}
+
+.error {
+  margin: 1.2rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.85rem;
+  color: color-mix(in srgb, hsl(0 70% 40%) 85%, var(--ifm-font-color-base));
+  background-color: color-mix(in srgb, hsl(0 70% 50%) 8%, var(--ifm-background-surface-color));
+  border: 1px solid color-mix(in srgb, hsl(0 70% 50%) 35%, var(--ifm-background-surface-color));
+}
+
+[data-theme='dark'] .error {
+  color: color-mix(in srgb, hsl(0 70% 70%) 85%, var(--ifm-font-color-base));
+}

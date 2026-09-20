@@ -1,0 +1,149 @@
+/* BuildTabs.module.css
+   Docusaurus 自带的 Tabs 切换是瞬间完成的。这里做成三段编排，三者时长对齐，
+   看起来是一个连贯动作而不是三个各跑各的效果：
+     · 下划线指示条从旧标签滑到新标签（位置与宽度由 JS 写进自定义属性）
+     · 面板整体按切换方向横向滑入，往右边的标签切就从右边来
+     · 代码逐行错开落位，像内容重新排进来
+   高度过渡那一档也在 JS 里，见 BuildTabs.js。 */
+
+.container {
+  margin: 1.2rem 0;
+  transition: height 440ms cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* 面板横向滑入的那 30px 和高度过渡期间多出来的内容都要裁掉，
+     否则会把页面顶出横向滚动条。
+
+     这里必须是 clip 不能是 hidden：hidden 会让容器建立 BFC，
+     .tabs-container 自带的 20px 下外边距就不再穿透折叠出去，容器高度凭空 +20px，
+     后面的正文整体被推下去。之前把 overflow 在动画前后来回切，
+     结果就是每次点标签附近的行距先变宽、动画结束再弹回来。
+     clip 只裁绘制、不建立 BFC、也不变成滚动容器，布局与 visible 完全一致，
+     所以直接常驻，不需要 JS 切来切去。 */
+  overflow: clip;
+}
+
+/* ── 滑动指示条 ─────────────────────────────────────────────── */
+
+.container :global(.tabs) {
+  position: relative;
+}
+
+/* 用伪元素而不是往 Docusaurus 的 DOM 里插节点：JS 只写 --bt-x / --bt-w，
+   剩下的交给 CSS。opacity 初值为 0，避免首帧从最左边窜到当前标签。 */
+.container :global(.tabs)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: var(--bt-w, 0);
+  border-radius: 3px;
+  background-color: var(--ifm-tabs-color-active-border, var(--ifm-color-primary));
+  opacity: var(--bt-o, 0);
+  transform: translateX(var(--bt-x, 0));
+  pointer-events: none;
+  transition:
+    transform 440ms cubic-bezier(0.34, 1.08, 0.58, 1),
+    width 440ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 220ms linear;
+}
+
+/* Infima 给选中项画的那条 3px 下划线交给指示条，否则会同时出现两条。 */
+.container :global(.tabs__item--active) {
+  border-bottom-color: transparent;
+}
+
+.container :global(.tabs__item) {
+  transition:
+    background-color 240ms cubic-bezier(0.32, 0.72, 0, 1),
+    color 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ── 面板横向滑入 ───────────────────────────────────────────── */
+
+/* 未选中的面板是 display:none，重新显示时动画自动重播，不需要 JS 触发。
+   方向由容器上的 data-dir 决定，JS 在 hidden 变化的同一批里写好。 */
+.container :global([role='tabpanel']:not([hidden])) {
+  animation: buildTabsPanelForward 420ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.container[data-dir='backward'] :global([role='tabpanel']:not([hidden])) {
+  animation-name: buildTabsPanelBackward;
+}
+
+@keyframes buildTabsPanelForward {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes buildTabsPanelBackward {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── 代码逐行落位 ───────────────────────────────────────────── */
+
+/* 只做纵向位移：代码块本身是横向可滚动的，行要是横向平移，
+   动画期间会撑出一条一闪而过的滚动条。横向的方向感交给上面的面板动画。
+   backwards 让每一行在自己的延迟结束前保持不可见。 */
+.container :global([role='tabpanel']:not([hidden]) .token-line) {
+  animation: buildTabsLineIn 380ms cubic-bezier(0.32, 0.72, 0, 1) backwards;
+}
+
+/* 错开的延迟用 nth-child 写死，不走 JS 写内联样式：
+   .token-line 上本来就带着 prism 生成的 style，React 重渲染时会把外部塞进去的
+   自定义属性一并抹掉。它们是 <code> 的仅有子元素，序号天然对得上。
+   第 13 行往后统一封顶，超长代码块的尾巴不至于拖太久。 */
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(1)) { animation-delay: 0ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(2)) { animation-delay: 26ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(3)) { animation-delay: 52ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(4)) { animation-delay: 78ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(5)) { animation-delay: 104ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(6)) { animation-delay: 130ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(7)) { animation-delay: 156ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(8)) { animation-delay: 182ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(9)) { animation-delay: 208ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(10)) { animation-delay: 234ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(11)) { animation-delay: 260ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(12)) { animation-delay: 286ms; }
+.container :global([role='tabpanel']:not([hidden]) .token-line:nth-child(n + 13)) { animation-delay: 312ms; }
+
+@keyframes buildTabsLineIn {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── 减弱动态效果 ───────────────────────────────────────────── */
+
+/* 指示条的位置照常更新，只是不再有滑动过程。JS 那一侧同样会退化，
+   见 BuildTabs.js 里的 reduceMotion 判断。 */
+@media (prefers-reduced-motion: reduce) {
+  .container,
+  .container :global(.tabs__item),
+  .container :global(.tabs)::after {
+    transition: none;
+  }
+
+  .container :global([role='tabpanel']:not([hidden])),
+  .container :global([role='tabpanel']:not([hidden]) .token-line) {
+    animation: none;
+  }
+}

@@ -1,0 +1,129 @@
+---
+title: 介绍与安装
+sidebar_label: 介绍与安装
+slug: /
+---
+
+这一页告诉你 Sparrow UI 能做什么，以及怎么把它装进你的插件并启动。
+
+## 这是什么
+
+Sparrow UI 是一个**基于数据包的响应式 UI 库**，支持 Paper 与 Folia。菜单直接建立在协议层，不经过 Bukkit 容器，因此可以精确控制客户端看到的每一格、每一个原版控件。在这之上，它把菜单状态、库存交互、渲染和会话管理收进一套可复用的组件模型，让同一组 Item、Pane 和 Inventory 能够安全地服务多名玩家。
+
+它是一个**库**，随你的插件一起打包，服务端不需要额外装一份。
+
+用它可以做到：
+
+- 覆盖全部原生容器菜单，箱子、铁砧、村民交易、制图台、附魔台、熔炉等各有独立的 Window API，连进度条、交易列表、配方书这些原版功能都能直接操控
+- 画面只是发给客户端的一层，视觉效果和动画可以随便叠，不会动到真实数据
+- 把菜单内容声明成响应式状态，数据变了界面自己跟着变，不需要手动刷新
+- 同一组组件同时服务多扇窗口、多名玩家，变更只刷新受影响的槽位
+- 把玩家背包、Bukkit 容器或你自己的存储接进菜单，放入、取出、拖拽和 Shift 转移开箱即用
+- 多级菜单的前进、后退和 ESC 返回交给会话统一管理
+- 在 Paper 与 Folia 上跑同一份代码
+
+:::warning[公开 API 仍可能调整]
+Sparrow UI 目前处于 Beta 阶段，正式版之前公开 API 还会继续变动。升级版本时请留意变更说明。
+:::
+
+## 兼容性
+
+| 项目 | 要求 |
+|---|---|
+| 服务端 | Paper 或 Folia |
+| Minecraft | `1.21.4` ~ `26.3`，**同一个构件覆盖全部版本**，不需要按版本分别引入依赖 |
+| Java | 库以 Java 21 编译；运行时用对应 Paper 或 Folia 版本所要求的 Java 环境即可 |
+
+## 添加依赖
+
+先加仓库：
+
+<BuildTabs
+  kotlin={`repositories {
+    maven("https://repo.momirealms.net/snapshots")
+}`}
+  groovy={`repositories {
+    maven { url = 'https://repo.momirealms.net/snapshots' }
+}`}
+  maven={`<repositories>
+  <repository>
+    <id>momirealms</id>
+    <url>https://repo.momirealms.net/snapshots</url>
+  </repository>
+</repositories>`}
+/>
+
+再加依赖，并把 `net.momirealms.sparrow.ui` 整体 relocate 到你自己的包名下。把下面的 `com.example.myplugin.libraries.sparrow.ui` 换成你插件独有的目标包名：
+
+<BuildTabs
+  kotlin={`dependencies {
+    implementation("net.momirealms:sparrow-ui:beta.33")
+}
+
+tasks.shadowJar {
+    relocate("net.momirealms.sparrow.ui", "com.example.myplugin.libraries.sparrow.ui")
+}`}
+  groovy={`dependencies {
+    implementation 'net.momirealms:sparrow-ui:beta.33'
+}
+
+shadowJar {
+    relocate 'net.momirealms.sparrow.ui', 'com.example.myplugin.libraries.sparrow.ui'
+}`}
+  maven={`<dependency>
+  <groupId>net.momirealms</groupId>
+  <artifactId>sparrow-ui</artifactId>
+  <version>beta.33</version>
+</dependency>
+
+<!-- maven-shade-plugin 的 <configuration> 里 -->
+<relocations>
+  <relocation>
+    <pattern>net.momirealms.sparrow.ui</pattern>
+    <shadedPattern>com.example.myplugin.libraries.sparrow.ui</shadedPattern>
+  </relocation>
+</relocations>`}
+/>
+
+:::warning[relocate 不是可选项]
+Sparrow UI 会把一份反射代理装进**服务端类加载器**，代理类的包名跟着库的运行时包名走。不 relocate 的话，任何两个携带 Sparrow UI 的插件都会在服务端类加载器里撞上同名类。
+
+目标包名要用你插件独有的前缀，不要用别人也可能选中的通用名字。
+:::
+
+## 初始化
+
+在 `onEnable` 里调用一次 `setUp`，把你的插件实例交给库：
+
+```java
+package com.example.myplugin;
+
+import net.momirealms.sparrow.ui.SparrowUI;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public final class MyPlugin extends JavaPlugin {
+
+    @Override
+    public void onEnable() {
+        SparrowUI.getInstance().setUp(this);
+    }
+}
+```
+
+这一步会安装反射代理、创建窗口管理器与网络管理器，并把库的调度器绑到你的插件上。
+
+**插件禁用时不需要做任何事。** Sparrow UI 自己监听插件的禁用事件，会关掉窗口管理器和网络管理器，并停掉自己的调度器。
+
+:::danger[必须先 setUp，再碰 Sparrow UI 的任何类]
+在 `setUp` 完成之前，不要访问 Sparrow UI 的任何类，也不要构建 Item、Pane 或 Window。
+:::
+
+:::warning[setUp 只能调用一次]
+重复调用会抛 `IllegalStateException`。
+:::
+
+<NextStep
+  to="/getting-started/quick-start"
+  title="快速开始"
+  description="从空插件到玩家眼前的第一个菜单"
+/>

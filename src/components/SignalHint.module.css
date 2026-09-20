@@ -1,0 +1,57 @@
+/* SignalHint.module.css
+   用固定的青色色相，全站的 Signal 提示都长一个样，读者扫一眼就知道
+   「这是通往响应式那章的出口」。不跟随主题色，正因为它需要是个固定标记。 */
+
+.card {
+  --signal-hue: 190;
+
+  display: block;
+  margin: 1.5rem 0;
+  padding: 0.85rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, hsl(var(--signal-hue) 70% 50%) 38%, var(--ifm-background-surface-color));
+  background-color: color-mix(in srgb, hsl(var(--signal-hue) 70% 50%) 7%, var(--ifm-background-surface-color));
+}
+
+.title {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: color-mix(in srgb, hsl(var(--signal-hue) 70% 35%) 85%, var(--ifm-font-color-base));
+}
+
+[data-theme='dark'] .title {
+  color: color-mix(in srgb, hsl(var(--signal-hue) 70% 70%) 85%, var(--ifm-font-color-base));
+}
+
+.body {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: var(--ifm-font-color-base);
+}
+
+/* 段落是 mdx 传进来的 children，可能带 <p>，把外边距收掉免得卡片撑高 */
+.body > :first-child {
+  margin-top: 0;
+}
+
+.body > :last-child {
+  margin-bottom: 0;
+}
+
+.link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: color-mix(in srgb, hsl(var(--signal-hue) 70% 35%) 85%, var(--ifm-font-color-base));
+}
+
+[data-theme='dark'] .link {
+  color: color-mix(in srgb, hsl(var(--signal-hue) 70% 70%) 85%, var(--ifm-font-color-base));
+}
+
+.link:hover {
+  text-decoration: underline;
+}
