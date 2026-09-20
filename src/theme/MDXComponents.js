@@ -12,6 +12,7 @@ import TabItem from '@theme/TabItem';
 import ApiTable from '@site/src/components/ApiTable';
 import BuildTabs from '@site/src/components/BuildTabs';
 import CodeSteps from '@site/src/components/CodeSteps';
+import ConceptMap from '@site/src/components/ConceptMap';
 import Exercise, {ExerciseApproach, ExerciseAnswer} from '@site/src/components/Exercise';
 import MinecraftSlotGrid from '@site/src/components/MinecraftSlotGrid';
 import MinecraftWindow from '@site/src/components/MinecraftWindow';
@@ -35,6 +36,7 @@ export default {
   ApiTable,
   BuildTabs,
   CodeSteps,
+  ConceptMap,
   Exercise,
   ExerciseApproach,
   ExerciseAnswer,

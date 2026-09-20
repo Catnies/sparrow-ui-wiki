@@ -83,7 +83,7 @@ Pane.builder(
     {
       title: '把按钮填进格子',
       lines: '33-34',
-      note: 'addIngredient 把一个字符和一个 Item 绑在一起。绑一次，这个字符出现在布局里的每一格都会用它——两个按钮各只出现一次，所以各占一格。',
+      note: 'addIngredient 把一个字符和一个 Item 绑在一起。绑一次，这个字符出现在布局里的每一格都会用它。两个按钮各只出现一次，所以各占一格。',
       preview: (
         <MinecraftSlotGrid
           rows={["#########", "###G#C###", "#########"]}
@@ -205,16 +205,12 @@ this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event 
 :::tip[build 和 open 都允许异步调用]
 `build(viewer)` 与 `open()` 都可以在异步线程上调用 <ThreadBadge type="any" />，菜单构建不需要挤在主线程上完成。
 
-需要自己负责的是**从异步开始构建，到菜单真正打开的这段时间里，世界可能已经变了**。例如玩家右键一个潜影盒物品，你异步读出里面的内容构建菜单，等菜单真正打开时，玩家手里拿的可能已经不是那个潜影盒了。
+需要自己负责的是**从开始构建到菜单真正打开，中间这段时间状态可能已经变了**。例如玩家右键一个潜影盒物品，你异步读出里面的内容构建菜单，等菜单真正打开时，玩家手里拿的可能已经不是那个潜影盒了。
 :::
 
 :::info[open 的返回值]
 `open()` 返回 `CompletableFuture<Window.OpenResult>`，结果有三种：`OPENED`、`ALREADY_OPEN`、`VIEWER_UNAVAILABLE`。上面的例子不关心结果所以直接丢掉了。
 :::
-
-<SignalHint>
-这个菜单里的每个物品都是固定的。要让它随数据变化自动更新，见 Signal 章节。
-</SignalHint>
 
 <NextStep
   to="/getting-started/concepts"

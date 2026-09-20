@@ -546,5 +546,9 @@
   "minecraftWindow.inventory": {
     "message": "物品栏",
     "description": "Minecraft 容器内的玩家物品栏标题"
+  },
+  "conceptMap.readMore": {
+    "message": "查看章节",
+    "description": "ConceptMap 详情面板里指向对应章节的链接文案"
   }
 }

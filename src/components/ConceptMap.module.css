@@ -1,0 +1,191 @@
+.container {
+  container-type: inline-size;
+  margin: 1.5rem 0;
+}
+
+.diagram {
+  padding: 1.5rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 12px;
+  background: var(--ifm-background-surface-color);
+}
+
+.node {
+  --accent: #3578c4;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--ifm-background-surface-color));
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 5%, var(--ifm-background-surface-color));
+  color: var(--ifm-font-color-base);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.node[data-kind='pane'] { --accent: #258c7e; }
+.node[data-kind='item'] { --accent: #ad791e; }
+.node[data-kind='inventory'] { --accent: #9872c4; }
+.node[data-kind='signal'] { --accent: #bf7c36; }
+.node[data-kind='visual'] { --accent: #a765a5; }
+
+[data-theme='dark'] .node[data-kind='window'] { --accent: #6aabed; }
+[data-theme='dark'] .node[data-kind='pane'] { --accent: #55bda9; }
+[data-theme='dark'] .node[data-kind='item'] { --accent: #d9ac60; }
+[data-theme='dark'] .node[data-kind='inventory'] { --accent: #b39cdd; }
+
+.node:hover,
+.node[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent) 13%, var(--ifm-background-surface-color));
+  border-color: var(--accent);
+}
+
+.node:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.nodeType {
+  color: var(--accent);
+  font: 600 0.9rem var(--ifm-font-family-monospace);
+}
+
+.nodeTitle { font-size: 0.9rem; font-weight: 600; }
+.nodeNote { flex-basis: 100%; font-size: 0.8rem; color: var(--ifm-color-emphasis-700); }
+
+.relation {
+  position: relative;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 1.2rem 0.5rem;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+  text-align: center;
+}
+
+.relation::before,
+.relation::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  height: 0.85rem;
+  border-left: 1px solid var(--ifm-color-emphasis-400);
+}
+
+.relation::before { top: 0; }
+.relation::after { bottom: 0; }
+
+.components {
+  min-width: 0;
+  margin: 0;
+  padding: 0.75rem 1rem 1rem;
+  border: 1px dashed var(--ifm-color-emphasis-400);
+  border-radius: 8px;
+}
+
+.components > legend {
+  width: auto;
+  margin: 0;
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ifm-font-color-base);
+}
+
+.branches {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 1.5rem;
+}
+
+.branches > .pane { position: relative; padding-top: 1rem; }
+.branches > .pane::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  height: 1rem;
+  width: calc(50% + 0.75rem);
+  border-top: 1px solid var(--ifm-color-emphasis-400);
+}
+.branches > .pane:first-child::before { left: 50%; border-left: 1px solid var(--ifm-color-emphasis-400); }
+.branches > .pane:last-child::before { right: 50%; border-right: 1px solid var(--ifm-color-emphasis-400); }
+
+.contents {
+  --branch-indent: 1.25rem;
+  margin-left: 1rem;
+}
+
+/* 每条支线接到节点标题，最后一条在节点处收尾。 */
+.contents > .branch {
+  position: relative;
+  padding: 1rem 0 0 var(--branch-indent);
+}
+
+.contents > .branch::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-left: 1px solid var(--ifm-color-emphasis-500);
+}
+
+.contents > .branch:last-child::before {
+  bottom: auto;
+  height: 2.5rem;
+}
+
+.contents > .branch::after {
+  content: '';
+  position: absolute;
+  top: 2.5rem;
+  left: 0;
+  width: var(--branch-indent);
+  border-top: 1px solid var(--ifm-color-emphasis-500);
+}
+
+.via {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.detail {
+  min-height: 8rem;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.detailHeading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.5rem 1rem; }
+.detailHeading strong { font-size: 0.95rem; }
+.detailHeading a { margin-left: auto; font-size: 0.8rem; }
+.detail p { margin: 0.5rem 0 0; font-size: 0.9rem; line-height: 1.8; }
+.supplement { margin-top: 1.2rem; }
+.supplementLabel { margin-bottom: 0.65rem; color: var(--ifm-color-emphasis-700); font-size: 0.8rem; }
+.aside { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.aside .node { border-style: dashed; border-left-width: 1px; background: transparent; }
+.aside .node[aria-pressed='true'] { border-style: solid; }
+
+@container (max-width: 540px) {
+  .diagram { padding: 1rem; }
+  .components { padding: 0.65rem 0.65rem 0.85rem; }
+  .branches { grid-template-columns: 1fr; gap: 1.5rem; border-left: 1px solid var(--ifm-color-emphasis-400); padding-left: 1rem; }
+  .branches > .pane { padding-top: 0; }
+  .branches > .pane::before { display: none; }
+  .relation { margin: 0; text-align: left; padding-left: 1rem; }
+  .relation::before, .relation::after { left: 0; }
+  .contents { --branch-indent: 0.85rem; margin-left: 0.65rem; }
+  .detail { padding: 1rem 0; }
+  .aside { grid-template-columns: 1fr; gap: 0.65rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node { transition: none; }
+}
