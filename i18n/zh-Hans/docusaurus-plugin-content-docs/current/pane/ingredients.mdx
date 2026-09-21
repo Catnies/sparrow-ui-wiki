@@ -68,7 +68,7 @@ Pane pane = Pane.builder("#AAA#BBB#")
         // 三格共用一个计数器, 点任意一格, 三格一起变化.
         .addIngredient('A', counterButton())
         // 每格调用一次 counterButton(), 三格各自计数.
-        .addIngredient("B", () -> counterButton())
+        .addIngredient('B', () -> counterButton())
         .build();
 ```
 
@@ -192,7 +192,7 @@ public static Pane createPane() {
                     "#########",
                     "##FFFFF##"
             )
-            .addIngredient("F", footer())
+            .addIngredient('F', footer())
             .build();
 }
 ```

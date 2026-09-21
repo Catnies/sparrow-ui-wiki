@@ -49,6 +49,14 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: '🧭 Sessions',
+      items: [
+        'session/navigation',
+        'session/structures',
+      ],
+    },
+    {
+      type: 'category',
       label: '📄 Page & Scroll',
       items: [
         'pagination/page',
@@ -71,14 +79,6 @@ const sidebars: SidebarsConfig = {
       items: [
         'visual/layers',
         'visual/animation',
-      ],
-    },
-    {
-      type: 'category',
-      label: '🧭 Sessions',
-      items: [
-        'session/navigation',
-        'session/structures',
       ],
     },
     {

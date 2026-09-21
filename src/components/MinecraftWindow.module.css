@@ -66,6 +66,20 @@
   image-rendering: pixelated;
 }
 
+/* 物品数量：原版右对齐画在物品区右下，文字右缘超出物品区 1 像素、顶端在 y=9，白字加深色阴影 */
+.count {
+  position: absolute;
+  top: calc(9px * var(--mcw-scale));
+  right: calc(-1px * var(--mcw-scale));
+  font-family: var(--mc-font);
+  font-size: calc(8px * var(--mcw-scale));
+  font-synthesis: none;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: calc(1px * var(--mcw-scale)) calc(1px * var(--mcw-scale)) 0 #3f3f3f;
+  pointer-events: none;
+}
+
 /* 悬停盖白：原版是 0x80FFFFFF 覆在 16×16 的物品区上 */
 .highlight {
   position: absolute;

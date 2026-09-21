@@ -555,6 +555,14 @@
     "message": "收起",
     "description": "CodeSteps 组件中恢复限高的按钮文案"
   },
+  "sharedPaneDemo.states.aria": {
+    "message": "Pane 状态",
+    "description": "SharedPaneDemo 状态切换按钮组的无障碍标签"
+  },
+  "sharedPaneDemo.viewerCaption": {
+    "message": "{viewer} 的窗口",
+    "description": "SharedPaneDemo 每扇玩家窗口下方的说明"
+  },
   "minecraftWindow.inventory": {
     "message": "物品栏",
     "description": "Minecraft 容器内的玩家物品栏标题"

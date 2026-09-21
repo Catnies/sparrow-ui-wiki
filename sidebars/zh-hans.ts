@@ -46,6 +46,14 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: '🧭 会话与导航',
+      items: [
+        'session/navigation',
+        'session/structures',
+      ],
+    },
+    {
+      type: 'category',
       label: '📄 翻页与滚动',
       items: [
         'pagination/page',
@@ -68,14 +76,6 @@ const sidebars: SidebarsConfig = {
       items: [
         'visual/layers',
         'visual/animation',
-      ],
-    },
-    {
-      type: 'category',
-      label: '🧭 会话与导航',
-      items: [
-        'session/navigation',
-        'session/structures',
       ],
     },
     {

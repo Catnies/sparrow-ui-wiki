@@ -326,56 +326,13 @@
   margin: 0;
 }
 
+/* 原版按钮上下排列，间距与游戏里按钮之间的 4 像素一致（2 倍） */
 .views {
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.viewButton {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: 6px;
-  background-color: transparent;
-  color: var(--ifm-color-emphasis-700);
-  font-family: inherit;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    color 0.15s ease-out,
-    background-color 0.15s ease-out,
-    border-color 0.15s ease-out;
-}
-
-.viewButton:hover {
-  color: var(--ifm-font-color-base);
-  background-color: var(--ifm-color-emphasis-100);
-}
-
-.viewButton:focus-visible {
-  outline: 2px solid var(--ifm-color-primary);
-  outline-offset: 1px;
-}
-
-.viewButtonActive,
-.viewButtonActive:hover {
-  color: var(--ifm-color-primary);
-  border-color: color-mix(in srgb, var(--ifm-color-primary) 60%, transparent);
-  background-color: color-mix(in srgb, var(--ifm-color-primary) 10%, transparent);
-  cursor: default;
-}
-
-.viewIcon {
-  width: 12px;
-  height: 12px;
-  flex: none;
-  fill: currentColor;
+  align-items: stretch;
+  gap: 8px;
 }
 
 .caption {
@@ -421,8 +378,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .item,
-  .legendItem,
-  .viewButton {
+  .legendItem {
     transition: none;
   }
 

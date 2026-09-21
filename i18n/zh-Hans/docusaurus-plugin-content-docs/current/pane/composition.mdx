@@ -3,8 +3,255 @@ title: 背景、冻结与嵌套
 sidebar_label: 背景、冻结与嵌套
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 3.3 节。 */}
+Pane 的背景填满没有内容的格子，冻结让 Pane 暂时不响应玩家操作。一块 Pane 还可以嵌进另一块 Pane，或者同时显示在多名玩家的窗口里。
 
-:::info
-本页尚未撰写。
+## 背景
+
+`setBackground` 设置背景物品，模板中没有绑定内容的格子都显示它：
+
+```java
+ItemStack background = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+background.setData(DataComponentTypes.CUSTOM_NAME, Component.empty());
+
+Pane pane = Pane.builder(
+                "#########",
+                "###A#B###",
+                "#########"
+        )
+        .setBackground(background)
+        .addIngredient('A', Item.simple(new ItemStack(Material.BOOK)))
+        .addIngredient('B', Item.simple(new ItemStack(Material.PAPER)))
+        .build();
+```
+
+模板中的 `#` 没有绑定内容，切换到「玩家视角」可以看到它们显示为灰色玻璃板：
+
+<MinecraftSlotGrid
+  title="背景"
+  rows={["#########", "###A#B###", "#########"]}
+  legend={{'#': '背景', A: '书', B: '纸'}}
+  items={{
+    '#': {icon: 'gray_stained_glass_pane'},
+    A: {icon: 'book'},
+    B: {icon: 'paper'},
+  }}
+/>
+
+背景只负责填充，本身没有点击行为。下面两种格子会显示背景：
+
+- 模板中没有绑定内容的标志符
+- 绑定了 `Element.empty()` 的格子
+
+绑定 [`Item.empty()`](/item/create#创建空-item) 的格子不显示背景，保持空白。
+
+`setBackground` 也接受 `ItemProvider`，背景可以在渲染时按查看者生成，写法见 [渲染与刷新](/item/render)。
+
+菜单打开期间，可以调用 Pane 的 `setBackgroundItem(stack)` 或 `setBackground(provider)` 更换背景，传入 `null` 清除背景。正在显示这块 Pane 的窗口会随之更新。
+
+## 冻结
+
+`setFrozen(true)` 冻结整块 Pane。冻结后，这块 Pane 的格子不再响应玩家操作：Item 的点击处理器不会执行，连接容器的格子不能放入、取出物品，也不参与 Shift 点击转移和双击收集。格子的显示和刷新不受影响。
+
+连接容器的格子默认允许玩家取出物品。只想展示容器内容时，冻结这块 Pane。下面显示一份奖励预览，玩家能看到物品和数量，但拿不走：
+
+```java
+VirtualInventory rewards = new VirtualInventory(new ItemStack[]{
+        new ItemStack(Material.DIAMOND, 3),
+        new ItemStack(Material.EMERALD, 16),
+        new ItemStack(Material.GOLDEN_APPLE)
+});
+
+Pane pane = Pane.builder("###RRR###")
+        .addIngredient('R', rewards)
+        .setFrozen(true)
+        .build();
+```
+
+`new VirtualInventory(ItemStack[])` 按数组内容创建容器，数组长度就是容器大小，这里正好对应 3 个 `R`。
+
+菜单打开期间也可以调用 Pane 的 `setFrozen(true)` 或 `setFrozen(false)` 切换，例如在处理一次购买时暂时冻结按钮，处理完再解冻。
+
+## 嵌套与偏移
+
+把一块 Pane 绑定到另一块 Pane 的标志符上，就能在这片区域显示子 Pane 的内容。外层模板决定**显示在哪里、显示多大一片区域**，偏移决定**从子 Pane 的哪个位置开始显示**。
+
+### 从子 Pane 中选取一片区域
+
+先准备一块 5 列、3 行的子 Pane。每格放一叠纸，用数量标记位置，从左到右、从上到下依次为 1～15：
+
+```java
+Pane content = Pane.builder(
+                "NNNNN",
+                "NNNNN",
+                "NNNNN"
+        )
+        .addIngredient('N', (slots, occurrence) ->
+                Element.item(Item.simple(new ItemStack(Material.PAPER, occurrence + 1))))
+        .build();
+```
+
+下面用数字表示这些格子的内容。坐标从左上角的 `(0, 0)` 开始，`x` 向右增加，`y` 向下增加：
+
+```text
+          x=0  x=1  x=2  x=3  x=4
+    y=0    1    2    3    4    5
+    y=1    6    7    8    9   10
+    y=2   11   12   13   14   15
+```
+
+在外层菜单中留出一片 3 列、2 行的 `C` 区域，绑定这块子 Pane：
+
+```java
+Pane pane = Pane.builder(
+                "#########",
+                "###CCC###",
+                "###CCC###",
+                "#########"
+        )
+        .addIngredient('C', content)
+        .build();
+```
+
+不指定偏移时，`C` 区域从子 Pane 的 `(0, 0)` 开始显示。它只有 3 列、2 行，因此取到的是左上角的六格：第一行是 **1、2、3**，第二行是 **6、7、8**。子 Pane 原有的行列关系会保留。
+
+<MinecraftSlotGrid
+  title="无偏移：从 (0, 0) 开始"
+  rows={["#########", "###CCC###", "###CCC###", "#########"]}
+  legend={{C: '子 Pane 左上角的 3×2 区域', '#': '留空'}}
+  defaultView="game"
+  items={{C: {icon: 'paper', count: [1, 2, 3, 6, 7, 8]}}}
+/>
+
+### 用偏移改变显示的内容
+
+把上面的绑定改成：
+
+```java
+.addIngredient('C', content, 1, 1)
+```
+
+最后两个参数依次是 `offsetX` 和 `offsetY`。这里都设为 `1`，表示从子 Pane 中向右一列、向下一行的 `(1, 1)` 开始取内容，再显示同样大小的 3×2 区域：
+
+```text
+          x=0  x=1  x=2  x=3  x=4
+    y=0    1    2    3    4    5
+              ┌─────────────┐
+    y=1    6  │ 7    8    9 │10
+    y=2   11  │12   13   14 │15
+              └─────────────┘
+```
+
+外层菜单中的 `C` 仍在原来的位置，显示的内容变成了 **7、8、9 / 12、13、14**。切换到「字符模板」可以看到，两次使用的外层模板完全相同：
+
+<MinecraftSlotGrid
+  title="偏移 (1, 1)：从第二列、第二行开始"
+  rows={["#########", "###CCC###", "###CCC###", "#########"]}
+  legend={{C: '子 Pane 从 (1, 1) 开始的 3×2 区域', '#': '留空'}}
+  defaultView="game"
+  items={{C: {icon: 'paper', count: [7, 8, 9, 12, 13, 14]}}}
+/>
+
+固定这片 `C` 区域，只改变偏移，结果如下：
+
+| `offsetX` | `offsetY` | 显示的第一行 | 显示的第二行 |
+|---|---|---|---|
+| 0 | 0 | 1、2、3 | 6、7、8 |
+| 1 | 0 | 2、3、4 | 7、8、9 |
+| 0 | 1 | 6、7、8 | 11、12、13 |
+| 1 | 1 | 7、8、9 | 12、13、14 |
+
+如果要调整子 Pane 在外层菜单中的位置，就移动模板里的 `C` 区域。例如，日历中需要根据每月 1 号是星期几，在它前面留出空格，这属于外层布局；这里的偏移用于选取子 Pane 中要显示的内容。
+
+:::warning[取出的每一格都必须在子 Pane 内]
+本例的子 Pane 宽 5 格、高 3 格，显示区域宽 3 格、高 2 格，所以 `offsetX` 可以取 0～2，`offsetY` 可以取 0～1。超出这个范围会让某些格子对应到子 Pane 外，`build()` 抛出 `IllegalStateException`，不会自动补空白。
 :::
+
+偏移在构建时确定。需要在菜单打开后滚动显示内容时，使用 [滚动与标签](/pagination/scroll-tab)。
+
+### 嵌套后的背景、冻结与点击
+
+嵌入的格子仍然连接着子 Pane 中的对应格子。子 Pane 的内容更新时，外层菜单显示的内容也会更新，背景和操作规则如下：
+
+| | 规则 |
+|---|---|
+| 背景 | 子 Pane 的空格子先用子 Pane 自己的背景；子 Pane 没有设置背景时，用外层 Pane 的背景 |
+| 冻结 | 外层 Pane 与子 Pane 任意一层冻结，这一格就不响应操作 |
+| 点击 | 未冻结时，子 Pane 中的 Item 照常响应点击 |
+
+## 多名玩家共用一块 Pane
+
+Pane 和 Item 一样可以共用：把 Pane 保存在字段中，每次打开菜单时交给一扇新的 Window。Window 按玩家创建，不能共用。之后修改这块 Pane，所有正在显示它的窗口会同时更新。
+
+下面的公告板由所有玩家共用，维护期间换成红色背景并冻结：
+
+```java
+private static final Pane BOARD = createBoard();
+
+public static void open(Player viewer) {
+    Window.builder(BOARD).open(viewer);
+}
+
+public static void startMaintenance() {
+    BOARD.setFrozen(true);
+    BOARD.setBackgroundItem(new ItemStack(Material.RED_STAINED_GLASS_PANE));
+}
+
+public static void endMaintenance() {
+    BOARD.setFrozen(false);
+    BOARD.setBackgroundItem(new ItemStack(Material.GRAY_STAINED_GLASS_PANE));
+}
+```
+
+<Details summary="createBoard() 的实现" previewHeight={0}>
+
+```java
+private static Pane createBoard() {
+    return Pane.builder(
+                    "#########",
+                    "###N#S###",
+                    "#########"
+            )
+            .setBackground(new ItemStack(Material.GRAY_STAINED_GLASS_PANE))
+            .addIngredient('N', new ItemStack(Material.PAPER))
+            .addIngredient('S', Item.builder()
+                    .setItemProviderConstant(new ItemStack(Material.LIME_DYE))
+                    .addClickHandler(click -> click.player().sendMessage(Component.text("签到成功！")))
+                    .build())
+            .build();
+}
+```
+
+</Details>
+
+两名玩家同时打开了公告板。点下面的按钮调用对应的方法，两扇窗口一起变化：
+
+<SharedPaneDemo
+  title="服务器公告"
+  rows={["#########", "###N#S###", "#########"]}
+  viewers={['Alice', 'Bob']}
+  states={[
+    {
+      label: 'endMaintenance()',
+      note: '签到按钮可以点击。',
+      items: {
+        '#': {icon: 'gray_stained_glass_pane'},
+        N: {icon: 'paper', name: '今日公告'},
+        S: {icon: 'lime_dye', name: '每日签到', nameColor: '#ffff55'},
+      },
+    },
+    {
+      label: 'startMaintenance()',
+      note: 'Pane 已冻结，两名玩家的签到按钮都不再响应点击。',
+      items: {
+        '#': {icon: 'red_stained_glass_pane'},
+        N: {icon: 'paper', name: '今日公告'},
+        S: {icon: 'lime_dye', name: '每日签到', nameColor: '#ffff55'},
+      },
+    },
+  ]}
+/>
+<NextStep
+  to="/pane/programmatic"
+  title="程序化布局"
+  description="不写字符模板，按槽位编号或坐标直接放置内容。"
+/>

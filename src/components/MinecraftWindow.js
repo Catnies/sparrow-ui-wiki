@@ -17,6 +17,11 @@
 //     }}
 //   />
 //
+// 物品数量用 count：写一个数字时这个标志符的每一格都显示它；写成数组时，
+// 标志符第 n 次出现的格子（按槽位顺序）取第 n 个值。数量为 1 时不显示，与原版一致。
+//
+//   items={{D: {icon: 'paper', count: [1, 2, 3, 4, 5]}}}
+//
 // 窗口类型与槽位坐标在 mcWindows.js，加新类型不用动这个文件。
 // 贴图来自原版客户端，存在 static/img/mc/，本站为非盈利的说明性使用。
 
@@ -85,6 +90,14 @@ export default function MinecraftWindow({
 
   const emptySet = new Set(Array.isArray(empty) ? empty : [empty]);
 
+  // 每一格是该标志符的第几次出现（按槽位顺序），count 写成数组时按它取值
+  const seen = new Map();
+  const occurrenceOf = cells.map((identifier) => {
+    const occurrence = seen.get(identifier) ?? 0;
+    seen.set(identifier, occurrence + 1);
+    return occurrence;
+  });
+
   const hoveredItem = hover === null || emptySet.has(cells[hover.index]) ? null : items[cells[hover.index]];
 
   return (
@@ -138,6 +151,8 @@ export default function MinecraftWindow({
             const identifier = cells[index];
             const item = identifier == null || emptySet.has(identifier) ? null : items[identifier];
             const isEmpty = !item;
+            // 与原版一致：数量为 1 时不显示
+            const count = Array.isArray(item?.count) ? item.count[occurrenceOf[index]] : item?.count;
             return (
               <div
                 key={`${x}-${y}`}
@@ -177,6 +192,7 @@ export default function MinecraftWindow({
                     draggable={false}
                   />
                 )}
+                {!isEmpty && count > 1 && <span className={styles.count}>{count}</span>}
                 {/* 悬停盖白，和游戏一致 */}
                 {hover?.index === index && <span className={styles.highlight} />}
               </div>

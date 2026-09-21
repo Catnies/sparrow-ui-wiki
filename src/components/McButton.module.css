@@ -1,0 +1,46 @@
+/* McButton.module.css
+   原版按钮是 200×20 的九宫格贴图，四边各 3px。这里用 border-image 按同样的切法放大，
+   倍数与 <MinecraftWindow> 默认的 2 倍一致：按钮高 40px，文字 16px。
+   游戏 GUI 没有深浅色模式，任何文档主题下都是同一套配色。 */
+
+.button {
+  --mcb-scale: 2;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: calc(20px * var(--mcb-scale));
+  padding: 0 calc(5px * var(--mcb-scale));
+  border-style: solid;
+  border-width: calc(3px * var(--mcb-scale));
+  border-image: url('../../static/img/mc/widget/button.png') 3 fill / calc(3px * var(--mcb-scale)) repeat;
+  border-radius: 0;
+  background: none;
+  image-rendering: pixelated;
+  font-family: var(--mc-font);
+  font-size: calc(8px * var(--mcb-scale));
+  font-synthesis: none;
+  line-height: 1;
+  color: #ffffff;
+  /* 原版文字阴影：右下各偏 1 像素，颜色是文字色的四分之一亮度 */
+  text-shadow: calc(1px * var(--mcb-scale)) calc(1px * var(--mcb-scale)) 0 #3f3f3f;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.button:hover:not(.selected) {
+  border-image-source: url('../../static/img/mc/widget/button_highlighted.png');
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+}
+
+/* 当前选中的一项压暗显示，文字保持白色，不当作不可用 */
+.selected {
+  border-image-source: url('../../static/img/mc/widget/button_disabled.png');
+  cursor: default;
+}

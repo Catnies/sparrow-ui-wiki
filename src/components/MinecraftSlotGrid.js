@@ -28,6 +28,7 @@
 import React, {useMemo, useState} from 'react';
 import {translate} from '@docusaurus/Translate';
 import useBaseUrl from '@docusaurus/useBaseUrl';
+import McButton from './McButton';
 import MinecraftWindow from './MinecraftWindow';
 import {analyzeStructure} from '../utils/parseStructure';
 import styles from './MinecraftSlotGrid.module.css';
@@ -204,36 +205,20 @@ export default function MinecraftSlotGrid({
             description: 'MinecraftSlotGrid: aria label of the view switch',
           })}
         >
-          <button
-            type="button"
-            className={`${styles.viewButton} ${gameView ? '' : styles.viewButtonActive}`}
-            aria-pressed={!gameView}
-            onClick={() => switchView('layout')}
-          >
-            <svg className={styles.viewIcon} viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z" />
-            </svg>
+          <McButton selected={!gameView} onClick={() => switchView('layout')}>
             {translate({
               id: 'minecraftSlotGrid.view.layout',
               message: 'Template',
               description: 'MinecraftSlotGrid: button that shows the identifier layout',
             })}
-          </button>
-          <button
-            type="button"
-            className={`${styles.viewButton} ${gameView ? styles.viewButtonActive : ''}`}
-            aria-pressed={gameView}
-            onClick={() => switchView('game')}
-          >
-            <svg className={styles.viewIcon} viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M8 3C4.4 3 1.6 5.4.5 8c1.1 2.6 3.9 5 7.5 5s6.4-2.4 7.5-5C14.4 5.4 11.6 3 8 3zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-4.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />
-            </svg>
+          </McButton>
+          <McButton selected={gameView} onClick={() => switchView('game')}>
             {translate({
               id: 'minecraftSlotGrid.view.game',
               message: 'In game',
               description: 'MinecraftSlotGrid: button that shows what the player sees',
             })}
-          </button>
+          </McButton>
         </div>
       )}
 

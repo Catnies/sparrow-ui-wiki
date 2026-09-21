@@ -1,0 +1,82 @@
+/* SharedPaneDemo.module.css
+   外框与 MinecraftSlotGrid 一致：上下两条分隔线，内容左对齐。
+   按钮样式与 MinecraftSlotGrid 的视图切换按钮保持一致。 */
+
+.wrapper {
+  margin: 1.2rem 0;
+  padding: 16px 0;
+  border-block: 1px solid var(--ifm-color-emphasis-200);
+}
+
+/* 原版按钮横排，间距与游戏里按钮之间的 4 像素一致（2 倍） */
+.states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+/* 宽版面并排，放不下时自动换行 */
+.windows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+}
+
+/* 同一段淡入起两个名字，切换状态时换名字让动画重播，所有窗口同时闪一下 */
+.fadeEven {
+  animation: stateFadeEven 0.25s ease-out;
+}
+
+.fadeOdd {
+  animation: stateFadeOdd 0.25s ease-out;
+}
+
+@keyframes stateFadeEven {
+  from {
+    opacity: 0.35;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes stateFadeOdd {
+  from {
+    opacity: 0.35;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.viewer {
+  margin: 0;
+  max-width: 100%;
+}
+
+/* 成品窗口自带上下外边距，并排时清掉 */
+.viewer > div {
+  margin: 0;
+}
+
+.caption {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.note {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fadeEven,
+  .fadeOdd {
+    animation: none;
+  }
+}
