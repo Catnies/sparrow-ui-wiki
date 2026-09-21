@@ -1,0 +1,169 @@
+/* VisualLayerDemo.module.css
+   外框与 SharedPaneDemo 一致：上下两条分隔线，直角、无投影。
+   光标格按 <MinecraftSlotGrid> 的槽位画法：#8b8b8b 底色加 2px 斜边。 */
+
+.wrapper {
+  margin: 1.2rem 0;
+  padding: 16px 0;
+  border-block: 1px solid var(--ifm-color-emphasis-200);
+}
+
+/* 原版按钮横排，间距与游戏里按钮之间的 4 像素一致（2 倍） */
+.layers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 12px 0 14px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8rem;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  transition: opacity 0.15s ease-out;
+}
+
+/* 关掉的层淡下去，但仍然留在图例里，方便对照 */
+.legend li.off {
+  opacity: 0.4;
+}
+
+.legendIcon {
+  width: 16px;
+  height: 16px;
+  border-radius: 0;
+  image-rendering: pixelated;
+}
+
+.legendLabel {
+  font-weight: 600;
+}
+
+.legendNote {
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* 三列：说明、窗口、光标。每扇窗口一行，同一格上下对齐 */
+.rows {
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.rowLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.rowWindow {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 成品窗口自带上下外边距，排进网格时清掉 */
+.rowWindow > div {
+  margin: 0;
+}
+
+.rowCursor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+/* 真实内容与玩家看到的结果之间的分隔线 */
+.divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  background-color: var(--ifm-color-emphasis-200);
+}
+
+/* 窄屏改成一列：说明在上，窗口居中，光标在下 */
+@media (max-width: 640px) {
+  .rows {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .rowCursor:empty {
+    display: none;
+  }
+
+  .rowCursor {
+    margin-bottom: 8px;
+  }
+}
+
+.cursorLabel {
+  color: var(--ifm-color-emphasis-700);
+}
+
+.cursorSlot {
+  position: relative;
+  box-sizing: content-box;
+  width: 32px;
+  height: 32px;
+  background-color: #8b8b8b;
+  border: 2px solid;
+  border-color: #373737 #ffffff #ffffff #373737;
+}
+
+.cursorIcon {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 0;
+  image-rendering: pixelated;
+}
+
+/* 与 <MinecraftWindow> 的数量一致：右下角白字加深色阴影 */
+.cursorCount {
+  position: absolute;
+  top: 18px;
+  right: -2px;
+  font-family: var(--mc-font);
+  font-size: 16px;
+  font-synthesis: none;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow: 2px 2px 0 #3f3f3f;
+  pointer-events: none;
+}
+
+.cursorName {
+  color: var(--ifm-color-emphasis-800);
+}
+
+/* 悬停说明占住固定高度，出现和消失时下面的正文不跳动 */
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  min-height: 2.6em;
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.statusSlot {
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .legend li {
+    transition: none;
+  }
+}

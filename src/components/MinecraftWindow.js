@@ -17,6 +17,10 @@
 //     }}
 //   />
 //
+// lore 的每一行默认是灰色文字；需要别的颜色时把这一行写成 {text, color}：
+//
+//   lore: ['普通说明', {text: '售价：300 金币', color: '#ffaa00'}]
+//
 // 物品数量用 count：写一个数字时这个标志符的每一格都显示它；写成数组时，
 // 标志符第 n 次出现的格子（按槽位顺序）取第 n 个值。数量为 1 时不显示，与原版一致。
 //
@@ -242,9 +246,16 @@ function MinecraftTooltip({id, item, hover, scale}) {
   return (
     <div ref={ref} id={id} role="tooltip" className={styles.tooltip} style={{'--mcw-scale': scale}}>
       <span className={styles.tooltipName} style={{color: item.nameColor ?? '#ffffff'}}>{item.name}</span>
-      {(item.lore ?? []).map((line, index) => (
-        <span key={index} className={styles.tooltipLore}>{line || '\u00a0'}</span>
-      ))}
+      {(item.lore ?? []).map((line, index) => {
+        // \u4e00\u884c\u8bf4\u660e\u53ef\u4ee5\u53ea\u5199\u6587\u5b57\uff0c\u4e5f\u53ef\u4ee5\u5199\u6210 {text, color} \u5355\u72ec\u6307\u5b9a\u989c\u8272
+        const text = typeof line === 'string' ? line : line?.text;
+        const color = typeof line === 'string' ? undefined : line?.color;
+        return (
+          <span key={index} className={styles.tooltipLore} style={color ? {color} : undefined}>
+            {text || '\u00a0'}
+          </span>
+        );
+      })}
     </div>
   );
 }

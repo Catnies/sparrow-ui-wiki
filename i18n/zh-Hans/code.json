@@ -587,5 +587,45 @@
   "conceptMap.readMore": {
     "message": "查看章节",
     "description": "ConceptMap 详情面板里指向对应章节的链接文案"
+  },
+  "visualLayerDemo.layers.aria": {
+    "message": "视觉层开关",
+    "description": "VisualLayerDemo 视觉层开关按钮组的无障碍标签"
+  },
+  "visualLayerDemo.cursor": {
+    "message": "光标",
+    "description": "VisualLayerDemo 光标格左侧的标签"
+  },
+  "visualLayerDemo.empty": {
+    "message": "空",
+    "description": "VisualLayerDemo 空格或空光标"
+  },
+  "visualLayerDemo.viewerCaption": {
+    "message": "{viewer} 看到的",
+    "description": "VisualLayerDemo 每扇玩家窗口左侧的说明"
+  },
+  "visualLayerDemo.realCaption": {
+    "message": "真实内容",
+    "description": "VisualLayerDemo 真实内容窗口左侧的说明"
+  },
+  "visualLayerDemo.hint": {
+    "message": "把鼠标移到格子上，查看每名玩家看到的内容来自哪一层。",
+    "description": "VisualLayerDemo 没有悬停格子时的提示"
+  },
+  "visualLayerDemo.slot": {
+    "message": "第 {slot} 格",
+    "description": "VisualLayerDemo 当前悬停的格子序号"
+  },
+  "visualLayerDemo.actualItem": {
+    "message": "真实物品",
+    "description": "VisualLayerDemo 没有任何层盖住这一格，显示真实物品"
+  },
+  "visualLayerDemo.viewerSource": {
+    "message": "{viewer}：{source}",
+    "description": "VisualLayerDemo 某名玩家看到的内容来自哪一层"
+  },
+  "visualLayerDemo.actualContent": {
+    "message": "真实内容：{item}",
+    "description": "VisualLayerDemo 悬停格子中的真实物品"
   }
 }

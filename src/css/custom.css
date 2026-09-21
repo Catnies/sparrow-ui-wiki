@@ -1193,3 +1193,12 @@ html[data-eyecare='mist']:not([data-theme='dark']) pre[class*='language-'] {
 .bg-swatch--none .theme-color-check {
   color: var(--ifm-color-emphasis-700);
 }
+
+/* 几扇 <MinecraftWindow> 并排比较：在 mdx 里用 <div className="mc-window-row"> 包住，
+   宽度不够时自动换行。窗口自带上下外边距，这里只补左右间距。 */
+.mc-window-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: 24px;
+}

@@ -395,6 +395,33 @@ Pane 的背景只负责"没被单独安排的格子显示什么"，它不参与�
 
 ---
 
+## VisualLayerDemo
+
+开关几层视觉映射，比较两名玩家看到的内容和容器中的真实内容。`layers` 越靠后优先级越高，带 `viewer` 的层只作用于那一名玩家，`cursor: true` 的层作用于光标。正文用法见 [视觉层](/visual/layers)。
+
+<VisualLayerDemo
+  title="仓库"
+  real={[
+    {icon: 'diamond', name: '钻石', count: 3},
+    {icon: 'emerald', name: '绿宝石', count: 16},
+    null,
+    {icon: 'coal', name: '煤炭', count: 8},
+    null, null, null, null,
+    {icon: 'netherite_ingot', name: '下界合金锭'},
+  ]}
+  viewers={[
+    {name: '玩家 A', cursor: {icon: 'emerald', name: '绿宝石', count: 8}},
+    {name: '玩家 B'},
+  ]}
+  layers={[
+    {label: '容器层', note: '所有查看者', slots: [0, 1, 2], item: {icon: 'light_blue_stained_glass_pane', name: '容器层'}},
+    {label: '窗口层', note: '只有玩家 A', viewer: 0, slots: [2, 3], item: {icon: 'lime_stained_glass_pane', name: '窗口层'}},
+    {label: '光标层', note: '只有玩家 A 的光标', viewer: 0, cursor: true, item: {icon: 'purple_stained_glass_pane', name: '光标层'}},
+  ]}
+/>
+
+---
+
 ## NextStep
 
 每页结尾都该有一个。放在最后是因为它自带 `margin-top`，就是为页尾设计的。
