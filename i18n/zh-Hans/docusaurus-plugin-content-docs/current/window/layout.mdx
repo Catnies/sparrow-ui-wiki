@@ -110,7 +110,7 @@ Window.splitBuilder(upper, lower)
 :::warning[自定义下部不会自动连接玩家背包]
 `lower` 必须是 9×4，这 36 格的显示和点击都由它决定。未绑定的格子留空或显示背景，玩家原有的背包物品会暂时隐藏。
 
-图中的玻璃板只是菜单背景，玩家原有物品仍在真实背包中。要在自定义布局里显示、操作这些物品，需要连接对应的容器，见 [引用原版容器](/inventory/referencing)。
+图中的玻璃板只是菜单背景，玩家原有物品仍在真实背包中。要在自定义布局里显示、操作这些物品，需要连接对应的容器，见 [映射容器](/inventory/referencing)。
 :::
 
 ## 合并布局：一份模板覆盖整个窗口
@@ -183,7 +183,7 @@ window.open();
 
 调用 `window.lowerPane().setFrozen(false)` 即可恢复操作。冻结期间仍会显示真实背包的内容。
 
-需要访问下部连接的容器时，可以调用 `window.defaultLowerInventory()`。它通过下部 Pane 的形状与第一格连接查找 `ReferencingInventory`，结构被改写后可能返回 `null`。这个容器引用玩家的真实背包，通过它修改物品会写回真实背包，具体用法见 [引用原版容器](/inventory/referencing)。
+需要访问下部连接的容器时，可以调用 `window.defaultLowerInventory()`。它通过下部 Pane 的形状与第一格连接查找 `ReferencingInventory`，结构被改写后可能返回 `null`。这个容器映射玩家的真实背包，通过它修改物品会写回真实背包，具体用法见 [映射容器](/inventory/referencing)。
 
 :::warning[修改下部结构后，操作跟随实际连接]
 默认下部 Pane 的内容和连接都可以修改。修改后，数字键交换的目标是当前快捷栏位置连接的容器槽位；Shift 点击转移和双击收集也按实际连接的容器及其规则处理。

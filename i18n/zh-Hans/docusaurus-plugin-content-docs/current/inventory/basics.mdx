@@ -10,7 +10,7 @@ Pane 的格子可以连接容器，玩家在这些格子里放入、取出的物
 Sparrow UI 的容器类型是 `SparrowInventory`，与 Bukkit 的 `Inventory` 是两套 API。它有两种实现：
 
 - `VirtualInventory`：物品保存在内存中，见 [虚拟容器](/inventory/virtual)
-- `ReferencingInventory`：读写箱子、玩家背包等已有的容器，见 [引用外部容器](/inventory/referencing)
+- `ReferencingInventory`：把箱子、玩家背包等已有的容器映射进菜单，见 [映射容器](/inventory/referencing)
 
 `SparrowInventory` 不能用 `player.openInventory` 打开。把它绑定到 Pane 的标志符上，再用 Window 打开，玩家就能在菜单中操作它。容器不属于某一个菜单，同一个容器可以同时显示在多个菜单中，也可以在菜单之外单独读写。
 
@@ -54,7 +54,7 @@ storage.clear();
 
 通过这些方法修改容器后，显示这个容器的窗口会自动更新。它们直接写入容器，不经过访问规则，也不受下文的冻结限制。以 `try` 开头的同名方法（如 `tryAdd`、`trySetItem`）会先检查访问规则，结果可能被拒绝，见 [访问规则与事件](/inventory/rules-events)。
 
-`VirtualInventory` 的方法可以在任意线程调用 <ThreadBadge type="any" />。`ReferencingInventory` 会直接读写被引用的容器，必须在能访问那个容器的线程调用。
+`VirtualInventory` 的方法可以在任意线程调用 <ThreadBadge type="any" />。`ReferencingInventory` 会直接读写被映射的容器，必须在能访问那个容器的线程调用，见 [线程要求](/inventory/referencing#线程要求)。
 
 :::warning[读取和写入都会复制物品]
 `itemAt` 和 `snapshot` 返回的是副本，修改它们不会改变容器。`setItem`、`add` 等方法会复制传入的物品，之后再修改原来的物品也不会影响容器。
