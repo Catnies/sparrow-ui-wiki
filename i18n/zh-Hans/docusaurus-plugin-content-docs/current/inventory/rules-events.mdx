@@ -3,8 +3,316 @@ title: 访问规则与事件
 sidebar_label: 访问规则与事件
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 6.4 节。 */}
+访问规则决定玩家能不能向容器放入、取出物品。事件在容器内容变化前后通知你：提交前可以取消或改写这次修改，提交后可以记录日志、发送提示。
 
-:::info
-本页尚未撰写。
+## 修改的来源
+
+容器的内容可能由四种来源修改，它们经过的检查不同：
+
+| 来源 | 访问规则 | 提交前事件 | 提交后事件 |
+|---|---|---|---|
+| 玩家在菜单中操作 | 检查 | 派发 | 派发 |
+| 代码调用以 `try` 开头的方法 | 检查 | 派发 | 派发 |
+| 代码调用 `setItem`、`add` 等其他写入方法 | 跳过 | 跳过 | 派发 |
+| [映射容器](/inventory/referencing#同步外部改动) 同步外部改动 | 跳过 | 跳过 | 派发 |
+
+在代码中修改容器时，按是否需要经过规则和事件选择方法。`try` 方法可能被拒绝，结果要检查：
+
+```java
+// 经过访问规则和提交前事件, 可能被拒绝
+AddResult result = storage.tryAdd(reward);
+if (!(result.result() instanceof TransactionResult.Committed)) {
+    // 被取消或冲突, 容器没有任何变化
+    return;
+}
+// 放不下的数量
+int remaining = result.remaining();
+```
+
+`TransactionResult` 有三种：`Committed` 表示已经写入，`Cancelled` 表示被访问规则、冻结或提交前事件拒绝，`Conflicted` 表示提交时容器已经被别处改过。后两种都不会写入任何内容。
+
+## 访问规则
+
+`setAccessRule` 设置访问规则。不传格子序号时作用于整个容器，传入格子序号时只作用于这一格。一格同时有两条规则时，两条都通过才允许：
+
+```java
+VirtualInventory payment = new VirtualInventory(1);
+// 整个容器的规则: 只有 owner 可以存取
+payment.setAccessRule(context -> {
+    Player player = context.player();
+    // 代码发起的 try 请求没有玩家, 这里一并放行
+    return player == null || player.getUniqueId().equals(ownerId);
+});
+// 第 0 格的规则: 只能放入绿宝石, 取出不受限制
+payment.setAccessRule(0, context -> !context.isAdd() || context.addedItem().getType() == Material.EMERALD);
+```
+
+传入 `null` 清除规则。规则收到的 `AccessContext` 描述这一格将要发生的变化：
+
+| 方法 | 内容 |
+|---|---|
+| `player()` | 发起这次修改的玩家，代码发起的请求返回 `null` |
+| `window()` | 玩家操作所在的窗口，代码发起的请求返回 `null` |
+| `slot()`、`inventory()` | 被访问的格子和容器 |
+| `before()`、`after()` | 这一格修改前、修改后的物品，空格为 `null` |
+| `isAdd()`、`addedItem()`、`addedAmount()` | 有没有物品流入，流入的是什么、多少个 |
+| `isRemove()`、`removedItem()`、`removedAmount()` | 有没有物品流出，流出的是什么、多少个 |
+| `reason()` | 修改的原因，见 [修改原因](#修改原因) |
+
+`addedItem()` 带的是实际移动的数量。光标上有 8 个物品、右键放入 1 个时，`addedAmount()` 为 1。交换两件不同的物品时，`isAdd()` 与 `isRemove()` 同时为 `true`。
+
+规则拒绝某一格时，操作中涉及这一格的部分不成立：单击放不进去；Shift 转移跳过这一格，继续找下一格或下一个容器；拖拽把这一格排除后，重新平分给其余格子。`tryAdd` 这类尽量放入的方法同样跳过被拒绝的格子；`trySetItem` 这类指定了结果的方法只要有一格被拒绝，就整笔返回 `Cancelled`。
+
+:::warning[规则只做判断]
+规则里只能读取 `AccessContext`，不要修改任何容器，也不要发送消息、扣款这类会产生效果的操作。一次操作中规则可能被调用多次，例如拖拽重新平分时要再检查一遍。`AccessContext` 中的物品只能读取，不要修改或保存它们。
 :::
+
+## 点击事件
+
+`subscribeClick` 在玩家点击这个容器的格子时收到 `SparrowInventoryClickEvent`，调用 `cancel()` 可以阻止这次点击。下面禁止用 Q 键从奖励箱中直接丢出物品：
+
+```java
+rewards.subscribeClick(event -> {
+    // 不允许用 Q 键从奖励箱直接丢出物品
+    if (event.clickType() == ClickType.DROP || event.clickType() == ClickType.CONTROL_DROP) {
+        event.cancel();
+    }
+});
+```
+
+事件提供 `player()`、`slot()`、`clickType()`、`hotbarButton()` 和 `action()`。`slot()` 是容器自己的格子序号；`action()` 是这次点击最终的效果，点了之后什么都没有变化时为 `NOTHING`。
+
+只有被点击的那个容器收到点击事件。Shift 转移时，接收物品的容器收不到点击事件，只收到下文的提交前、提交后事件。拖拽和点击按钮格不派发这个事件，按钮的点击见 [点击与守卫](/item/click)。
+
+玩家在容器格子里选择收纳袋中的物品时，`subscribeBundleSelect` 会收到通知。
+
+## 提交前事件
+
+`subscribePreUpdate` 在修改写入容器之前收到 `InventoryPreUpdateEvent`。玩家操作和 `try` 方法会派发它，一次修改涉及几个容器，每个容器各收到一次，格子序号用的都是自己的。下面在玩家放入粗铁时直接换成铁锭：
+
+```java
+furnace.subscribePreUpdate(event -> {
+    ItemStack placed = event.after(0);
+    // 放入粗铁时, 直接换成等量的铁锭
+    if (placed != null && placed.getType() == Material.RAW_IRON) {
+        event.setAfter(0, placed.withType(Material.IRON_INGOT));
+    }
+});
+```
+
+事件中可以读取和改写这次修改：
+
+| 方法 | 作用 |
+|---|---|
+| `slotChanges()`、`changeAt(slot)` | 这个容器将要变化的格子，每条记录有修改前后的物品 |
+| `after(slot)` | 修改完成后这一格的物品 |
+| `setAfter(slot, item)` | 改写修改完成后这一格的物品，`null` 表示清空 |
+| `include(inventory)` | 把另一个容器纳入这次修改，之后可以用 `after(inventory, slot)`、`setAfter(inventory, slot, item)` 读写它 |
+| `setCancelled(true)` | 取消整次修改，所有容器都不变化 |
+| `interaction()` | 改写修改完成后玩家的光标、副手和掉落物，不是玩家操作时返回 `null` |
+
+纳入的容器与原来的容器一起写入，或者一起取消，用法见页尾的 [示例: 兑换台](#示例-兑换台)。改写的内容不再经过访问规则。
+
+取消状态会依次传给后面的处理器，后面的处理器可以调用 `setCancelled(false)` 恢复。`setAfter` 等改写只能在处理器返回之前、在调用它的线程中进行，把事件保存下来之后再改会抛出 `IllegalStateException`。
+
+:::warning[提交前的效果不会撤回]
+提交前事件派发之后，这次修改仍可能被后面的处理器取消，或者因为容器已经被别处改过而放弃。提交前事件中已经做过的事不会撤回，所以扣款、发放奖励、写数据库都放到提交后事件中。
+
+在提交前事件中调用 `setItem`、`clear` 等方法，会作为另一次独立的修改立即写入，不随这次修改一起取消。
+:::
+
+## 提交后事件
+
+`subscribePostUpdate` 在修改写入之后收到 `InventoryPostUpdateEvent`。四种来源都会派发它，这时修改已经生效，不能再取消。下面记录玩家存入了什么：
+
+```java
+storage.subscribePostUpdate(event -> {
+    Player player = event.player();
+    if (player == null) {
+        return;
+    }
+    // 同类物品在格子之间挪动会相互抵消, 这里只剩真正存入的物品
+    for (ItemStack item : event.netAddedItems()) {
+        logger.info(player.getName() + " 存入了 " + item.getAmount() + " 个 " + item.getType());
+    }
+});
+```
+
+两种事件都能读取下面这些内容：
+
+| 方法 | 内容 |
+|---|---|
+| `reason()`、`player()` | 修改的原因和发起的玩家，不是玩家发起时 `player()` 返回 `null` |
+| `slotChanges()` | 这个容器变化的格子 |
+| `netAddedItems()`、`netRemovedItems()` | 这个容器净增加、净减少的物品 |
+| `netChange()` | 净变化的类型：`NONE`、`ADDITION`、`REMOVAL` 或 `MIXED` |
+| `rootChanges()` | 这次修改涉及的所有容器的变化 |
+
+提交后事件中可以再次修改容器，那是另一次独立的修改。
+
+提交前、提交后事件的处理器抛出异常时，库交给异常处理器记录，不影响其他处理器。提交前事件的处理器抛出异常时，它做的改写不生效。
+
+### 线程与顺序
+
+访问规则和三种事件的处理器，都在发起修改的线程上同步执行：玩家操作在这名玩家的线程，代码调用在调用它的线程。同一个处理器可能被多个线程同时调用，需要自己保证线程安全。
+
+不同修改的提交后事件不一定按提交的先后到达。需要按顺序处理时，比较事件的 `version()`，数值大的更晚提交；虚拟容器也可以开启按顺序派发：
+
+```java
+// 按提交顺序依次派发提交后事件
+storage.serialPostDispatch(true);
+```
+
+开启后，后提交的修改会等前一次的提交后事件处理完。处理器仍在各自的提交线程执行。
+
+:::warning[订阅由容器持有]
+`subscribeClick`、`subscribePreUpdate`、`subscribePostUpdate` 返回的 `Subscription` 由容器持有，直到调用 `close()` 或容器被回收。每次打开菜单都新建容器时不需要处理。给长期存在的容器订阅时（例如 [多名玩家共用的容器](/inventory/basics#多名玩家共用一个容器)），不再需要就调用 `close()`，否则订阅和处理器引用的对象会一直留在内存中：
+
+```java
+Subscription subscription = storage.subscribePostUpdate(event -> {
+    // ...
+});
+
+// 菜单关闭时取消订阅
+window.addCloseHandler(reason -> subscription.close());
+```
+:::
+
+## 修改原因
+
+事件的 `reason()` 说明这次修改从哪里来：
+
+| 原因 | 来源 |
+|---|---|
+| `PlayerUpdateReason.Click` | 玩家点击，带有 `player()`、`clickType()` 和 `hotbarButton()` |
+| `PlayerUpdateReason.Drag` | 玩家拖拽，带有 `player()` 和 `clickType()` |
+| `PlayerUpdateReason.BundleSelect` | 玩家选择收纳袋中的物品 |
+| `UpdateReason.Program` | 代码调用写入方法时的默认原因 |
+| `UpdateReason.External` | 映射容器同步外部改动 |
+
+在代码中修改容器时，每个写入方法都可以在第一个参数传入原因。`UpdateReason` 是接口，可以定义自己的原因，让处理器区分修改来自哪里：
+
+```java
+record AdminReason(String admin) implements UpdateReason {
+}
+
+// 在代码中写入时带上自定义的原因
+storage.setItem(new AdminReason(admin.getName()), 0, new ItemStack(Material.DIAMOND));
+
+storage.subscribePostUpdate(event -> {
+    switch (event.reason()) {
+        case PlayerUpdateReason.Click click -> {
+            // 玩家点击, click.clickType() 是点击方式
+        }
+        case UpdateReason.External external -> {
+            // 映射容器在菜单之外被修改
+        }
+        case AdminReason adminReason -> {
+            // 自己定义的原因
+        }
+        default -> {
+        }
+    }
+});
+```
+
+原因只说明来源，不改变方法的行为：`setItem` 传入什么原因都不检查访问规则，`trySetItem` 传入什么原因都会检查。原因实现 `PlayerUpdateReason` 时，访问规则可以从 `player()` 取得玩家，[冻结的容器](/inventory/basics#冻结容器) 也会拒绝这次 `try` 请求。
+
+## 与 Bukkit 事件共存
+
+玩家在菜单中操作容器时，库默认还会派发 Bukkit 的 `InventoryClickEvent` 和 `InventoryDragEvent`，其他插件的监听器照常生效。它们在访问规则之后、Sparrow 的点击事件之前派发：
+
+- 监听器取消 Bukkit 事件时，这次操作不会执行。
+- 监听器通过事件修改格子或光标时，例如 `setCurrentItem`、`setCursor`，库把修改后的状态当作这次操作开始时的状态，重新计算一次结果。这与原版先派发事件、再执行点击的顺序一致。
+
+不需要 Bukkit 事件，或者其他插件的监听器干扰菜单时，可以关闭派发：
+
+```java
+// 这个容器的交互不再派发 Bukkit 事件
+storage.fireBukkitInventoryEvents(false);
+
+// 所有菜单都不再派发 Bukkit 事件
+SparrowUI.getInstance().fireBukkitInventoryEvents(false);
+```
+
+容器的开关只影响操作容器格子的交互。一次操作涉及多个容器时，只要其中一个开着就会派发。点击按钮格等其他交互只看全局开关。没有任何插件监听这两个事件时，库不会构造它们。Sparrow 自己的点击事件和提交前后事件不受这两个开关影响。
+
+## 示例: 兑换台
+
+左边的输入格只收钻石，放入后立即换成两倍数量的绿宝石，出现在右边的输出格中。输出格只能取出，关闭菜单时没取走的绿宝石还给玩家：
+
+<MinecraftSlotGrid
+  title="兑换台"
+  rows={["##I###O##"]}
+  legend={{I: '输入格，只收钻石', O: '输出格，只能取出'}}
+/>
+
+```java
+public static void openExchange(Player viewer) {
+    VirtualInventory input = new VirtualInventory(1);
+    VirtualInventory output = new VirtualInventory(1);
+
+    // 输入格只收钻石, 输出格只能取出
+    input.setAccessRule(context -> !context.isAdd() || context.addedItem().getType() == Material.DIAMOND);
+    output.setAccessRule(context -> !context.isAdd());
+
+    input.subscribePreUpdate(event -> {
+        ItemStack placed = event.after(0);
+        if (placed == null) {
+            return;
+        }
+        // 把输出格纳入这次修改: 输入格清空和输出格增加一起写入, 或者一起取消
+        event.include(output);
+        ItemStack current = event.after(output, 0);
+        int emeralds = (current == null ? 0 : current.getAmount()) + placed.getAmount() * 2;
+        if (emeralds > 64) {
+            // 输出格放不下时取消, 钻石留在原处
+            event.setCancelled(true);
+            return;
+        }
+        event.setAfter(0, null);
+        event.setAfter(output, 0, new ItemStack(Material.EMERALD, emeralds));
+    });
+
+    output.subscribePostUpdate(event -> {
+        Player player = event.player();
+        if (player == null || event.netChange() != InventoryNetChange.ADDITION) {
+            return;
+        }
+        // 兑换已经写入, 在这里发送提示
+        int amount = event.netAddedItems().stream().mapToInt(ItemStack::getAmount).sum();
+        player.sendMessage(Component.text("兑换成功，获得 " + amount + " 个绿宝石。", NamedTextColor.GREEN));
+    });
+
+    Pane pane = Pane.builder("##I###O##")
+            .addIngredient('I', input)
+            .addIngredient('O', output)
+            .build();
+
+    Window.builder(pane)
+            .setTitle("兑换台")
+            // 关闭时把没取走的绿宝石还给玩家, 背包放不下的掉在脚下
+            .addCloseHandler((window, reason) -> {
+                ItemStack left = output.itemAt(0);
+                if (left == null) {
+                    return;
+                }
+                output.clear();
+                Player player = window.viewer();
+                for (ItemStack overflow : player.getInventory().addItem(left).values()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), overflow);
+                }
+            })
+            .open(viewer);
+}
+```
+
+玩家放入钻石时，输入格的提交前事件把钻石清空，并把绿宝石写进纳入的输出格。两个容器与玩家的光标一起变化，不会出现钻石没了、绿宝石没到的情况。一次放入的钻石换算后超过 64 个时整次取消，钻石留在光标或背包中。
+
+输出格的访问规则拒绝放入，但提交前事件的改写不经过规则，所以兑换得到的绿宝石可以写进去。提示在提交后事件中发送，这时兑换已经完成。
+
+<NextStep
+  to="/visual/layers"
+  title="视觉层"
+  description="改变格子的显示方式，而不改动容器中的真实物品。"
+/>
