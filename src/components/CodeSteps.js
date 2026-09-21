@@ -78,36 +78,56 @@ export default function CodeSteps({code, language = 'java', title, steps = [], m
   useLayoutEffect(() => {
     const container = codeRef.current;
     if (!container || expanded) return;
-    const pre = container.querySelector('pre');
-    const first = container.querySelector('.theme-code-block-highlighted-line');
-    if (!pre || !first) return;
-
-    // 用滚动容器内的坐标判断可见性，避免 offsetTop 相对于外部祖先造成偏移。
-    const preRect = pre.getBoundingClientRect();
-    const firstRect = first.getBoundingClientRect();
-    const lineTop = firstRect.top - preRect.top + pre.scrollTop;
-    const start = pre.scrollTop;
-    const padding = firstRect.height * 2;
-    const alreadyVisible = lineTop >= start + padding && lineTop + firstRect.height <= start + pre.clientHeight - padding;
-    const firstRender = !initialized.current;
-    initialized.current = true;
-    if (alreadyVisible) return;
-
-    const top = Math.max(0, Math.min(lineTop - pre.clientHeight / 2 + firstRect.height / 2, pre.scrollHeight - pre.clientHeight));
-    if (firstRender || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      pre.scrollTop = top;
-      return;
-    }
-
     let frame;
-    const started = performance.now();
-    const scroll = (now) => {
-      const progress = Math.min((now - started) / 280, 1);
-      pre.scrollTop = start + (top - start) * (1 - (1 - progress) ** 3);
-      if (progress < 1) frame = requestAnimationFrame(scroll);
+    const alignSelection = () => {
+      const pre = container.querySelector('pre');
+      const highlighted = container.querySelectorAll('.theme-code-block-highlighted-line');
+      if (!pre || highlighted.length === 0) return false;
+      const first = highlighted[0];
+      const last = highlighted[highlighted.length - 1];
+
+      // 用滚动容器内的坐标判断可见性，避免 offsetTop 相对于外部祖先造成偏移。
+      const preRect = pre.getBoundingClientRect();
+      const firstRect = first.getBoundingClientRect();
+      const lastRect = last.getBoundingClientRect();
+      const lineTop = firstRect.top - preRect.top + pre.scrollTop;
+      const lineBottom = lastRect.bottom - preRect.top + pre.scrollTop;
+      const start = pre.scrollTop;
+      const padding = firstRect.height * 2;
+      // 为整段高亮预留上下文；超过默认限高时扩展显示区。
+      pre.style.setProperty('--code-selection-height', `${Math.ceil(lineBottom - lineTop + padding * 2)}px`);
+      const alreadyVisible = lineTop >= start + padding && lineBottom <= start + pre.clientHeight - padding;
+      const firstRender = !initialized.current;
+      initialized.current = true;
+      if (alreadyVisible) return true;
+
+      const top = Math.max(0, Math.min((lineTop + lineBottom - pre.clientHeight) / 2, pre.scrollHeight - pre.clientHeight));
+      if (firstRender || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        pre.scrollTop = top;
+        return true;
+      }
+
+      const started = performance.now();
+      const scroll = (now) => {
+        const progress = Math.min((now - started) / 280, 1);
+        pre.scrollTop = start + (top - start) * (1 - (1 - progress) ** 3);
+        if (progress < 1) frame = requestAnimationFrame(scroll);
+      };
+      frame = requestAnimationFrame(scroll);
+      return true;
     };
-    frame = requestAnimationFrame(scroll);
-    return () => cancelAnimationFrame(frame);
+
+    // CodeBlock 首次加载可能晚于父组件的布局 effect，等代码行挂载后再定位。
+    const observer = new MutationObserver(() => {
+      cancelAnimationFrame(frame);
+      alignSelection();
+    });
+    observer.observe(container, {childList: true, subtree: true, attributes: true, attributeFilter: ['class']});
+    frame = requestAnimationFrame(alignSelection);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
   }, [active, expanded]);
 
   if (!Array.isArray(steps) || steps.length === 0 || typeof code !== 'string') {

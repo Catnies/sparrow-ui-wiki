@@ -3,8 +3,324 @@ title: 点击与守卫
 sidebar_label: 点击与守卫
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 2.3 节。 */}
+Item 的交互由条件守卫和处理器组成。守卫决定本次操作是否允许，处理器在通过后执行关闭窗口、发送消息等行为。
 
-:::info
-本页尚未撰写。
+## 处理点击
+
+`addClickHandler` 添加点击处理器。它收到的 `ItemClick` 描述本次点击，包括操作玩家、点击类型和所在窗口：
+
+| 成员 | 含义 |
+|---|---|
+| `player()` | 发起点击的玩家 |
+| `window()` | 本次点击所属窗口 |
+| `clickType()` | Bukkit 的 `ClickType` |
+| `windowSlot()` | 窗口中的槽位编号，从 0 开始 |
+| `cursor()` | 派发时的光标物品快照 |
+| `hotbarButton()` | 数字键对应的快捷栏索引，未关联时为 -1 |
+| `remembered()` | 取回渲染时记录的数据，没有时为 null |
+
+例如，让同一个按钮响应普通左键和右键：
+
+```java
+Item button = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.LIME_DYE))
+        .addClickHandler(click -> {
+            if (click.clickType() == ClickType.LEFT) {
+                click.player().sendMessage(Component.text("你好！"));
+            } else if (click.clickType() == ClickType.RIGHT) {
+                click.window().close();
+            }
+        })
+        .build();
+```
+
+`ClickType` 位于 `org.bukkit.event.inventory`。上例只处理 `LEFT` 和 `RIGHT`；Shift 点击是独立的 `SHIFT_LEFT`、`SHIFT_RIGHT`，不会进入这两个分支。数字键点击类型为 `NUMBER_KEY`，对应的 `hotbarButton()` 为 0～8。
+
+`cursor()` 是快照，修改它不会写回玩家光标。`remembered()` 的记录方式见 [RenderContext](/item/render#rendercontext-提供什么)。
+
+### 处理器的执行顺序
+
+同一个 Builder 可以多次调用 `addClickHandler`，处理器按添加顺序执行。需要访问 Item 自身时，使用接收两个参数的重载：
+
+```java
+Item button = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.ARROW))
+        .addClickHandler((item, click) -> {
+            click.player().sendMessage(Component.text("已点击按钮"));
+        })
+        .addClickHandler(click -> click.window().close())
+        .build();
+```
+
+某个处理器中的 `return` 只结束该处理器，不会阻止后续处理器。需要拒绝整个点击行为时，将条件放入守卫。
+
+:::warning[回调运行在操作玩家的实体线程]
+点击、拖拽、收纳袋选择的守卫和处理器，都在本次操作玩家的实体线程执行。可以读取该玩家状态、发送消息或关闭其窗口。
+
+数据库查询、HTTP 请求等阻塞操作应提交到异步任务。异步完成后若要操作玩家，需要回到该玩家的实体线程；在 Folia 下，这条线程也不代表可以访问其他玩家或任意区域的世界状态。
 :::
+
+## 条件守卫
+
+`addClickGuard` 在点击处理器执行前添加检查。**守卫按添加顺序执行，全部返回 `true` 后才执行处理器；任一返回 `false`，后续守卫和处理器都不执行。**
+
+### 内置守卫
+
+`ItemGuards` 位于 `net.momirealms.sparrow.ui.item.guard`，提供常用条件：
+
+| 方法 | 条件 |
+|---|---|
+| `permission(node)` | 玩家拥有指定权限 |
+| `gameMode(mode)` | 玩家处于指定游戏模式 |
+| `throttle(intervalMillis)` | 同一玩家对同一 Item 的点击满足时间间隔 |
+
+内置守卫也可以配置拒绝反馈。优先使用 `addClickGuard(guard, onRejected)`，将条件和对应提示放在一起。例如，要求权限、生存模式和一秒点击间隔：
+
+```java
+Item button = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.LIME_DYE))
+        .addClickGuard(
+                ItemGuards.permission("example.menu.greet"),
+                click -> click.player().sendMessage(
+                        Component.text("没有操作权限。", NamedTextColor.RED)
+                )
+        )
+        .addClickGuard(
+                ItemGuards.gameMode(GameMode.SURVIVAL),
+                click -> click.player().sendMessage(
+                        Component.text("请切换到生存模式。", NamedTextColor.GOLD)
+                )
+        )
+        .addClickGuard(
+                ItemGuards.throttle(1000),
+                click -> click.player().sendMessage(
+                        Component.text("请稍后再点。", NamedTextColor.GOLD)
+                )
+        )
+        .addClickHandler(click -> {
+            click.player().sendMessage(Component.text("你好！"));
+        })
+        .build();
+```
+
+第二个参数 `onRejected` 接收本次 `ItemClick`，只在对应守卫返回 `false` 时执行。前面的守卫已经拒绝时，后面的守卫及其拒绝回调都不会执行。无需反馈时，使用只传守卫的 `addClickGuard(guard)` 即可。
+
+`GameMode` 来自 `org.bukkit`。`throttle` 的参数是正数毫秒，首次点击立即通过，间隔内被拒绝的点击不会延长等待时间。多个玩家共享 Item 时各自计时；同一玩家点击多个位置上的同一个 Item，则共用这份间隔。
+
+将权限、模式等检查放在节流前面，可以避免未通过条件的点击占用间隔。节流一旦通过就开始计时，后续处理器执行失败不会退回这次计时。
+
+### 自定义守卫
+
+自定义条件使用 `ItemGuard<ItemClick>`。它接收 Item 和点击上下文，返回 `true` 表示允许，返回 `false` 表示拒绝。下面定义一个只接受普通左键的守卫：
+
+```java
+ItemGuard<ItemClick> leftOnly = (item, click) ->
+        click.clickType() == ClickType.LEFT;
+
+Item button = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.LIME_DYE))
+        .addClickGuard(leftOnly)
+        .addClickHandler(click -> {
+            click.player().sendMessage(Component.text("你好！"));
+        })
+        .build();
+```
+
+`ItemGuard` 与 `ItemGuards` 位于同一个包，`ItemClick` 位于 `net.momirealms.sparrow.ui.item.click`。
+
+自定义守卫同样可以传入 `addClickGuard(leftOnly, onRejected)` 添加拒绝反馈，使用方式与内置守卫一致。需要将条件与反馈一起封装为可复用的守卫时，也可以使用 `guard.onRejected((item, click) -> ...)`。
+
+## 拖拽与收纳袋选择
+
+这两类操作有各自的上下文与注册方法，不会自动转成普通点击：
+
+| 操作 | 守卫 | 处理器 |
+|---|---|---|
+| 拖拽 | `addDragGuard` | `addDragHandler` |
+| 收纳袋选择 | `addBundleSelectGuard` | `addBundleSelectHandler` |
+
+普通点击的 `addClickGuard` 不会限制这两类操作。权限和游戏模式守卫可以分别用于它们；`ItemGuards.throttle` 只适用于 `ItemClick`。
+
+### 拖拽经过 Item
+
+`addDragHandler` 接收 `ItemDrag`。除了玩家、窗口和当前槽位，还能读取完整拖拽路径：
+
+```java
+Item dragTarget = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.GRAY_DYE))
+        .addDragGuard(ItemGuards.permission("example.menu.drag"))
+        .addDragHandler(drag -> {
+            int slot = drag.windowSlot();
+            int total = drag.path().size();
+            drag.player().sendMessage(
+                    Component.text("经过槽位 " + slot + "，路径共 " + total + " 格")
+            );
+        })
+        .build();
+```
+
+`path()` 是本次手势经过的窗口槽位列表，按客户端提交顺序去重；每个元素通过 `windowSlot()` 取得编号。`index()` 返回当前槽位在路径中的下标，`currentStop()` 返回当前路径元素。
+
+**每个经过的 Item 槽位分别收到一次回调。** 同一个 Item 放在多个格子时，也会收到多次，当前槽位不同，路径相同。`cursor()` 是手势开始时的光标快照；`clickType()` 为左键、右键或创造模式中键。光标为空等无效拖拽不会派发到 Item。
+
+拖拽守卫只决定当前 Item 的拖拽处理器是否执行，不会取消整次拖拽手势。
+
+### 选择收纳袋内容
+
+`addBundleSelectHandler` 接收 `BundleSelectClick`。`windowSlot()` 是收纳袋所在的窗口槽位，`bundleSlot()` 是客户端提交的袋内选择索引，`-1` 表示未选中。
+
+下面创建一个装有两种物品的收纳袋，并响应内容选择：
+
+```java
+ItemStack stack = new ItemStack(Material.BUNDLE);
+stack.setData(
+        DataComponentTypes.BUNDLE_CONTENTS,
+        BundleContents.bundleContents(List.of(
+                new ItemStack(Material.APPLE),
+                new ItemStack(Material.CARROT)
+        ))
+);
+
+Item bundle = Item.builder()
+        .setItemProviderConstant(stack)
+        .addBundleSelectHandler(select -> {
+            int index = select.bundleSlot();
+            String message = index == -1
+                    ? "已取消选择"
+                    : "选择了袋内索引：" + index;
+            select.player().sendMessage(Component.text(message));
+        })
+        .build();
+```
+
+`BundleContents` 来自 `io.papermc.paper.datacomponent.item`，`List` 来自 `java.util`。选择守卫控制处理器是否执行，不会回滚客户端已经发生的选择。
+
+## 带守卫的按钮示例
+
+下面把权限检查和一秒节流组合成一个问候按钮。权限不足时显示红色消息，点击过快时显示金色消息，允许执行时发送绿色问候。
+
+<CodeSteps
+  language="java"
+  steps={[
+    {
+        "title": "布局与开窗",
+        "lines": "17-27",
+        "note": "G 绑定问候按钮，C 绑定关闭按钮。每次打开创建一组新的 Item。"
+    },
+    {
+        "title": "按钮外观",
+        "lines": "30-44",
+        "note": "先构建名称和说明，再把物品设置为按钮的固定显示来源。"
+    },
+    {
+        "title": "权限与拒绝提示",
+        "lines": "45-51",
+        "note": "权限不足时执行这条守卫的拒绝回调，后续节流检查和问候行为均不执行。"
+    },
+    {
+        "title": "点击间隔",
+        "lines": "52-58",
+        "note": "权限通过后检查一秒间隔。点击过快时发送等待提示。"
+    },
+    {
+        "title": "允许后执行",
+        "lines": "59-63",
+        "note": "守卫全部通过后执行点击处理器，向当前玩家发送问候。"
+    },
+    {
+        "title": "关闭按钮",
+        "lines": "66-77",
+        "note": "关闭按钮独立构建，点击后关闭当前窗口。"
+    }
+]}
+  code={`
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ItemLore;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.momirealms.sparrow.ui.item.Item;
+import net.momirealms.sparrow.ui.item.guard.ItemGuards;
+import net.momirealms.sparrow.ui.pane.Pane;
+import net.momirealms.sparrow.ui.window.Window;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.List;
+
+public final class GuardedMenu {
+    public static void open(Player viewer) {
+        // 每次打开创建新的按钮, 节流记录从本次菜单开始.
+        Pane pane = Pane.builder("##G###C##")
+                .addIngredient('G', createGreetButton())
+                .addIngredient('C', createCloseButton())
+                .build();
+
+        Window.builder(pane)
+                .setTitle(Component.text("点击与守卫"))
+                .open(viewer);
+    }
+
+    private static Item createGreetButton() {
+        ItemStack stack = new ItemStack(Material.LIME_DYE);
+        stack.setData(
+                DataComponentTypes.CUSTOM_NAME,
+                Component.text("打招呼", NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false)
+        );
+        stack.setData(
+                DataComponentTypes.LORE,
+                ItemLore.lore(List.of(
+                        Component.text("点击发送问候，每秒一次。", NamedTextColor.GRAY)
+                                .decoration(TextDecoration.ITALIC, false)
+                ))
+        );
+        return Item.builder()
+                .setItemProviderConstant(stack)
+                // 权限通过后才检查点击间隔.
+                .addClickGuard(
+                        ItemGuards.permission("example.menu.greet"),
+                        click -> click.player().sendMessage(
+                                Component.text("没有操作权限。", NamedTextColor.RED)
+                        )
+                )
+                // 这条守卫拒绝时只发送对应的等待提示.
+                .addClickGuard(
+                        ItemGuards.throttle(1000),
+                        click -> click.player().sendMessage(
+                                Component.text("请稍后再点。", NamedTextColor.GOLD)
+                        )
+                )
+                // 两条守卫全部通过后发送问候.
+                .addClickHandler(click -> click.player().sendMessage(
+                        Component.text("你好！", NamedTextColor.GREEN)
+                ))
+                .build();
+    }
+
+    private static Item createCloseButton() {
+        ItemStack stack = new ItemStack(Material.BARRIER);
+        stack.setData(
+                DataComponentTypes.CUSTOM_NAME,
+                Component.text("关闭菜单", NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false)
+        );
+        return Item.builder()
+                .setItemProviderConstant(stack)
+                .addClickHandler(click -> click.window().close())
+                .build();
+    }
+}
+  `}
+/>
+
+插件完成 [初始化](/getting-started/installation) 后，调用 `GuardedMenu.open(viewer)` 打开。赋予玩家 `example.menu.greet` 权限后，问候按钮才会通过权限守卫。这个示例每次打开创建新的 Item，节流记录也随新 Item 重新开始。
+
+需要在点击后更新按钮外观时，见 [点击后刷新](/item/render#点击后刷新)。
+
+<NextStep
+  to="/pane/structure"
+  title="字符布局"
+  description="用字符模板安排 Item 在菜单中的位置。"
+/>

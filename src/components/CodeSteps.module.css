@@ -111,10 +111,9 @@
 /* ── 代码区 ─────────────────────────────────────────────────── */
 
 /* 限高 + 内部滚动。整个类几十行，不限高的话选了靠后的步骤，
-   高亮会落在视野之外，读者只看得到开头一屏。切步骤时由 JS 把第一行高亮
-   滚到中间，见 CodeSteps.js。 */
+   高亮会落在视野之外。JS 按整段高亮定位，较长段落自动增高以完整显示。 */
 .codeArea :global(pre) {
-  max-height: var(--code-max-height, 23rem);
+  max-height: max(var(--code-max-height, 23rem), var(--code-selection-height, 0px));
   scroll-behavior: auto;
 }
 
