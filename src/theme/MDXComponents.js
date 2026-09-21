@@ -22,6 +22,7 @@ import NextStep from '@site/src/components/NextStep';
 import SharedPaneDemo from '@site/src/components/SharedPaneDemo';
 import SessionStructureDemo from '@site/src/components/SessionStructureDemo';
 import VisualLayerDemo from '@site/src/components/VisualLayerDemo';
+import AnimationPreview from '@site/src/components/AnimationPreview';
 import SignalHint from '@site/src/components/SignalHint';
 import ThreadBadge from '@site/src/components/ThreadBadge';
 import VersionBadge from '@site/src/components/VersionBadge';
@@ -53,6 +54,7 @@ export default {
   SharedPaneDemo,
   SessionStructureDemo,
   VisualLayerDemo,
+  AnimationPreview,
   SignalHint,
   ThreadBadge,
   VersionBadge,

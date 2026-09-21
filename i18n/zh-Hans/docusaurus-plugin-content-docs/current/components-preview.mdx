@@ -395,6 +395,21 @@ Pane 的背景只负责"没被单独安排的格子显示什么"，它不参与�
 
 ---
 
+## AnimationPreview
+
+按 `AnimationDefinition` 的规则逐 tick 推演并播放，支持 `frames`、`loop`、`reveal`、`staggeredFrames` 和 `custom`（帧函数）。`animations` 越靠后开始得越晚，盖在上面。正文用法见 [动画](/visual/animation)。
+
+<AnimationPreview
+  title="预览"
+  rows={1}
+  base={[{icon: 'diamond', name: '钻石'}, null, {icon: 'emerald', name: '绿宝石'}, null, {icon: 'coal', name: '煤炭'}, null, {icon: 'iron_ingot', name: '铁锭'}, null, {icon: 'book', name: '书'}]}
+  animations={[
+    {type: 'reveal', order: [0, 1, 2, 3, 4, 5, 6, 7, 8], stagger: 3, cover: {icon: 'gray_stained_glass_pane'}},
+  ]}
+/>
+
+---
+
 ## VisualLayerDemo
 
 开关几层视觉映射，比较两名玩家看到的内容和容器中的真实内容。`layers` 越靠后优先级越高，带 `viewer` 的层只作用于那一名玩家，`cursor: true` 的层作用于光标。正文用法见 [视觉层](/visual/layers)。

@@ -627,5 +627,45 @@
   "visualLayerDemo.actualContent": {
     "message": "真实内容：{item}",
     "description": "VisualLayerDemo 悬停格子中的真实物品"
+  },
+  "animationPreview.aria": {
+    "message": "动画播放控制",
+    "description": "AnimationPreview 播放控制按钮组的无障碍标签"
+  },
+  "animationPreview.play": {
+    "message": "播放",
+    "description": "AnimationPreview 播放按钮"
+  },
+  "animationPreview.replay": {
+    "message": "重新播放",
+    "description": "AnimationPreview 重新播放按钮"
+  },
+  "animationPreview.stop": {
+    "message": "停止",
+    "description": "AnimationPreview 停止按钮，相当于 AnimationHandle.cancel()"
+  },
+  "animationPreview.slow": {
+    "message": "慢放",
+    "description": "AnimationPreview 切换 4 倍慢放"
+  },
+  "animationPreview.tick": {
+    "message": "第 {tick} tick",
+    "description": "AnimationPreview 当前 tick"
+  },
+  "animationPreview.total": {
+    "message": "共 {total} tick",
+    "description": "AnimationPreview 动画总时长"
+  },
+  "animationPreview.loop": {
+    "message": "循环播放，停止后结束",
+    "description": "AnimationPreview 动画不会自己结束"
+  },
+  "animationPreview.done": {
+    "message": "已播完，恢复原来的显示。",
+    "description": "AnimationPreview 全部动画播完"
+  },
+  "animationPreview.idle": {
+    "message": "点击播放查看效果。",
+    "description": "AnimationPreview 还没有开始播放"
   }
 }

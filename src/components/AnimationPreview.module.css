@@ -1,0 +1,34 @@
+/* AnimationPreview.module.css
+   外框与 SharedPaneDemo、VisualLayerDemo 一致：上下两条分隔线，直角、无投影。 */
+
+.wrapper {
+  margin: 1.2rem 0;
+  padding: 16px 0;
+  border-block: 1px solid var(--ifm-color-emphasis-200);
+}
+
+/* 原版按钮横排，间距与游戏里按钮之间的 4 像素一致（2 倍） */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.controls button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.status {
+  margin-left: 8px;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-800);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 成品窗口自带上下外边距，这里清掉 */
+.window > div {
+  margin: 0;
+}
