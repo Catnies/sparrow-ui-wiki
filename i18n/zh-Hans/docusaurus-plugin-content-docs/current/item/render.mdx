@@ -199,7 +199,7 @@ points.set(256);
 pointsItem.notifyWindows();
 ```
 
-`ObservableItem` 位于 `net.momirealms.sparrow.ui.item`。需要手动刷新时，保留这个类型的引用。
+需要手动刷新时，保留 `ObservableItem` 类型的引用。
 
 **共享同一个 Item 时，`notifyWindows()` 会通知所有正在显示它的窗口及槽位。** 每个位置仍使用自己的 RenderContext 重新生成物品，因此刷新范围相同，不代表所有玩家看到的内容相同。
 
@@ -226,7 +226,7 @@ Item clock = Item.builder()
         .build();
 ```
 
-这里使用服务器的本地时间，20 tick 在正常 tick 速率下约为一秒。`LocalTime` 和 `DateTimeFormatter` 分别来自 `java.time` 和 `java.time.format`。
+这里使用服务器的本地时间，20 tick 在正常 tick 速率下约为一秒。
 
 同样的刷新规则也能用于异步 Provider。例如给积分 Item 添加 `updatePeriodically(200)`，就会周期性重新查询。查询尚未完成时不会为同一显示位置并发启动另一份查询，期间的刷新请求会合并，完成后再补算一次。
 
@@ -255,7 +255,7 @@ Item counter = Item.builder()
         .build();
 ```
 
-`AtomicInteger` 来自 `java.util.concurrent.atomic`。每次打开菜单都执行这段创建代码，次数就按本次菜单单独记录；若多个窗口共用这个 counter，次数也会共用，刷新会通知所有正在显示它的窗口。
+每次打开菜单都执行这段创建代码，次数就按本次菜单单独记录；若多个窗口共用这个 counter，次数也会共用，刷新会通知所有正在显示它的窗口。
 
 :::info[异步业务完成后再刷新]
 `updateOnClick()` 等的是点击处理器返回，不会等待处理器内部启动的异步业务。若点击后要异步写数据库，应在写入成功后再调用 `ObservableItem.notifyWindows()` 请求刷新，避免读到尚未更新的数据。

@@ -147,7 +147,7 @@ PanePosition position = size.positionOf(13); // x = 4, y = 1
 String identifier = pane.identifierAt(13);   // "B"
 ```
 
-`PaneSize` 与 `PanePosition` 位于 `net.momirealms.sparrow.ui.pane`。坐标或槽位超出范围时，`indexOf` 与 `positionOf` 抛出 `IndexOutOfBoundsException`。
+坐标或槽位超出范围时，`indexOf` 与 `positionOf` 抛出 `IndexOutOfBoundsException`。
 
 按标志符绑定内容时不需要计算槽位编号。槽位和坐标主要用于 [程序化布局](/pane/programmatic)，也用于读懂异常消息中的位置：`build()` 时某个标志符的内容创建失败，异常会写明标志符、模板行列和槽位编号。
 

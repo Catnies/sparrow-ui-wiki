@@ -34,7 +34,7 @@ Item button = Item.builder()
         .build();
 ```
 
-`ClickType` 位于 `org.bukkit.event.inventory`。上例只处理 `LEFT` 和 `RIGHT`；Shift 点击是独立的 `SHIFT_LEFT`、`SHIFT_RIGHT`，不会进入这两个分支。数字键点击类型为 `NUMBER_KEY`，对应的 `hotbarButton()` 为 0～8。
+上例只处理 `LEFT` 和 `RIGHT`；Shift 点击是独立的 `SHIFT_LEFT`、`SHIFT_RIGHT`，不会进入这两个分支。数字键点击类型为 `NUMBER_KEY`，对应的 `hotbarButton()` 为 0～8。
 
 `cursor()` 是快照，修改它不会写回玩家光标。`remembered()` 的记录方式见 [RenderContext](/item/render#rendercontext-提供什么)。
 
@@ -66,7 +66,7 @@ Item button = Item.builder()
 
 ### 内置守卫
 
-`ItemGuards` 位于 `net.momirealms.sparrow.ui.item.guard`，提供常用条件：
+`ItemGuards` 提供常用条件：
 
 | 方法 | 条件 |
 |---|---|
@@ -105,7 +105,7 @@ Item button = Item.builder()
 
 第二个参数 `onRejected` 接收本次 `ItemClick`，只在对应守卫返回 `false` 时执行。前面的守卫已经拒绝时，后面的守卫及其拒绝回调都不会执行。无需反馈时，使用只传守卫的 `addClickGuard(guard)` 即可。
 
-`GameMode` 来自 `org.bukkit`。`throttle` 的参数是正数毫秒，首次点击立即通过，间隔内被拒绝的点击不会延长等待时间。多个玩家共享 Item 时各自计时；同一玩家点击多个位置上的同一个 Item，则共用这份间隔。
+`throttle` 的参数是正数毫秒，首次点击立即通过，间隔内被拒绝的点击不会延长等待时间。多个玩家共享 Item 时各自计时；同一玩家点击多个位置上的同一个 Item，则共用这份间隔。
 
 将权限、模式等检查放在节流前面，可以避免未通过条件的点击占用间隔。节流一旦通过就开始计时，后续处理器执行失败不会退回这次计时。
 
@@ -125,8 +125,6 @@ Item button = Item.builder()
         })
         .build();
 ```
-
-`ItemGuard` 与 `ItemGuards` 位于同一个包，`ItemClick` 位于 `net.momirealms.sparrow.ui.item.click`。
 
 自定义守卫同样可以传入 `addClickGuard(leftOnly, onRejected)` 添加拒绝反馈，使用方式与内置守卫一致。需要将条件与反馈一起封装为可复用的守卫时，也可以使用 `guard.onRejected((item, click) -> ...)`。
 
@@ -193,7 +191,7 @@ Item bundle = Item.builder()
         .build();
 ```
 
-`BundleContents` 来自 `io.papermc.paper.datacomponent.item`，`List` 来自 `java.util`。选择守卫控制处理器是否执行，不会回滚客户端已经发生的选择。
+选择守卫控制处理器是否执行，不会回滚客户端已经发生的选择。
 
 ## 带守卫的按钮示例
 

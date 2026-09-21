@@ -3,8 +3,268 @@ title: 虚拟容器
 sidebar_label: 虚拟容器
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 6.2 节。 */}
+`VirtualInventory` 把物品保存在内存中，适合菜单自己管理的格子，例如输入格、仓库、奖励箱。它可以限制每格的堆叠数量、调整批量操作的顺序，也可以把内容保存成字节数组，之后再还原。
 
-:::info
-本页尚未撰写。
+## 创建虚拟容器
+
+```java
+// 27 个空格子
+VirtualInventory storage = new VirtualInventory(27);
+
+// 按数组创建, 数组长度就是格子数, null 表示空格
+VirtualInventory rewards = new VirtualInventory(new ItemStack[]{
+        new ItemStack(Material.DIAMOND, 3),
+        null,
+        new ItemStack(Material.EMERALD, 16)
+});
+```
+
+按数组创建时会复制其中的物品，之后修改原数组或原物品不影响容器。格子数为负数时抛出 `IllegalArgumentException`。
+
+每个虚拟容器都有一个 UUID，默认随机生成，保存时会一起写入。需要指定 UUID 时，使用 `new VirtualInventory(uuid, size)` 或 `new VirtualInventory(uuid, items)`，用法见 [保存与读取](#保存与读取)。
+
+把容器绑定到 Pane 后，玩家的操作都由 Sparrow UI 处理，受 [访问规则](/inventory/rules-events) 和 [冻结](/inventory/basics#冻结容器) 约束。
+
+## 堆叠上限
+
+每一格默认最多放 99 个，实际还要受物品自身的堆叠上限限制，两者取较小值。因此默认情况下钻石一格最多 64 个，剑只能放 1 把，与原版一致。
+
+`setMaxStackSizes` 按格子顺序设置每格的上限。下面的三个镶嵌槽每格只放 1 颗宝石：
+
+```java
+VirtualInventory sockets = new VirtualInventory(3);
+// 每个镶嵌槽只放 1 颗宝石
+sockets.setMaxStackSizes(new int[]{1, 1, 1});
+
+Pane pane = Pane.builder(
+                "#########",
+                "###GGG###",
+                "#########"
+        )
+        .addIngredient('G', sockets)
+        .build();
+```
+
+数组长度必须等于格子数。只改一格时，用 `setMaxStackSize(slot, max)`。上限至少为 1，数组长度不符或上限小于 1 时抛出 `IllegalArgumentException`。
+
+上限为 1 时，玩家的操作结果如下：
+
+- 光标上有 64 颗宝石，左键点击空的镶嵌槽，只放进 1 颗，其余留在光标上
+- Shift 点击背包中的一组宝石，每个空的镶嵌槽各放 1 颗
+- 拖拽时每格最多分到 1 颗
+- 光标或快捷栏上的物品超过 1 个时，不能与镶嵌槽中的物品交换，数字键也不会把它换进空的镶嵌槽
+
+堆叠上限只限制数量。只允许放入宝石时，还需要设置 [访问规则](/inventory/rules-events)。
+
+:::warning[格子上限不超过物品自身的上限]
+格子的上限不会突破物品自身的堆叠上限，设成大于 99 也没有效果。想让一格放下 99 支箭，还需要提高物品自身的堆叠上限：
+
+```java
+ItemStack arrows = new ItemStack(Material.ARROW, 99);
+// 物品自身的堆叠上限提高到 99
+arrows.setData(DataComponentTypes.MAX_STACK_SIZE, 99);
+```
 :::
+
+在代码中调用 `add`、`changeAmount` 等放入方法时，同样遵守上限。`setItem` 按原样写入，不检查上限。调低上限时，格子里已经超出的物品会保留，玩家仍然可以取出。
+
+## 遍历顺序
+
+有些操作不指定格子，由容器自己决定放进哪几格、从哪几格取出，这里称为批量操作。例如玩家 Shift 点击把一组物品转入这个容器时，物品可能分到好几格；双击收集时，要从好几格取出同类物品；代码调用 `add` 放入物品时也一样。
+
+批量操作按遍历顺序逐格尝试，默认从第 0 格开始，依次到最后一格。点击某一格、调用 `setItem(slot, item)` 这类指定了格子的操作，不受遍历顺序影响。
+
+遍历顺序按操作类别 `OperationCategory` 分别设置：
+
+| 类别 | 使用这个顺序的操作 |
+|---|---|
+| `OperationCategory.ADD` | Shift 转入这个容器的物品、`add` 等放入方法 |
+| `OperationCategory.COLLECT` | 从这个容器双击收集、`collect` |
+| `OperationCategory.OTHER` | `remove` |
+
+放入时，先按这个顺序与同类物品合并，再按同样的顺序占用空格。收集时，先收不满一组的物品，再收整组的，两轮都按这个顺序。
+
+`reverseIterationOrder` 反转顺序。下面的仓库放入物品时从最后一格开始，向前依次占用：
+
+```java
+VirtualInventory storage = new VirtualInventory(27);
+// 放入时从最后一格开始, 向前依次占用
+storage.reverseIterationOrder(OperationCategory.ADD);
+```
+
+`reverseIterationOrder()` 不带参数时反转全部三类。它反转的是当前生效的顺序，设置过自定义顺序时，反转的是自定义的那一个。
+
+### 自定义顺序
+
+`setIterationOrder` 接收一个 `SlotOrder`，下面的展示台放入物品时，从中间一格开始向两边排开：
+
+```java
+VirtualInventory showcase = new VirtualInventory(9);
+// 从中间一格开始, 向两边交替: 4, 3, 5, 2, 6, 1, 7, 0, 8
+showcase.setIterationOrder(OperationCategory.ADD, SlotOrder.of(4, 3, 5, 2, 6, 1, 7, 0, 8));
+
+Pane pane = Pane.builder("SSSSSSSSS")
+        .addIngredient('S', showcase)
+        .build();
+```
+
+<MinecraftSlotGrid
+  title="展示台"
+  rows={["SSSSSSSSS"]}
+  legend={{S: '展示台'}}
+  defaultView="game"
+  items={{S: {icon: 'paper', name: '放入顺序', count: [8, 6, 4, 2, 1, 3, 5, 7, 9]}}}
+  caption="数量表示放入的先后，中间没有数字的一格最先放入。"
+/>
+
+`SlotOrder.of` 的参数依次是要访问的格子，必须包含从 0 到格子数减 1 的每个序号，且各出现一次，否则抛出 `IllegalArgumentException`。顺序的长度与容器的格子数不同时，`setIterationOrder` 也会抛出这个异常。
+
+遍历顺序决定一个容器内部先处理哪一格。窗口中有多个容器时，先处理哪个容器由 [优先级](/inventory/basics#优先级) 决定。
+
+## 保存与读取
+
+`serialize()` 把容器的 UUID 和当前内容写成字节数组，`VirtualInventory.deserialize(bytes)` 从字节数组还原容器：
+
+```java
+// 保存: 得到包含 UUID 和当前内容的字节数组
+byte[] bytes = storage.serialize();
+
+// 读取: 还原出一个新的容器, UUID 与保存时相同
+VirtualInventory restored = VirtualInventory.deserialize(bytes);
+```
+
+字节数组可以写进文件，也可以存进数据库的二进制字段。`uuid()` 返回容器的 UUID，可以用作存档的主键。`serialize` 保存的是调用那一刻的内容。
+
+`serialize` 和 `deserialize` 不访问玩家和世界，可以在异步线程调用，读写文件或数据库也应放在异步线程。两者都必须在 `SparrowUI.getInstance().setUp(plugin)` 之后调用。
+
+:::warning[只保存 UUID 和物品]
+堆叠上限、遍历顺序、背景、访问规则、优先级、冻结状态和事件订阅都不会保存，读取后需要重新设置：
+
+```java
+VirtualInventory sockets = VirtualInventory.deserialize(bytes);
+// 堆叠上限不随数据保存, 读取后重新设置
+sockets.setMaxStackSizes(new int[]{1, 1, 1});
+```
+
+新建容器和读取容器之后调用同一个配置方法，就不会遗漏。
+:::
+
+保存时会一并记录服务端的 Minecraft 数据版本。服务端升级后读取旧数据，物品会自动转换到当前版本；较新版本保存的数据不能在旧版本的服务端读取。
+
+数据被截断、格式不对或者来自更新的版本时，`deserialize` 抛出 `InventoryDecodeException`。库不会还原出只有部分物品的容器。遇到这个异常时按数据损坏处理，记录日志并另存这份数据，不要重试，也不要用新建的空容器覆盖它。
+
+:::tip[扩大容器]
+格子数会随数据保存，读取旧数据得到的仍是原来的大小。扩大容器时，按新的格子数复制内容，并沿用原来的 UUID：
+
+```java
+VirtualInventory saved = VirtualInventory.deserialize(bytes);
+if (saved.size() < 36) {
+    // 按新的格子数复制内容, 多出的格子为空, UUID 保持不变
+    saved = new VirtualInventory(saved.uuid(), Arrays.copyOf(saved.snapshot(), 36));
+}
+```
+:::
+
+## 示例: 随身背包
+
+每名玩家有一个 27 格的背包，第一次打开时从文件读取，关闭菜单、玩家退出和关服时保存：
+
+```java
+public final class BackpackService {
+    private static final int SIZE = 27;
+
+    private final Path folder;
+    // 读取和保存都交给这一个线程, 按提交顺序执行.
+    // 玩家退出后马上重新进入时, 读取排在退出时的保存之后, 读到的是最新内容
+    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    // 每名玩家的背包只加载一次, 之后每次打开都使用同一个容器.
+    // 每次打开都重新读取文件的话, 新窗口可能在旧窗口的保存写完之前读取, 读到旧内容;
+    // 两扇窗口各持有一份容器时, 后保存的一份还会覆盖另一份
+    private final Map<UUID, VirtualInventory> loaded = new ConcurrentHashMap<>();
+
+    public BackpackService(Path folder) {
+        this.folder = folder;
+    }
+
+    // 读取失败时返回的 Future 以异常结束, 调用方可以在 exceptionally 中提示玩家并记录日志
+    public CompletableFuture<Window.OpenResult> open(Player viewer) {
+        UUID owner = viewer.getUniqueId();
+        return CompletableFuture
+                // 第一次打开时在 io 线程读取文件, 之后直接使用缓存.
+                // 读取失败时缓存中不会留下这名玩家的背包, 损坏的文件也不会被覆盖
+                .supplyAsync(() -> this.loaded.computeIfAbsent(owner, this::read), this.io)
+                .thenCompose(backpack -> {
+                    Pane pane = Pane.builder(
+                                    "SSSSSSSSS",
+                                    "SSSSSSSSS",
+                                    "SSSSSSSSS"
+                            )
+                            .addIngredient('S', backpack)
+                            .build();
+                    return Window.builder(pane)
+                            .setTitle("随身背包")
+                            // 关闭处理器在玩家线程执行, save 只在这里生成字节数组, 不读写文件
+                            .addCloseHandler((window, reason) -> this.save(backpack))
+                            .open(viewer);
+                });
+    }
+
+    // 在 PlayerQuitEvent 中调用, 保存后移出缓存
+    public void unload(UUID owner) {
+        VirtualInventory backpack = this.loaded.remove(owner);
+        if (backpack != null) {
+            this.save(backpack);
+        }
+    }
+
+    // 在插件的 onDisable 中调用.
+    // 关服时, Sparrow UI 在 onDisable 之前关闭所有窗口并执行关闭处理器, 它们的保存已经排进 io 线程
+    public void shutdown() throws InterruptedException {
+        // 等待排队中的保存全部写完
+        this.io.shutdown();
+        this.io.awaitTermination(30, TimeUnit.SECONDS);
+        // 关服时插件先于玩家退出被停用, 收不到玩家退出事件, 仍在缓存中的背包在这里同步保存
+        for (VirtualInventory backpack : this.loaded.values()) {
+            this.write(backpack.uuid(), backpack.serialize());
+        }
+    }
+
+    private VirtualInventory read(UUID owner) {
+        Path file = this.file(owner);
+        if (Files.notExists(file)) {
+            // 容器使用玩家的 UUID, 保存时按它找到存档文件
+            return new VirtualInventory(owner, SIZE);
+        }
+        try {
+            return VirtualInventory.deserialize(Files.readAllBytes(file));
+        } catch (IOException exception) {
+            throw new UncheckedIOException(exception);
+        }
+    }
+
+    private void save(VirtualInventory backpack) {
+        // 在调用线程取得这一刻的内容, 写文件交给 io 线程
+        byte[] bytes = backpack.serialize();
+        this.io.execute(() -> this.write(backpack.uuid(), bytes));
+    }
+
+    private void write(UUID owner, byte[] bytes) {
+        try {
+            Files.createDirectories(this.folder);
+            Files.write(this.file(owner), bytes);
+        } catch (IOException exception) {
+            throw new UncheckedIOException(exception);
+        }
+    }
+
+    private Path file(UUID owner) {
+        return this.folder.resolve(owner + ".dat");
+    }
+}
+```
+
+<NextStep
+  to="/inventory/referencing"
+  title="引用外部容器"
+  description="把玩家背包、箱子等已有容器接入菜单。"
+/>
