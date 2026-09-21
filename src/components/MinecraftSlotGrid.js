@@ -49,6 +49,8 @@ export default function MinecraftSlotGrid({
   items,
   // 玩家视角使用的窗口类型，见 mcWindows.js
   windowType = 'chest',
+  // 完整窗口的最后四行显示在玩家物品栏区域。
+  playerInventory = false,
   // 初始视图：'layout' 字符模板，'game' 玩家视角
   defaultView = 'layout',
 }) {
@@ -71,6 +73,7 @@ export default function MinecraftSlotGrid({
   }
 
   const gameView = view === 'game';
+  const containerRows = meta.grid.length - (playerInventory ? 4 : 0);
   const switchView = (next) => {
     setActive(null);
     setHoverSlot(null);
@@ -91,7 +94,8 @@ export default function MinecraftSlotGrid({
           <div className={styles.gameView}>
             <MinecraftWindow
               type={windowType}
-              rows={meta.grid.length}
+              rows={containerRows}
+              playerInventory={playerInventory}
               title={title}
               layout={rows}
               items={items}
@@ -108,56 +112,63 @@ export default function MinecraftSlotGrid({
             <div className={styles.grid}>
               {meta.grid.map((row, rowIndex) => (
                 // eslint-disable-next-line react/no-array-index-key
-                <div className={styles.row} key={rowIndex}>
-                  {row.map((identifier, columnIndex) => {
-                    const slot = rowIndex * meta.width + columnIndex;
-                    const hue = meta.hueOf.get(identifier);
-                    const isEmpty = hue === null;
-                    return (
-                      <div
-                        key={slot}
-                        className={`${styles.slot} ${hoverSlot === slot ? styles.slotLit : ''} ${active === identifier ? styles.slotActive : ''}`}
-                        onMouseEnter={() => {
-                          setActive(identifier);
-                          setHoverSlot(slot);
-                        }}
-                        onMouseLeave={() => {
-                          setActive(null);
-                          setHoverSlot(null);
-                        }}
-                        title={legend[identifier] ? `${identifier} — ${legend[identifier]}` : identifier}
-                      >
-                        {/* 已指定贴图的标志符展示物品，其余格子保留布局代号。 */}
-                        {icons[identifier] ? (
-                          <img className={`${styles.icon} no-zoom`} src={`${itemBase}${icons[identifier]}.png`} alt={legend[identifier] ?? identifier} draggable={false} />
-                        ) : isEmpty ? (
-                          <span
-                            className={`${styles.emptyLabel} ${
-                              Array.from(identifier).length > 2 ? styles.itemLabelLong : ''
-                            }`}
-                          >
-                            {identifier}
-                          </span>
-                        ) : (
-                          <div
-                            className={`${styles.item} ${active === identifier ? styles.itemActive : ''}`}
-                            style={{'--slot-hue': hue}}
-                          >
+                <React.Fragment key={rowIndex}>
+                  {playerInventory && rowIndex === containerRows && (
+                    <div className={`${styles.header} ${styles.inventoryHeader}`}>
+                      {translate({id: 'minecraftWindow.inventory', message: 'Inventory'})}
+                    </div>
+                  )}
+                  <div className={`${styles.row} ${playerInventory && rowIndex === containerRows + 3 ? styles.hotbarRow : ''}`}>
+                    {row.map((identifier, columnIndex) => {
+                      const slot = rowIndex * meta.width + columnIndex;
+                      const hue = meta.hueOf.get(identifier);
+                      const isEmpty = hue === null;
+                      return (
+                        <div
+                          key={slot}
+                          className={`${styles.slot} ${hoverSlot === slot ? styles.slotLit : ''} ${active === identifier ? styles.slotActive : ''}`}
+                          onMouseEnter={() => {
+                            setActive(identifier);
+                            setHoverSlot(slot);
+                          }}
+                          onMouseLeave={() => {
+                            setActive(null);
+                            setHoverSlot(null);
+                          }}
+                          title={legend[identifier] ? `${identifier} — ${legend[identifier]}` : identifier}
+                        >
+                          {/* 已指定贴图的标志符展示物品，其余格子保留布局代号。 */}
+                          {icons[identifier] ? (
+                            <img className={`${styles.icon} no-zoom`} src={`${itemBase}${icons[identifier]}.png`} alt={legend[identifier] ?? identifier} draggable={false} />
+                          ) : isEmpty ? (
                             <span
-                              className={`${styles.itemLabel} ${
-                                // 按 code point 数，避免多字节字符被当成多个字符误判
+                              className={`${styles.emptyLabel} ${
                                 Array.from(identifier).length > 2 ? styles.itemLabelLong : ''
                               }`}
                             >
                               {identifier}
                             </span>
-                          </div>
-                        )}
-                        {showSlots && <span className={styles.stackSize}>{slot}</span>}
-                      </div>
-                    );
-                  })}
-                </div>
+                          ) : (
+                            <div
+                              className={`${styles.item} ${active === identifier ? styles.itemActive : ''}`}
+                              style={{'--slot-hue': hue}}
+                            >
+                              <span
+                                className={`${styles.itemLabel} ${
+                                  // 按 code point 数，避免多字节字符被当成多个字符误判
+                                  Array.from(identifier).length > 2 ? styles.itemLabelLong : ''
+                                }`}
+                              >
+                                {identifier}
+                              </span>
+                            </div>
+                          )}
+                          {showSlots && <span className={styles.stackSize}>{slot}</span>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </React.Fragment>
               ))}
             </div>
           </div>

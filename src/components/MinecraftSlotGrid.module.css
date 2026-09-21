@@ -80,6 +80,16 @@
   display: flex;
 }
 
+.inventoryHeader {
+  height: calc(26px * var(--mc-scale));
+  top: calc(4px * var(--mc-scale));
+  padding-bottom: 0;
+}
+
+.hotbarRow {
+  margin-top: calc(8px * var(--mc-scale));
+}
+
 /* ── 槽位 ───────────────────────────────────────────────────── */
 
 .slot {

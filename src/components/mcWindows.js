@@ -99,12 +99,18 @@ export function resolveWindow(type, rows, playerInventory = true) {
   const spec = WINDOWS[type] ?? WINDOWS.chest;
   const effectiveRows = rows ?? spec.defaultRows ?? 3;
   const parts = playerInventory ? spec.parts(effectiveRows) : spec.compactParts(effectiveRows);
+  const height = parts.reduce((sum, part) => sum + part.height, 0);
+  const slots = spec.slots(effectiveRows);
+  if (playerInventory) {
+    const lowerY = height - 96;
+    slots.push(...grid(8, lowerY + 14, 9, 3), ...grid(8, lowerY + 72, 9, 1));
+  }
   return {
     texture: spec.texture,
     width: spec.width,
     parts,
-    height: parts.reduce((sum, part) => sum + part.height, 0),
-    slots: spec.slots(effectiveRows),
+    height,
+    slots,
     titleAt: spec.titleAt,
   };
 }

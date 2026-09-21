@@ -220,10 +220,6 @@ public final class Scheduling {
 
 </Details>
 
-:::warning[异步构建不读取 Bukkit 状态]
-异步任务里不要读取玩家背包、位置、世界或其他 Bukkit 容器状态。使用默认下半部分的 `Window.builder(pane).build(viewer)` 会读取背包，不能直接搬进上述异步任务。需要默认玩家物品栏时，可以异步准备数据和 Pane，再回到玩家实体线程构建 Window。
-:::
-
 上下 Pane 的尺寸与玩家物品栏映射规则见 [窗口布局](/window/layout)。
 
 <NextStep
