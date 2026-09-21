@@ -20,6 +20,7 @@ import MinecraftWindowDemo from '@site/src/components/MinecraftWindowDemo';
 import MinecraftLoadingDemo from '@site/src/components/MinecraftLoadingDemo';
 import NextStep from '@site/src/components/NextStep';
 import SharedPaneDemo from '@site/src/components/SharedPaneDemo';
+import SessionStructureDemo from '@site/src/components/SessionStructureDemo';
 import SignalHint from '@site/src/components/SignalHint';
 import ThreadBadge from '@site/src/components/ThreadBadge';
 import VersionBadge from '@site/src/components/VersionBadge';
@@ -49,6 +50,7 @@ export default {
   MinecraftLoadingDemo,
   NextStep,
   SharedPaneDemo,
+  SessionStructureDemo,
   SignalHint,
   ThreadBadge,
   VersionBadge,

@@ -567,6 +567,23 @@
     "message": "物品栏",
     "description": "Minecraft 容器内的玩家物品栏标题"
   },
+  "sessionDemo.root": {"message": "总览"},
+  "sessionDemo.enterA": {"message": "进入 A"},
+  "sessionDemo.enterB": {"message": "进入 B"},
+  "sessionDemo.back": {"message": "返回"},
+  "sessionDemo.end": {"message": "结束会话"},
+  "sessionDemo.reset": {"message": "重置"},
+  "sessionDemo.path": {"message": "当前路径"},
+  "sessionDemo.held": {"message": "会话持有"},
+  "sessionDemo.parent": {"message": "父子关系"},
+  "sessionDemo.none": {"message": "无"},
+  "sessionDemo.ended": {"message": "会话已结束"},
+  "sessionDemo.current": {"message": "当前"},
+  "sessionDemo.retained": {"message": "路径外保留"},
+  "sessionDemo.hint": {"message": "高亮节点是当前窗口。A、B 始终指向同一批 Window 实例。"},
+  "sessionDemo.stack": {"message": "返回时弹出栈顶，栈中不再出现的窗口不再由会话持有。"},
+  "sessionDemo.retainedStack": {"message": "返回时弹出栈顶，退出的窗口仍被保留。"},
+  "sessionDemo.tree": {"message": "返回最初的父节点，访问过的节点全部保留。"},
   "conceptMap.readMore": {
     "message": "查看章节",
     "description": "ConceptMap 详情面板里指向对应章节的链接文案"

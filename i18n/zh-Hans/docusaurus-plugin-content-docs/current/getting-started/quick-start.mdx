@@ -183,7 +183,7 @@ public final class WelcomeMenu {
 
 ## 添加一个命令打开它
 
-菜单类写完了，还差一个调用它的地方。下面用 Paper 的 Brigadier 命令 API 注册一条 `/welcome`，在 `LifecycleEvents.COMMANDS` 里完成：
+菜单类写完了，还差一个调用它的地方。下面用 Paper 的 Brigadier 命令 API 注册一条 `/welcome`，进服务器打 `/welcome`，菜单就出来了。
 
 ```java
 // 在你的 JavaPlugin#onEnable 里
@@ -199,8 +199,6 @@ this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event 
                         .build(),
                 "打开欢迎菜单"));
 ```
-
-进服务器打 `/welcome`，菜单就出来了。命令 API 本身的完整说明见 Paper 官方文档的 [Command API](https://docs.papermc.io/paper/dev/command-api/basics/introduction/)。
 
 :::tip[build 和 open 都允许异步调用]
 `build(viewer)` 与 `open()` 都可以在异步线程上调用 <ThreadBadge type="any" />，菜单构建不需要挤在主线程上完成。
