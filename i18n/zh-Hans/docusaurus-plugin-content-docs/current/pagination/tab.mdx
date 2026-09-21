@@ -3,8 +3,131 @@ title: 标签 Tab
 sidebar_label: 标签 Tab
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 的 6.3。 */}
+菜单里有「材料」「工具」等分类时，可以用 `Tab` 在同一块区域切换内容。每个分类对应一个子 Pane，布局和按钮都可以各不相同。
 
-:::info
-本页尚未撰写。
+创建 Tab 时给每个子 Pane 指定一个 key，再选好初始分类。切换按钮调用 `select(key)`，内容区就会换成对应的 Pane，窗口和分类按钮仍留在原处。
+
+## 创建标签菜单
+
+`Tab.of` 接收已经构建好的子 Pane。下面的菜单上方放两个分类按钮，下方一行显示当前分类的内容，默认选中材料。
+
+```java
+// 每个分类有自己的布局, 切换时整块内容一起更换
+Pane materials = Pane.builder("###ABC###")
+        .addIngredient('A', new ItemStack(Material.STONE))
+        .addIngredient('B', new ItemStack(Material.OAK_LOG))
+        .addIngredient('C', new ItemStack(Material.GLASS))
+        .build();
+Pane tools = Pane.builder("###ABC###")
+        .addIngredient('A', new ItemStack(Material.IRON_PICKAXE))
+        .addIngredient('B', new ItemStack(Material.IRON_AXE))
+        .addIngredient('C', new ItemStack(Material.IRON_SHOVEL))
+        .build();
+
+// key 用来找到对应的 Pane, 第二个参数决定初始显示材料分类
+Tab<String> tabs = Tab.of(Map.of("materials", materials, "tools", tools), "materials");
+
+ItemStack materialsIcon = new ItemStack(Material.BRICKS);
+materialsIcon.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("材料", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+ItemStack toolsIcon = new ItemStack(Material.IRON_PICKAXE);
+toolsIcon.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("工具", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+
+Pane pane = Pane.builder("###M#T###", "VVVVVVVVV")
+        // V 是整块分类内容区, 不需要为每个分类更换字符模板
+        .addIngredient('V', tabs)
+        .addIngredient('M', Item.builder()
+                .setItemProviderConstant(materialsIcon)
+                .addClickHandler(click -> tabs.select("materials"))
+                .build())
+        .addIngredient('T', Item.builder()
+                .setItemProviderConstant(toolsIcon)
+                .addClickHandler(click -> tabs.select("tools"))
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("分类目录").open(viewer);
+```
+
+key 可以是字符串，也可以是枚举等类型。按钮的排列由 Pane 模板决定，与 Map 中的顺序无关。点击工具按钮时，只替换 V 区域，上方的两个按钮不变。
+
+:::warning[标签 key]
+初始 key 和传给 `select` 的 key 都必须在创建 Tab 时提供的 Map 中，否则会抛出 `IllegalArgumentException`。Tab 会复制 Map，之后向原 Map 添加分类不会改变这组标签。
 :::
+
+这里的分类按钮保持固定外观。需要高亮当前分类时，可以使用 `selected()` 返回的 Signal，见 [将 Signal 接入 UI](/signal/bind-ui)。
+
+## 内容区的尺寸与布局
+
+Tab 按子 Pane 的行列位置显示内容。内容区左上角对应子 Pane 的左上角，子 Pane 中的空格也会保留。
+
+下面的子 Pane 是 3 列、2 行，钻石在左上角，绿宝石在右下角。外层同样留出两行、每行三个 V。
+
+<MinecraftWindow
+  title="分类布局"
+  rows={2}
+  layout={['###D#####', '#####E###']}
+  items={{D: {icon: 'diamond', name: '钻石'}, E: {icon: 'emerald', name: '绿宝石'}}}
+/>
+
+```java
+Pane category = Pane.builder("D##", "##E")
+        .addIngredient('D', new ItemStack(Material.DIAMOND))
+        .addIngredient('E', new ItemStack(Material.EMERALD))
+        .build();
+Tab<String> tabs = Tab.of(Map.of("gems", category), "gems");
+
+// 两行 V 对应子 Pane 的两行, # 不属于标签内容区
+Pane pane = Pane.builder("###VVV###", "###VVV###")
+        .addIngredient('V', tabs)
+        .build();
+
+Window.builder(pane).setTitle("分类布局").open(viewer);
+```
+
+子 Pane 比内容区小时，覆盖不到的格子会清空；比内容区大时，超出的部分不会显示，也不会自动缩放或换行。通常让各分类使用相同尺寸，再留出对应的矩形区域即可。
+
+如果 V 之间有间隔，间隔也会算进相对坐标。例如一行 `V#V` 对应子 Pane 的第 1、3 格，中间的 `#` 保持外层 Pane 的内容。
+
+## 首次切换时再创建
+
+分类较多，或者某些分类不常用时，可以用 `Tab.lazy`。Map 中放入创建 Pane 的函数，某个分类第一次显示时才执行，创建结果会缓存下来。
+
+下面的工具分类在第一次切过去时才构建。材料分类是默认分类，会在外层 Pane 构建并绑定 Tab 时创建。
+
+```java
+Tab<String> tabs = Tab.lazy(Map.of(
+        "materials", () -> Pane.builder("####S####")
+                .addIngredient('S', new ItemStack(Material.STONE))
+                .build(),
+        "tools", () -> Pane.builder("####P####")
+                .addIngredient('P', new ItemStack(Material.IRON_PICKAXE))
+                .build()
+), "materials");
+
+Pane pane = Pane.builder("###M#T###", "VVVVVVVVV")
+        .addIngredient('V', tabs)
+        .addIngredient('M', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BRICKS))
+                .addClickHandler(click -> tabs.select("materials"))
+                .build())
+        .addIngredient('T', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.IRON_PICKAXE))
+                // 第一次选中时创建, 后续切换复用同一个工具 Pane
+                .addClickHandler(click -> tabs.select("tools"))
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("延迟创建分类").open(viewer);
+```
+
+`Tab.of` 和 `Tab.lazy` 都会复用各分类的 Pane。切走再切回来，原有内容仍然保留；分类里如果有 Page 或 Scroll，它们的页码、滚动位置也会保留。已经创建的 Pane 不会因为切走就销毁，其中的数据绑定也会继续工作。
+
+:::warning[延迟创建是同步执行的]
+`Tab.lazy` 不会把创建函数交给异步线程。在上例的点击处理器中首次切换分类时，创建函数就在玩家线程执行，不适合在里面查询数据库或读取大文件。需要按页查询数据库时，可以在子 Pane 中使用 [Page.async](/pagination/page)。创建函数必须返回一个 Pane，不能返回 `null`。
+:::
+
+默认每次打开菜单创建一组 Tab，分类选择就由这次菜单独立保存。如果多名玩家共用同一个 Tab，`select` 也会改变他们共同看到的分类。
+
+<NextStep to="/inventory/basics" title="容器与物品流动" description="把可以存取物品的容器连接到 Pane。" />
