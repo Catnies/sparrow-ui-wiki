@@ -46,6 +46,13 @@
   cursor: default;
 }
 
+/* 图例联动：同标志符的格子描一圈白边，压在槽位边框上，不遮物品 */
+.slotMarked {
+  outline: calc(1px * var(--mcw-scale)) solid #ffffff;
+  outline-offset: calc(1px * var(--mcw-scale));
+  z-index: 1;
+}
+
 .slot:focus-visible {
   outline: 2px solid #ffffff;
   outline-offset: -2px;

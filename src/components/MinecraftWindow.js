@@ -42,6 +42,10 @@ export default function MinecraftWindow({
   playerInventory = false,
   // 留空标志符：这些格子不放任何物品
   empty = [],
+  // 给这个标志符占的全部格子描白边，供图例联动使用
+  highlight = null,
+  // 鼠标指向的格子换了标志符时回调，离开时传 null
+  onHoverIdentifier,
 }) {
   const [hover, setHover] = useState(null); // {index, clientX, clientY}
   const tooltipId = useId();
@@ -92,7 +96,10 @@ export default function MinecraftWindow({
             width: `calc(${spec.width}px * var(--mcw-scale))`,
             height: `calc(${spec.height}px * var(--mcw-scale))`,
           }}
-          onMouseLeave={() => setHover(null)}
+          onMouseLeave={() => {
+            setHover(null);
+            onHoverIdentifier?.(null);
+          }}
         >
           {/* 窗口本体按原版 blit 的口径分段贴：箱子的下半段固定取自图集 y=126，
               少了它窗口就没有底边。每段自己定位，背景位置按段的源 y 偏移。 */}
@@ -134,17 +141,23 @@ export default function MinecraftWindow({
             return (
               <div
                 key={`${x}-${y}`}
-                className={styles.slot}
+                className={`${styles.slot} ${highlight != null && identifier === highlight ? styles.slotMarked : ''}`}
                 style={{
                   left: `calc(${x}px * var(--mcw-scale))`,
                   top: `calc(${y}px * var(--mcw-scale))`,
                   width: `calc(${ICON}px * var(--mcw-scale))`,
                   height: `calc(${ICON}px * var(--mcw-scale))`,
                 }}
-                onPointerMove={(event) => setHover({index, clientX: event.clientX, clientY: event.clientY})}
+                onPointerMove={(event) => {
+                  setHover({index, clientX: event.clientX, clientY: event.clientY});
+                  onHoverIdentifier?.(identifier ?? null);
+                }}
                 // 鼠标点击不接管键盘焦点，避免 onFocus 把提示改锚到槽位边缘。
                 onPointerDown={(event) => event.preventDefault()}
-                onPointerLeave={() => setHover(null)}
+                onPointerLeave={() => {
+                  setHover(null);
+                  onHoverIdentifier?.(null);
+                }}
                 tabIndex={item?.name ? 0 : undefined}
                 aria-label={item?.name}
                 aria-describedby={hover?.index === index && item?.name ? tooltipId : undefined}

@@ -14,10 +14,21 @@
 //     scale={2}
 //     showSlots
 //   />
+//
+// 传入 items 后右侧出现「字符模板 / 玩家视角」切换，玩家视角用 <MinecraftWindow> 画成品，
+// items 的写法与 MinecraftWindow 相同。讲同一个菜单时用这一个组件，不必把布局图和成品图各放一张：
+//
+//   <MinecraftSlotGrid
+//     title="欢迎菜单"
+//     rows={["#########", "###G#C###", "#########"]}
+//     legend={{'#': '装饰背景', G: '打招呼', C: '关闭菜单'}}
+//     items={{G: {icon: 'lime_dye', name: '打个招呼', nameColor: '#ffff55'}}}
+//   />
 
 import React, {useMemo, useState} from 'react';
 import {translate} from '@docusaurus/Translate';
 import useBaseUrl from '@docusaurus/useBaseUrl';
+import MinecraftWindow from './MinecraftWindow';
 import {analyzeStructure} from '../utils/parseStructure';
 import styles from './MinecraftSlotGrid.module.css';
 
@@ -33,11 +44,19 @@ export default function MinecraftSlotGrid({
   title,
   // 整体放大倍数。1 与游戏 GUI 等比（槽位 32px），2 适合正文里需要看清标志符的场合。
   scale = 1,
+  // 玩家视角里每个标志符显示的物品，写法同 <MinecraftWindow> 的 items。不传就没有切换按钮。
+  items,
+  // 玩家视角使用的窗口类型，见 mcWindows.js
+  windowType = 'chest',
+  // 初始视图：'layout' 字符模板，'game' 玩家视角
+  defaultView = 'layout',
 }) {
   const meta = useMemo(() => analyzeStructure(rows, empty, 'MinecraftSlotGrid'), [rows, empty]);
   // active：要联动点亮的标志符；hoverSlot：单独盖白的那一格（游戏行为）
   const [active, setActive] = useState(null);
   const [hoverSlot, setHoverSlot] = useState(null);
+  const switchable = items != null;
+  const [view, setView] = useState(switchable ? defaultView : 'layout');
   const itemBase = useBaseUrl('/img/mc/item/');
 
   const ariaLabel = translate({
@@ -50,6 +69,13 @@ export default function MinecraftSlotGrid({
     return <div className={styles.error}>{meta.error}</div>;
   }
 
+  const gameView = view === 'game';
+  const switchView = (next) => {
+    setActive(null);
+    setHoverSlot(null);
+    setView(next);
+  };
+
   return (
     <div
       className={styles.wrapper}
@@ -57,72 +83,92 @@ export default function MinecraftSlotGrid({
       role="group"
       aria-label={caption ?? title ?? ariaLabel}
     >
-      <div className={styles.viewport}>
-        <div className={styles.panel}>
-          {title && <div className={styles.header}>{title}</div>}
+      {/* key 随视图变化，切换时重新挂载以播放淡入 */}
+      <div className={`${styles.viewport} ${switchable ? styles.viewportSwitchable : ''}`} key={view}>
+        {gameView ? (
+          // MinecraftWindow 的倍数 2 对应这里的倍数 1，两者槽位步长一致，切换时外框不跳。
+          <div className={styles.gameView}>
+            <MinecraftWindow
+              type={windowType}
+              rows={meta.grid.length}
+              title={title}
+              layout={rows}
+              items={items}
+              scale={scale * 2}
+              highlight={active}
+              onHoverIdentifier={setActive}
+            />
+          </div>
+        ) : (
+          <div className={styles.panel}>
+            {/* 可切换时始终保留标题栏，高度与成品窗口的标题区对齐 */}
+            {(title || switchable) && <div className={styles.header}>{title || ' '}</div>}
 
-          <div className={styles.grid}>
-            {meta.grid.map((row, rowIndex) => (
-              // eslint-disable-next-line react/no-array-index-key
-              <div className={styles.row} key={rowIndex}>
-                {row.map((identifier, columnIndex) => {
-                  const slot = rowIndex * meta.width + columnIndex;
-                  const hue = meta.hueOf.get(identifier);
-                  const isEmpty = hue === null;
-                  return (
-                    <div
-                      key={slot}
-                      className={`${styles.slot} ${hoverSlot === slot ? styles.slotLit : ''} ${active === identifier ? styles.slotActive : ''}`}
-                      onMouseEnter={() => {
-                        setActive(identifier);
-                        setHoverSlot(slot);
-                      }}
-                      onMouseLeave={() => {
-                        setActive(null);
-                        setHoverSlot(null);
-                      }}
-                      title={legend[identifier] ? `${identifier} — ${legend[identifier]}` : identifier}
-                    >
-                      {/* 已指定贴图的标志符展示物品，其余格子保留布局代号。 */}
-                      {icons[identifier] ? (
-                        <img className={`${styles.icon} no-zoom`} src={`${itemBase}${icons[identifier]}.png`} alt={legend[identifier] ?? identifier} draggable={false} />
-                      ) : isEmpty ? (
-                        <span
-                          className={`${styles.emptyLabel} ${
-                            Array.from(identifier).length > 2 ? styles.itemLabelLong : ''
-                          }`}
-                        >
-                          {identifier}
-                        </span>
-                      ) : (
-                        <div
-                          className={`${styles.item} ${active === identifier ? styles.itemActive : ''}`}
-                          style={{'--slot-hue': hue}}
-                        >
+            <div className={styles.grid}>
+              {meta.grid.map((row, rowIndex) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <div className={styles.row} key={rowIndex}>
+                  {row.map((identifier, columnIndex) => {
+                    const slot = rowIndex * meta.width + columnIndex;
+                    const hue = meta.hueOf.get(identifier);
+                    const isEmpty = hue === null;
+                    return (
+                      <div
+                        key={slot}
+                        className={`${styles.slot} ${hoverSlot === slot ? styles.slotLit : ''} ${active === identifier ? styles.slotActive : ''}`}
+                        onMouseEnter={() => {
+                          setActive(identifier);
+                          setHoverSlot(slot);
+                        }}
+                        onMouseLeave={() => {
+                          setActive(null);
+                          setHoverSlot(null);
+                        }}
+                        title={legend[identifier] ? `${identifier} — ${legend[identifier]}` : identifier}
+                      >
+                        {/* 已指定贴图的标志符展示物品，其余格子保留布局代号。 */}
+                        {icons[identifier] ? (
+                          <img className={`${styles.icon} no-zoom`} src={`${itemBase}${icons[identifier]}.png`} alt={legend[identifier] ?? identifier} draggable={false} />
+                        ) : isEmpty ? (
                           <span
-                            className={`${styles.itemLabel} ${
-                              // 按 code point 数，避免多字节字符被当成多个字符误判
+                            className={`${styles.emptyLabel} ${
                               Array.from(identifier).length > 2 ? styles.itemLabelLong : ''
                             }`}
                           >
                             {identifier}
                           </span>
-                        </div>
-                      )}
-                      {showSlots && <span className={styles.stackSize}>{slot}</span>}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+                        ) : (
+                          <div
+                            className={`${styles.item} ${active === identifier ? styles.itemActive : ''}`}
+                            style={{'--slot-hue': hue}}
+                          >
+                            <span
+                              className={`${styles.itemLabel} ${
+                                // 按 code point 数，避免多字节字符被当成多个字符误判
+                                Array.from(identifier).length > 2 ? styles.itemLabelLong : ''
+                              }`}
+                            >
+                              {identifier}
+                            </span>
+                          </div>
+                        )}
+                        {showSlots && <span className={styles.stackSize}>{slot}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {meta.order.length > 0 && (
         <ul className={styles.legend}>
           {meta.order.map((identifier) => {
             const hue = meta.hueOf.get(identifier);
+            // 玩家视角下图例改用成品物品的贴图，布局视角沿用 icons 或色块
+            const legendIcon = gameView ? items[identifier]?.icon : icons[identifier];
             return (
               <li
                 key={identifier}
@@ -133,11 +179,11 @@ export default function MinecraftSlotGrid({
                 onFocus={() => setActive(identifier)}
                 onBlur={() => setActive(null)}
               >
-                {icons[identifier] ? (
-                  <img className={`${styles.legendIcon} no-zoom`} src={`${itemBase}${icons[identifier]}.png`} alt="" draggable={false} />
+                {legendIcon ? (
+                  <img className={`${styles.legendIcon} no-zoom`} src={`${itemBase}${legendIcon}.png`} alt="" draggable={false} />
                 ) : <span
-                  className={`${styles.swatch} ${hue === null ? styles.swatchEmpty : ''}`}
-                  style={hue === null ? undefined : {'--slot-hue': hue}}
+                  className={`${styles.swatch} ${hue === null || gameView ? styles.swatchEmpty : ''}`}
+                  style={hue === null || gameView ? undefined : {'--slot-hue': hue}}
                 />}
                 <code className={styles.legendIdentifier}>{identifier}</code>
                 <span className={styles.legendText}>{legend[identifier] ?? ''}</span>
@@ -146,6 +192,49 @@ export default function MinecraftSlotGrid({
             );
           })}
         </ul>
+      )}
+
+      {switchable && (
+        <div
+          className={styles.views}
+          role="group"
+          aria-label={translate({
+            id: 'minecraftSlotGrid.view.aria',
+            message: 'Preview mode',
+            description: 'MinecraftSlotGrid: aria label of the view switch',
+          })}
+        >
+          <button
+            type="button"
+            className={`${styles.viewButton} ${gameView ? '' : styles.viewButtonActive}`}
+            aria-pressed={!gameView}
+            onClick={() => switchView('layout')}
+          >
+            <svg className={styles.viewIcon} viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M2 2h5v5H2zM9 2h5v5H9zM2 9h5v5H2zM9 9h5v5H9z" />
+            </svg>
+            {translate({
+              id: 'minecraftSlotGrid.view.layout',
+              message: 'Template',
+              description: 'MinecraftSlotGrid: button that shows the identifier layout',
+            })}
+          </button>
+          <button
+            type="button"
+            className={`${styles.viewButton} ${gameView ? styles.viewButtonActive : ''}`}
+            aria-pressed={gameView}
+            onClick={() => switchView('game')}
+          >
+            <svg className={styles.viewIcon} viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 3C4.4 3 1.6 5.4.5 8c1.1 2.6 3.9 5 7.5 5s6.4-2.4 7.5-5C14.4 5.4 11.6 3 8 3zm0 8a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm0-4.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" />
+            </svg>
+            {translate({
+              id: 'minecraftSlotGrid.view.game',
+              message: 'In game',
+              description: 'MinecraftSlotGrid: button that shows what the player sees',
+            })}
+          </button>
+        </div>
       )}
 
       {caption && <p className={styles.caption}>{caption}</p>}

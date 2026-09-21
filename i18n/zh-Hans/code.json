@@ -535,6 +535,18 @@
     "message": "容器风格的 Pane 结构预览",
     "description": "MinecraftSlotGrid 网格的无障碍标签"
   },
+  "minecraftSlotGrid.view.aria": {
+    "message": "预览方式",
+    "description": "MinecraftSlotGrid 视图切换按钮组的无障碍标签"
+  },
+  "minecraftSlotGrid.view.layout": {
+    "message": "字符模板",
+    "description": "MinecraftSlotGrid 切换到标志符布局视图的按钮"
+  },
+  "minecraftSlotGrid.view.game": {
+    "message": "玩家视角",
+    "description": "MinecraftSlotGrid 切换到游戏内成品视图的按钮"
+  },
   "codeSteps.expand": {
     "message": "展开完整文件",
     "description": "CodeSteps 组件中取消限高的按钮文案"

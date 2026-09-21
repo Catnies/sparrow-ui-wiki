@@ -224,6 +224,17 @@ html[data-theme-color='green'][data-theme='dark'] {
   --ce-admonition-accent: color-mix(in srgb, var(--ce-admonition-color) 70%, white);
 }
 
+/* Infima 在 .alert 上把 --ifm-link-color 改成正文色，只留一条几乎看不见的下划线。
+   这里不能再读 --ifm-link-color（取到的是被改过的值），直接用主色，与正文里的链接一致。 */
+.theme-admonition.alert a {
+  color: var(--ifm-color-primary);
+  text-decoration: none;
+}
+
+.theme-admonition.alert a:hover {
+  text-decoration: underline;
+}
+
 .theme-admonition > [class*='admonitionHeading'] {
   color: color-mix(in srgb, var(--ce-admonition-accent) 65%, var(--ifm-font-color-base));
   font-size: 0.95rem;

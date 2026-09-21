@@ -1,10 +1,363 @@
 ---
-title: 结构与 identifier
-sidebar_label: 结构与 identifier
+title: 字符布局
+sidebar_label: 字符布局
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 3.1 节。 */}
+Pane 的布局用字符模板描述：每个字符串是菜单的一行，每个字符占一格，相同字符的格子显示同一份内容。
 
-:::info
-本页尚未撰写。
+## 用字符画出布局
+
+用 `Pane.builder` 创建 Pane 时，在括号里写几行字符串，把菜单的样子直接画出来：第一个字符串是菜单的第一行，第二个字符串是第二行，以此类推；字符串中的每个字符代表一个格子。
+
+下面是帮助菜单的骨架，上下两行是边框，中间放一本帮助手册：
+
+```java
+ItemStack border = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+border.setData(DataComponentTypes.CUSTOM_NAME, Component.empty());
+
+ItemStack book = new ItemStack(Material.BOOK);
+book.setData(
+        DataComponentTypes.CUSTOM_NAME,
+        Component.text("帮助手册", NamedTextColor.WHITE)
+                .decoration(TextDecoration.ITALIC, false)
+);
+
+Pane pane = Pane.builder(
+                "---------",
+                "####B####",
+                "---------"
+        )
+        .addIngredient('-', Item.simple(border))
+        .addIngredient('B', Item.simple(book))
+        .build();
+
+Window.builder(pane)
+        .setTitle(Component.text("帮助"))
+        .open(viewer);
+```
+
+这里写了 3 个字符串，每个有 9 个字符，所以这块 Pane 是 3 行 9 列，共 27 格。点「字符模板」和「玩家视角」按钮，可以在模板和玩家看到的菜单之间切换：
+
+<MinecraftSlotGrid
+  title="帮助"
+  rows={["---------", "####B####", "---------"]}
+  legend={{'-': '边框', B: '帮助手册', '#': '留空'}}
+  items={{
+    '-': {icon: 'black_stained_glass_pane'},
+    B: {icon: 'book', name: '帮助手册', nameColor: '#ffffff'},
+  }}
+/>
+
+模板中的字符称为**标志符**（identifier）。字符本身没有含义，只是格子的代号，`addIngredient` 把内容绑定到标志符上。**一个标志符出现在几格，绑定的内容就显示在几格。** `-` 在模板中出现 18 次，一次绑定就铺满上下两行，这 18 格显示的是同一个 Item。需要每格各用一个 Item 时，见 [填充内容](/pane/ingredients)。
+
+同一个标志符多次调用 `addIngredient` 时，只保留最后一次绑定。
+
+一个字符不够表达含义时，可以用反引号把一段文本包起来，整段算作一个标志符，只占一格。绑定时写不带反引号的字符串：
+
+```java
+Pane pane = Pane.builder("##`buy`###`sell`##")
+        .addIngredient("buy", Item.simple(new ItemStack(Material.EMERALD)))
+        .addIngredient("sell", Item.simple(new ItemStack(Material.GOLD_INGOT)))
+        .build();
+```
+
+这一行写了 18 个字符，但只有 9 格：
+
+<MinecraftSlotGrid
+  rows={["##`buy`###`sell`##"]}
+  legend={{buy: '购买按钮', sell: '出售按钮', '#': '留空'}}
+  scale={2}
+/>
+
+多字符标志符绑定时只能写成字符串。单字符标志符写成 `'B'` 或 `"B"` 效果相同，少数 `addIngredient` 重载只接受字符串写法，见 [填充内容](/pane/ingredients)。
+
+单字符能让模板在源码里上下对齐，一眼看出每格的位置，标志符不多时优先用单字符。
+
+:::warning[模板写错时立即报错]
+以下情况会抛出 `IllegalArgumentException`：
+
+- 各行格数不一致，消息会指出出错的行，例如 `row 2 has logical width 8, expected 9`
+- 反引号没有闭合，或一对反引号之间没有内容
+- 模板中出现制表符等控制字符
+- `addIngredient` 绑定了模板中不存在的标志符，调用 `addIngredient` 时当场抛出，不会等到 `build()`
 :::
+
+:::warning[普通窗口要求宽 9、高 1～6]
+Pane 本身不限制尺寸，限制来自它所在的窗口。`Window.builder(pane)` 打开箱子样式的窗口，箱子行数取 Pane 的高度，因此 Pane 宽度必须为 9、高度在 1～6 之间，否则调用 `build` 或 `open` 时抛出 `IllegalArgumentException`。
+
+漏斗、发射器等窗口有各自的固定尺寸，见 [窗口类型](/window/types)。
+:::
+
+## 留空的格子
+
+模板中的标志符不要求全部绑定。没有绑定内容的格子为空：不显示物品，也没有点击行为。
+
+本站的示例约定用 `#` 表示这类格子。`#` 在库中没有特殊含义，给 `#` 绑定内容时，它和其他字符一样生效。
+
+Pane 设置了背景时，空格子显示背景物品。下面用灰色玻璃板填满帮助手册以外的 26 格：
+
+```java
+ItemStack background = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+background.setData(DataComponentTypes.CUSTOM_NAME, Component.empty());
+
+Pane pane = Pane.builder(
+                "#########",
+                "####B####",
+                "#########"
+        )
+        .setBackground(background)
+        .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+        .build();
+```
+
+背景的完整用法见 [背景、冻结与嵌套](/pane/composition)。某一格需要保持空白、又不显示背景时，给它绑定 [`Item.empty()`](/item/create#创建空-item)。
+
+:::warning[写错的字符和空格不会报错]
+没有绑定的标志符不会引发任何错误。模板中手误写错的字符会成为一个新的标志符，对应的格子静默留空。
+
+空格也是普通字符，同样占一格。不要用空格对齐模板：`"# # # # #"` 是 9 格，其中 4 格的标志符是空格。
+:::
+
+## 槽位与坐标
+
+Pane 的每一格有一个**槽位编号**：左上角为 0，先从左到右、再从上到下递增。同一格也可以用坐标 `(x, y)` 表示，`x` 是列、`y` 是行，都从 0 开始。两者的换算是 `slot = x + y × 宽度`。
+
+<MinecraftSlotGrid
+  rows={["---------", "####B####", "---------"]}
+  legend={{'-': '边框', B: '帮助手册', '#': '留空'}}
+  showSlots
+/>
+
+帮助手册 `B` 位于第 2 行第 5 列，槽位编号是 13，坐标是 `(4, 1)`。
+
+Pane 的尺寸由 `PaneSize` 表示，`PaneSize` 同时负责槽位与坐标的换算：
+
+```java
+Pane pane = Pane.builder(
+                "---------",
+                "####B####",
+                "---------"
+        )
+        .build();
+
+PaneSize size = pane.size();                 // 宽 9, 高 3
+int area = size.area();                      // 27
+int slot = size.indexOf(4, 1);               // 13
+PanePosition position = size.positionOf(13); // x = 4, y = 1
+String identifier = pane.identifierAt(13);   // "B"
+```
+
+`PaneSize` 与 `PanePosition` 位于 `net.momirealms.sparrow.ui.pane`。坐标或槽位超出范围时，`indexOf` 与 `positionOf` 抛出 `IndexOutOfBoundsException`。
+
+按标志符绑定内容时不需要计算槽位编号。槽位和坐标主要用于 [程序化布局](/pane/programmatic)，也用于读懂异常消息中的位置：`build()` 时某个标志符的内容创建失败，异常会写明标志符、模板行列和槽位编号。
+
+:::info[Pane 槽位与 Window 槽位]
+这里的编号是 **Pane 槽位**，只相对于当前 Pane。`RenderContext.windowSlot` 与 `ItemClick.windowSlot()` 是 **Window 槽位**。Pane 直接作为 `Window.builder(pane)` 的上半部分时，两者数值相同；Pane 嵌套在另一块 Pane 中时则不同，见 [背景、冻结与嵌套](/pane/composition)。
+:::
+
+## 预先解析布局
+
+`Pane.builder("行", ...)` 先把模板解析成一份 `Structure`，再用它创建 Builder。`Structure` 记录 Pane 的尺寸和每一格的标志符，创建后不可修改，不保存任何绑定的内容。
+
+同一个布局反复使用时，可以只解析一次，保存为常量：
+
+```java
+private static final Structure LAYOUT = Structure.of(
+        "---------",
+        "####B####",
+        "---------"
+);
+
+public static Pane createPane() {
+    return Pane.builder(LAYOUT)
+            .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+            .build();
+}
+```
+
+`Pane.builder(LAYOUT)` 与直接传入模板行得到相同的 Builder。多个 Builder 共用一份 `Structure` 时，各自绑定的内容互不影响。
+
+每个 `Pane.builder` 入口都对应一种 `Structure`：
+
+| Pane 入口 | 对应的 Structure | 布局内容 |
+|---|---|---|
+| `Pane.builder(String...)` | `Structure.of(String...)` | 多行模板 |
+| `Pane.builder(int, int, String)` | `Structure.of(PaneSize, String)` | 各行首尾相接的一段模板，格数必须等于宽 × 高 |
+| `Pane.builder(PaneSize)`、`Pane.builder(int, int)` | `Structure.of(PaneSize)` | 只有尺寸，没有标志符 |
+| `Pane.builder(Structure)` | 传入的 `Structure` | 已解析的布局 |
+
+只有尺寸的空白布局中没有标志符，无法使用 `addIngredient`，所有格子初始为空。它用于逐格安排内容的场景，见 [程序化布局](/pane/programmatic)。
+
+## 帮助菜单示例
+
+上下两条边框，中间三个帮助按钮，点击后在聊天栏发送对应内容；关闭按钮位于底边正中。
+
+<MinecraftSlotGrid
+  title="服务器帮助"
+  rows={["---------", "#R##C##W#", "----X----"]}
+  legend={{'-': '边框', R: '服务器规则', C: '常用指令', W: '官方网站', X: '关闭菜单', '#': '留空'}}
+  defaultView="game"
+  items={{
+    '-': {icon: 'black_stained_glass_pane'},
+    R: {icon: 'book', name: '服务器规则', nameColor: '#ffff55', lore: ['点击在聊天栏查看。']},
+    C: {icon: 'writable_book', name: '常用指令', nameColor: '#ffff55', lore: ['点击在聊天栏查看。']},
+    W: {icon: 'map', name: '官方网站', nameColor: '#ffff55', lore: ['点击在聊天栏查看。']},
+    X: {icon: 'barrier', name: '关闭菜单', nameColor: '#ffff55'},
+  }}
+/>
+
+<CodeSteps
+  language="java"
+  steps={[
+    {
+      title: '解析布局',
+      lines: '17-22',
+      note: '三行模板在类初始化时解析成一份 Structure。每次打开都用它创建 Builder，不再重复解析。',
+      preview: (
+        <MinecraftSlotGrid
+          rows={["---------", "#R##C##W#", "----X----"]}
+          legend={{'-': '边框', R: '服务器规则', C: '常用指令', W: '官方网站', X: '关闭菜单', '#': '留空'}}
+        />
+      ),
+    },
+    {
+      title: '铺满边框',
+      lines: '26-27,85-89',
+      note: '模板中的 “-” 占 17 格，一次 addIngredient 让这些格子都显示黑色玻璃板；“#” 没有绑定，5 格保持空白。',
+      preview: (
+        <MinecraftSlotGrid
+          rows={["---------", "#R##C##W#", "----X----"]}
+          icons={{'-': 'black_stained_glass_pane'}}
+          legend={{'-': '黑色玻璃板', R: '服务器规则', C: '常用指令', W: '官方网站', X: '关闭菜单', '#': '留空'}}
+        />
+      ),
+    },
+    {
+      title: '帮助按钮',
+      lines: '28-38,47-70',
+      note: '三个按钮由同一个 helpButton 方法构建，只有物品、名称和聊天内容不同。R、C、W 各出现一次，各占一格。',
+      preview: (
+        <MinecraftSlotGrid
+          rows={["---------", "#R##C##W#", "----X----"]}
+          icons={{'-': 'black_stained_glass_pane', R: 'book', C: 'writable_book', W: 'map'}}
+          legend={{'-': '黑色玻璃板', R: '服务器规则', C: '常用指令', W: '官方网站', X: '关闭菜单', '#': '留空'}}
+        />
+      ),
+    },
+    {
+      title: '关闭按钮',
+      lines: '39,72-83',
+      note: 'X 位于底边正中，槽位编号为 22，坐标为 (4, 2)。点击后关闭当前窗口。',
+      preview: (
+        <MinecraftSlotGrid
+          rows={["---------", "#R##C##W#", "----X----"]}
+          icons={{'-': 'black_stained_glass_pane', R: 'book', C: 'writable_book', W: 'map', X: 'barrier'}}
+          legend={{'-': '黑色玻璃板', R: '服务器规则', C: '常用指令', W: '官方网站', X: '关闭菜单', '#': '留空'}}
+        />
+      ),
+    },
+    {
+      title: '打开窗口',
+      lines: '25,40,42-44',
+      note: 'build() 得到一块 9 × 3 的 Pane，Window.builder 按它的高度打开三行箱子。',
+    },
+  ]}
+  code={`
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ItemLore;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.momirealms.sparrow.ui.item.Item;
+import net.momirealms.sparrow.ui.pane.Pane;
+import net.momirealms.sparrow.ui.pane.Structure;
+import net.momirealms.sparrow.ui.window.Window;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.List;
+
+public final class HelpMenu {
+    // 布局只解析一次, 每次打开菜单时复用.
+    private static final Structure LAYOUT = Structure.of(
+            "---------",
+            "#R##C##W#",
+            "----X----"
+    );
+
+    public static void open(Player viewer) {
+        Pane pane = Pane.builder(LAYOUT)
+                // '-' 占 17 格, 一次绑定全部生效; '#' 不绑定, 保持留空.
+                .addIngredient('-', Item.simple(border()))
+                .addIngredient('R', helpButton(Material.BOOK, "服务器规则", List.of(
+                        "不使用作弊客户端。",
+                        "不破坏他人的建筑。"
+                )))
+                .addIngredient('C', helpButton(Material.WRITABLE_BOOK, "常用指令", List.of(
+                        "/spawn 回到主城",
+                        "/home 回到家"
+                )))
+                .addIngredient('W', helpButton(Material.MAP, "官方网站", List.of(
+                        "https://example.com"
+                )))
+                .addIngredient('X', closeButton())
+                .build();
+
+        Window.builder(pane)
+                .setTitle(Component.text("服务器帮助"))
+                .open(viewer);
+    }
+
+    private static Item helpButton(Material material, String title, List<String> lines) {
+        ItemStack stack = new ItemStack(material);
+        stack.setData(
+                DataComponentTypes.CUSTOM_NAME,
+                Component.text(title, NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false)
+        );
+        stack.setData(
+                DataComponentTypes.LORE,
+                ItemLore.lore(List.of(
+                        Component.text("点击在聊天栏查看。", NamedTextColor.GRAY)
+                                .decoration(TextDecoration.ITALIC, false)
+                ))
+        );
+        return Item.builder()
+                .setItemProviderConstant(stack)
+                .addClickHandler(click -> {
+                    click.player().sendMessage(Component.text(title, NamedTextColor.AQUA));
+                    for (String line : lines) {
+                        click.player().sendMessage(Component.text(line, NamedTextColor.GRAY));
+                    }
+                })
+                .build();
+    }
+
+    private static Item closeButton() {
+        ItemStack stack = new ItemStack(Material.BARRIER);
+        stack.setData(
+                DataComponentTypes.CUSTOM_NAME,
+                Component.text("关闭菜单", NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false)
+        );
+        return Item.builder()
+                .setItemProviderConstant(stack)
+                .addClickHandler(click -> click.window().close())
+                .build();
+    }
+
+    private static ItemStack border() {
+        ItemStack stack = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        stack.setData(DataComponentTypes.CUSTOM_NAME, Component.empty());
+        return stack;
+    }
+}
+  `}
+/>
+
+<NextStep
+  to="/pane/ingredients"
+  title="填充内容"
+  description="addIngredient 能绑定的全部内容类型。"
+/>

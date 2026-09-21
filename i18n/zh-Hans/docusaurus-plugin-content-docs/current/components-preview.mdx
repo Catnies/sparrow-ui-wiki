@@ -138,6 +138,19 @@ shadowJar {
   legend={{'#': '灰色玻璃板', G: '打招呼', C: '关闭菜单'}}
 />
 
+传入 `items`（写法同 `<MinecraftWindow>`）后右侧出现「字符模板 / 玩家视角」切换，同一个菜单不必再把布局图和成品图各放一张。两种视图外框尺寸一致，切换时不跳动；玩家视角下图例换成物品贴图，悬停图例仍会描出同标志符的格子。`defaultView="game"` 可让它默认显示成品：
+
+<MinecraftSlotGrid
+  title="欢迎菜单"
+  rows={["#########", "###G#C###", "#########"]}
+  legend={{'#': '装饰背景', G: '打招呼', C: '关闭菜单'}}
+  items={{
+    '#': {icon: 'gray_stained_glass_pane'},
+    G: {icon: 'lime_dye', name: '打个招呼', nameColor: '#ffff55', lore: ['点一下, 向自己问好。']},
+    C: {icon: 'barrier', name: '关闭', nameColor: '#ff5555'},
+  }}
+/>
+
 模板语法错误会就地显示原因：
 
 <MinecraftSlotGrid rows={["ABCDE", "ABC"]} />

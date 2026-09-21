@@ -299,6 +299,85 @@
   color: var(--ifm-color-emphasis-600);
 }
 
+/* ── 字符模板 / 玩家视角切换 ─────────────────────────────────── */
+
+/* 切换时整块淡入，不做位移：两种视图外框尺寸一致，位移反而像是跳了一下 */
+.viewportSwitchable > * {
+  animation: viewFade 0.18s ease-out;
+}
+
+@keyframes viewFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* 成品窗口自带上下外边距，嵌进来时清掉，和布局面板占同一块位置 */
+.gameView {
+  display: inline-block;
+  vertical-align: bottom;
+}
+
+.gameView > div {
+  margin: 0;
+}
+
+.views {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.viewButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--ifm-color-emphasis-700);
+  font-family: inherit;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color 0.15s ease-out,
+    background-color 0.15s ease-out,
+    border-color 0.15s ease-out;
+}
+
+.viewButton:hover {
+  color: var(--ifm-font-color-base);
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+.viewButton:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 1px;
+}
+
+.viewButtonActive,
+.viewButtonActive:hover {
+  color: var(--ifm-color-primary);
+  border-color: color-mix(in srgb, var(--ifm-color-primary) 60%, transparent);
+  background-color: color-mix(in srgb, var(--ifm-color-primary) 10%, transparent);
+  cursor: default;
+}
+
+.viewIcon {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  fill: currentColor;
+}
+
 .caption {
   flex-basis: 100%;
   margin: 0.6rem 0 0;
@@ -314,6 +393,13 @@
     padding: 12px 0 0;
     border-left: 0;
     border-top: 1px solid var(--ifm-color-emphasis-200);
+  }
+
+  /* 窄版面把切换按钮挪到容器上方，横排 */
+  .views {
+    order: -1;
+    flex-basis: 100%;
+    flex-direction: row;
   }
 }
 
@@ -335,7 +421,12 @@
 
 @media (prefers-reduced-motion: reduce) {
   .item,
-  .legendItem {
+  .legendItem,
+  .viewButton {
     transition: none;
+  }
+
+  .viewportSwitchable > * {
+    animation: none;
   }
 }
