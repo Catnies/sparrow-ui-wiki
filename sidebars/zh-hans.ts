@@ -58,7 +58,8 @@ const sidebars: SidebarsConfig = {
       label: '📄 翻页与滚动',
       items: [
         'pagination/page',
-        'pagination/scroll-tab',
+        'pagination/scroll',
+        'pagination/tab',
       ],
     },
     {

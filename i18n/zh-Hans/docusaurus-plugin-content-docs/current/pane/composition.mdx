@@ -166,7 +166,7 @@ Pane pane = Pane.builder(
 本例的子 Pane 宽 5 格、高 3 格，显示区域宽 3 格、高 2 格，所以 `offsetX` 可以取 0～2，`offsetY` 可以取 0～1。超出这个范围会让某些格子对应到子 Pane 外，`build()` 抛出 `IllegalStateException`，不会自动补空白。
 :::
 
-偏移在构建时确定。需要在菜单打开后滚动显示内容时，使用 [滚动与标签](/pagination/scroll-tab)。
+偏移在构建时确定。需要在菜单打开后滚动显示内容时，使用 [滚动 Scroll](/pagination/scroll)。
 
 ### 嵌套后的背景、冻结与点击
 

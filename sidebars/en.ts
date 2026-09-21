@@ -61,7 +61,8 @@ const sidebars: SidebarsConfig = {
       label: '📄 Page & Scroll',
       items: [
         'pagination/page',
-        'pagination/scroll-tab',
+        'pagination/scroll',
+        'pagination/tab',
       ],
     },
     {
