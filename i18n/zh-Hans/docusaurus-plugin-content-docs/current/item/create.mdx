@@ -142,20 +142,12 @@ Item empty = Item.empty();
 
 ## 把 Item 放进菜单
 
-创建 Item 后，用 `addIngredient` 将它绑定到布局中的字符。下面的菜单有一行九格：`A` 放箭头，`C` 放关闭按钮，其余 `#` 留空。
+创建 Item 后，用 `addIngredient` 将它绑定到布局中的字符。下面的菜单有一行九格：`A` 放箭头，`C` 放关闭按钮，其余 `#` 留空。箭头只展示信息，屏障按钮负责关闭窗口，切换到「玩家视角」可以查看玩家看到的物品：
 
 <MinecraftSlotGrid
+  title="物品示例"
   rows={["##A###C##"]}
   legend={{'#': '留空', A: '展示物品', C: '关闭按钮'}}
-/>
-
-玩家看到的物品如下，箭头只展示信息，屏障按钮负责关闭窗口：
-
-<MinecraftWindow
-  type="chest"
-  rows={1}
-  title="物品示例"
-  layout={["##A###C##"]}
   items={{
     A: {icon: 'arrow', name: '方向指示', nameColor: '#ffffff', lore: ['标记菜单中的方向。']},
     C: {icon: 'barrier', name: '关闭菜单', nameColor: '#ffff55'},

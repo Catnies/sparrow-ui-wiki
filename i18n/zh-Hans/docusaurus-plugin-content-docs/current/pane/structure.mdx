@@ -69,7 +69,7 @@ Pane pane = Pane.builder("##`buy`###`sell`##")
   scale={2}
 />
 
-多字符标志符绑定时只能写成字符串。单字符标志符写成 `'B'` 或 `"B"` 效果相同，少数 `addIngredient` 重载只接受字符串写法，见 [填充内容](/pane/ingredients)。
+多字符标志符绑定时写成字符串。单字符标志符一般写成 `'B'`，也可以写成字符串 `"B"`。
 
 单字符能让模板在源码里上下对齐，一眼看出每格的位置，标志符不多时优先用单字符。
 
@@ -223,7 +223,7 @@ public static Pane createPane() {
     {
       title: '铺满边框',
       lines: '26-27,85-89',
-      note: '模板中的 “-” 占 17 格，一次 addIngredient 让这些格子都显示黑色玻璃板；“#” 没有绑定，5 格保持空白。',
+      note: '模板中的 “-” 占 17 格，一次 addIngredient 让这些格子都显示黑色玻璃板；“#” 没有绑定，6 格保持空白。',
       preview: (
         <MinecraftSlotGrid
           rows={["---------", "#R##C##W#", "----X----"]}
