@@ -16,6 +16,7 @@ import ConceptMap from '@site/src/components/ConceptMap';
 import Exercise, {ExerciseApproach, ExerciseAnswer} from '@site/src/components/Exercise';
 import MinecraftSlotGrid from '@site/src/components/MinecraftSlotGrid';
 import MinecraftWindow from '@site/src/components/MinecraftWindow';
+import MinecraftLoadingDemo from '@site/src/components/MinecraftLoadingDemo';
 import NextStep from '@site/src/components/NextStep';
 import SignalHint from '@site/src/components/SignalHint';
 import ThreadBadge from '@site/src/components/ThreadBadge';
@@ -42,6 +43,7 @@ export default {
   ExerciseAnswer,
   MinecraftSlotGrid,
   MinecraftWindow,
+  MinecraftLoadingDemo,
   NextStep,
   SignalHint,
   ThreadBadge,

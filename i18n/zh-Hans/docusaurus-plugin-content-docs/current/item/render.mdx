@@ -3,8 +3,266 @@ title: 渲染与刷新
 sidebar_label: 渲染与刷新
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 2.2 节。 */}
+Item 的显示来源可以在菜单显示时生成物品。玩家等级、当前时间或数据库中的积分发生变化后，通过刷新重新计算显示内容。
 
-:::info
-本页尚未撰写。
+## 同步渲染
+
+**渲染**是调用 ItemProvider，取得当前槽位要显示的 `ItemStack`；**刷新**是请求重新渲染。配置渲染函数后，函数会在首次显示及后续需要重新渲染时执行，不会因为它读取的数据发生变化就自动执行。
+
+`setItemProvider` 接收一个函数：输入是本次渲染的 `RenderContext`，返回值是要显示的 `ItemStack`。例如，显示查看者当前的等级：
+
+```java
+Item levelItem = Item.builder()
+        .setItemProvider(context -> {
+            int level = context.player().getLevel();
+            ItemStack stack = new ItemStack(Material.EXPERIENCE_BOTTLE);
+            stack.setData(
+                    DataComponentTypes.CUSTOM_NAME,
+                    Component.text("等级：" + level, NamedTextColor.AQUA)
+                            .decoration(TextDecoration.ITALIC, false)
+            );
+            return stack;
+        })
+        .build();
+```
+
+函数在渲染时读取等级，因此同一个 Item 显示给不同玩家时，可以得到不同的物品。若希望菜单打开期间也更新等级，可在 Builder 上添加后文的 `updatePeriodically`。
+
+`setItemProvider` 会把函数包装成同步 Provider。需要单独保存 Provider 时，也可以先使用 `ItemProvider.sync(renderer)`，再传给 `Item.simple(provider)`。
+
+:::warning[同步渲染不要阻塞]
+窗口槽位的同步渲染运行在查看者的实体线程上。数据库查询、HTTP 请求和文件读取应放到异步任务中，不要在这里等待 Future 或执行阻塞 I/O。
+
+渲染函数只负责生成物品，不应修改 Window、Pane、Inventory，或在内部请求刷新。返回空内容使用 `ItemStack.empty()`，不要返回 `null`；返回的物品也不应再被修改。
 :::
+
+## RenderContext 提供什么
+
+每次渲染都会收到当前显示位置的上下文。同一个 Item 出现在不同窗口或不同格子时，以本次传入的 context 为准。
+
+| 成员 | 含义 |
+|---|---|
+| `player()` | 正在查看该物品的玩家 |
+| `window` | 本次渲染所属的 Window |
+| `windowSlot` | Window 中的槽位编号，从 0 开始 |
+| `remember(value)` | 记录数据，供该槽位后续交互取回 |
+
+`window`、`windowSlot` 是字段，访问时不带括号。`windowSlot` 是窗口中的最终位置，不是子 Pane 内部的槽位编号。
+
+### 将显示时的数据交给点击行为
+
+如果点击行为需要知道“刚才显示的是什么”，可在渲染时调用 `remember`，点击时用 `click.remembered()` 取回。例如，记录显示时的等级：
+
+```java
+Item levelItem = Item.builder()
+        .setItemProvider(context -> {
+            int level = context.player().getLevel();
+            context.remember(level);
+
+            ItemStack stack = new ItemStack(Material.EXPERIENCE_BOTTLE);
+            stack.setData(
+                    DataComponentTypes.CUSTOM_NAME,
+                    Component.text("等级：" + level, NamedTextColor.AQUA)
+                            .decoration(TextDecoration.ITALIC, false)
+            );
+            return stack;
+        })
+        .addClickHandler(click -> {
+            Integer shownLevel = click.remembered();
+            if (shownLevel != null) {
+                click.player().sendMessage(
+                        Component.text("显示时的等级：" + shownLevel)
+                );
+            }
+        })
+        .build();
+```
+
+记录按窗口槽位保存，不会因为共用同一个 Item 就混在一起。再次调用 `remember` 会覆盖前值，传入 `null` 会清除；显示路径的终点改变或窗口关闭时，记录也会清除。没有记录时，`remembered()` 返回 `null`。
+
+:::warning[在渲染回调返回前记录]
+`remember` 必须在本次渲染回调返回前调用，不要等异步查询完成后再在 `thenApply` 中写入。记录会被持有直到覆盖或清除，适合保存编号、数值等交互数据。
+:::
+
+## 异步加载与占位物
+
+数据库等外部来源需要等待结果时，用 `setItemProviderAsync`。它接收的 Provider 返回 `CompletableFuture<ItemStack>`：Future 完成后，库会安排显示结果。
+
+等待期间的显示由占位物和最近一次成功结果决定：
+
+| 状态 | 显示内容 |
+|---|---|
+| 首次加载尚未成功 | 占位物；未配置时为空 |
+| 已成功显示，正在重新加载 | 上一次成功的物品 |
+| 新结果成功返回 | 新物品 |
+| 加载失败 | 保留旧结果；首次失败时仍显示占位物 |
+
+### 从数据库读取积分
+
+这里用一个一秒后返回 `128` 积分的异步任务模拟查询。点击播放，先显示灰色染料占位物，一秒后换成积分物品；每次播放都模拟重新打开菜单后的首次加载。
+
+<MinecraftLoadingDemo
+  title="积分"
+  loadingItem={{icon: 'gray_dye', name: '正在读取积分…', nameColor: '#aaaaaa'}}
+  loadedItem={{icon: 'lime_dye', name: '积分：128', nameColor: '#55ffff'}}
+  playLabel="播放加载过程"
+  loadingLabel="正在加载 · 1 秒"
+  readyLabel="加载完成 · 积分 128"
+/>
+
+`loadPoints()` 返回异步结果，`pointsStack()` 将积分转换为显示物品，`loadingStack()` 构建首次加载时的占位物：
+
+```java
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.momirealms.sparrow.ui.item.Item;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
+public final class PointsItem {
+    public static Item create() {
+        return Item.builder()
+                .setItemProviderAsync(
+                        context -> loadPoints().thenApply(PointsItem::pointsStack),
+                        loadingStack()
+                )
+                .build();
+    }
+
+    private static CompletableFuture<Integer> loadPoints() {
+        return CompletableFuture.supplyAsync(
+                () -> 128,
+                CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS)
+        );
+    }
+
+    private static ItemStack pointsStack(int points) {
+        ItemStack stack = new ItemStack(Material.LIME_DYE);
+        stack.setData(
+                DataComponentTypes.CUSTOM_NAME,
+                Component.text("积分：" + points, NamedTextColor.AQUA)
+                        .decoration(TextDecoration.ITALIC, false)
+        );
+        return stack;
+    }
+
+    private static ItemStack loadingStack() {
+        ItemStack stack = new ItemStack(Material.GRAY_DYE);
+        stack.setData(
+                DataComponentTypes.CUSTOM_NAME,
+                Component.text("正在读取积分…", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+        );
+        return stack;
+    }
+}
+```
+
+`PointsItem.create()` 返回的 Item 可直接传给 Pane 的 `addIngredient`。接入实际业务时，将 `loadPoints()` 换成返回积分 Future 的查询方法即可。
+
+:::warning[异步配置与线程切换是两件事]
+`setItemProviderAsync` 不会自动把回调搬到异步线程。上例由 `delayedExecutor` 延迟一秒执行任务，没有阻塞渲染线程。实际异步任务中不要访问玩家、世界或 Bukkit 容器状态；需要玩家 UUID 等参数时，在提交异步任务前读取并传入。
+
+也可以使用 `ItemProvider.async(renderer)`，它会在 Paper 的全局异步调度器执行整个 renderer。采用这种写法时，renderer 内同样不能读取 Bukkit 玩家或世界状态。
+:::
+
+Future 完成后无需手动刷新窗口。窗口关闭或显示来源已更换时，旧任务的结果不会再应用到原显示位置；这不代表数据库查询本身会被取消。
+
+## 控制刷新时机
+
+Provider 定义如何生成物品，刷新规则定义何时重新生成。固定 Provider 始终返回同一份内容，即使刷新也不会因此变成动态物品。
+
+### 手动刷新
+
+`Item.builder().build()` 返回 `ObservableItem`，它提供 `notifyWindows()`。业务数据改变后，调用这个方法通知正在显示它的槽位重新渲染：
+
+```java
+AtomicInteger points = new AtomicInteger(128);
+ObservableItem pointsItem = Item.builder()
+        .setItemProvider(context -> {
+            ItemStack stack = new ItemStack(Material.LIME_DYE);
+            stack.setData(
+                    DataComponentTypes.CUSTOM_NAME,
+                    Component.text("积分：" + points.get(), NamedTextColor.AQUA)
+                            .decoration(TextDecoration.ITALIC, false)
+            );
+            return stack;
+        })
+        .build();
+
+points.set(256);
+pointsItem.notifyWindows();
+```
+
+`ObservableItem` 位于 `net.momirealms.sparrow.ui.item`。需要手动刷新时，保留这个类型的引用。
+
+**共享同一个 Item 时，`notifyWindows()` 会通知所有正在显示它的窗口及槽位。** 每个位置仍使用自己的 RenderContext 重新生成物品，因此刷新范围相同，不代表所有玩家看到的内容相同。
+
+### 定时刷新
+
+`updatePeriodically(periodTicks)` 让 Item 在被显示期间按指定 tick 周期刷新。参数必须大于 0；所有显示位置都移除后，不需要自行维护这个 Item 的定时刷新任务。
+
+例如，每 20 tick 重新读取一次当前时间：
+
+```java
+DateTimeFormatter format = DateTimeFormatter.ofPattern("HH:mm:ss");
+Item clock = Item.builder()
+        .setItemProvider(context -> {
+            String time = LocalTime.now().format(format);
+            ItemStack stack = new ItemStack(Material.CLOCK);
+            stack.setData(
+                    DataComponentTypes.CUSTOM_NAME,
+                    Component.text(time, NamedTextColor.WHITE)
+                            .decoration(TextDecoration.ITALIC, false)
+            );
+            return stack;
+        })
+        .updatePeriodically(20)
+        .build();
+```
+
+这里使用服务器的本地时间，20 tick 在正常 tick 速率下约为一秒。`LocalTime` 和 `DateTimeFormatter` 分别来自 `java.time` 和 `java.time.format`。
+
+同样的刷新规则也能用于异步 Provider。例如给积分 Item 添加 `updatePeriodically(200)`，就会周期性重新查询。查询尚未完成时不会为同一显示位置并发启动另一份查询，期间的刷新请求会合并，完成后再补算一次。
+
+### 点击后刷新
+
+`updateOnClick()` 在条件守卫全部通过、点击处理器正常返回后请求刷新。守卫拒绝或处理器抛出异常时，不会触发这次自动刷新。
+
+**点击刷新同样会通知所有正在显示这个 Item 的窗口。** 它在点击处理完成后调用的就是 `notifyWindows()`；共用 Item 时，不仅点击者会刷新。
+
+下面把点击次数保存在 Item 的外部变量中，点击行为修改次数，Provider 读取次数生成名称：
+
+```java
+AtomicInteger count = new AtomicInteger();
+Item counter = Item.builder()
+        .setItemProvider(context -> {
+            ItemStack stack = new ItemStack(Material.LIME_DYE);
+            stack.setData(
+                    DataComponentTypes.CUSTOM_NAME,
+                    Component.text("点击次数：" + count.get(), NamedTextColor.YELLOW)
+                            .decoration(TextDecoration.ITALIC, false)
+            );
+            return stack;
+        })
+        .addClickHandler(click -> count.incrementAndGet())
+        .updateOnClick()
+        .build();
+```
+
+`AtomicInteger` 来自 `java.util.concurrent.atomic`。每次打开菜单都执行这段创建代码，次数就按本次菜单单独记录；若多个窗口共用这个 counter，次数也会共用，刷新会通知所有正在显示它的窗口。
+
+:::info[异步业务完成后再刷新]
+`updateOnClick()` 等的是点击处理器返回，不会等待处理器内部启动的异步业务。若点击后要异步写数据库，应在写入成功后再调用 `ObservableItem.notifyWindows()` 请求刷新，避免读到尚未更新的数据。
+:::
+
+<NextStep
+  to="/item/click"
+  title="点击与守卫"
+  description="读取点击信息，配置操作行为与执行前的条件守卫。"
+/>
