@@ -3,8 +3,215 @@ title: 程序化布局
 sidebar_label: 程序化布局
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 3.4 节。 */}
+Pane 上的格子也可以不经过字符模板，直接按槽位编号或坐标放置内容；也可以先选出一组有先后顺序的槽位，再逐格生成内容。菜单打开后，这些方法同样可以随时调用。
 
-:::info
-本页尚未撰写。
+:::info[优先使用字符模板]
+形状固定的菜单，用 [字符布局](/pane/structure) 和 [填充内容](/pane/ingredients) 的写法更直观，模板本身就是菜单的样子。本页的方法用于两种情况：布局要在运行时才能算出来，或者菜单打开后要替换某些格子的内容。
 :::
+
+## 槽位填充
+
+### 创建空白 Pane
+
+尺寸在运行时才确定时，先创建一块空白 Pane，再往里放内容。下面按奖励数量决定行数，每 9 个奖励占一行：
+
+```java
+List<ItemStack> rewards = List.of(
+        new ItemStack(Material.DIAMOND),
+        new ItemStack(Material.EMERALD),
+        new ItemStack(Material.GOLD_INGOT)
+);
+
+int rows = Math.clamp((rewards.size() + 8) / 9, 1, 6);
+Pane pane = Pane.empty(9, rows);
+```
+
+| 入口 | 得到的 Pane |
+|---|---|
+| `Pane.empty(width, height)` | 空白 Pane |
+| `Pane.filled(width, height, item)` | 每格都放同一个 Item |
+| `Pane.single(item)` | 只有一格，放着这个 Item |
+| `Pane.builder(width, height)` | 空白布局的 Builder，还可以继续设置背景、冻结 |
+
+### 按位置放置
+
+`setItem` 按槽位编号或坐标放置一个 Item，槽位与坐标的换算见 [槽位与坐标](/pane/structure#槽位与坐标)：
+
+```java
+Pane pane = Pane.empty(9, 3);
+pane.setItem(13, Item.simple(new ItemStack(Material.BOOK)));     // 槽位 13, 正中间
+pane.setItem(0, 2, Item.simple(new ItemStack(Material.ARROW)));  // 坐标 (0, 2), 左下角
+```
+
+| 方法 | 作用 |
+|---|---|
+| `setItem(slot, item)`、`setItem(x, y, item)` | 在这一格放一个 Item |
+| `setElement(slot, element)`、`setElement(x, y, element)` | 在这一格放一个 [Element](/pane/ingredients#逐格生成内容elementsupplierelement) |
+| `setPane(slot, pane, paneSlot)` | 让这一格显示另一块 Pane 的第 `paneSlot` 格 |
+
+菜单打开后调用这些方法，正在显示这块 Pane 的窗口会立即更新。下面的宝箱点击后换成灰色染料，表示已经领取：
+
+```java
+Pane pane = Pane.empty(9, 1);
+Item claimed = Item.simple(new ItemStack(Material.GRAY_DYE));
+pane.setItem(4, Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.CHEST))
+        .addClickHandler(click -> pane.setItem(4, claimed))
+        .build());
+```
+
+放入的还是原来那个实例时，Pane 认为内容没有变化，不会刷新。内容没换、但需要重新显示时，调用 `pane.dirty(slot)`。
+
+:::warning[Pane 之间不能互相嵌套成环]
+`setPane` 可以在 Pane 创建之后再建立嵌套，因此可能造出环：A 的某一格显示 B，B 的某一格又显示 A。窗口显示到这样的格子时会抛出 `IllegalStateException`。
+:::
+
+### 批量填充
+
+`fill` 系列方法用同一个 Item 填满一片区域：
+
+| 方法 | 填充范围 |
+|---|---|
+| `fill(item)` | 整块 Pane |
+| `fill(start, end, item)` | 槽位 `start` 到 `end - 1` |
+| `fillRow(row, item)` | 第 `row` 行 |
+| `fillColumn(column, item)` | 第 `column` 列 |
+| `fillBorders(item)` | 四周一圈 |
+| `fillRectangle(x, y, width, height, item)` | 左上角在 `(x, y)` 的矩形 |
+| `fillRectangle(x, y, pane)` | 把另一块 Pane 整个嵌进左上角在 `(x, y)` 的区域 |
+
+每个方法都可以在末尾多传一个 `replaceExisting`。不传时为 `true`，覆盖已有内容；传入 `false` 时只填还空着的格子。下面先铺边框、放一本书，再用 `false` 填满剩下的格子：
+
+```java
+Item border = Item.simple(new ItemStack(Material.BLACK_STAINED_GLASS_PANE));
+Item filler = Item.simple(new ItemStack(Material.GRAY_STAINED_GLASS_PANE));
+
+Pane pane = Pane.empty(9, 5);
+pane.fillBorders(border);
+pane.setItem(4, 2, Item.simple(new ItemStack(Material.BOOK)));
+pane.fill(filler, false);
+```
+
+<MinecraftSlotGrid
+  title="批量填充"
+  rows={["---------", "-+++++++-", "-+++B+++-", "-+++++++-", "---------"]}
+  legend={{'-': 'fillBorders(border)', B: 'setItem(4, 2, ...)', '+': 'fill(filler, false)'}}
+  defaultView="game"
+  items={{
+    '-': {icon: 'black_stained_glass_pane'},
+    '+': {icon: 'gray_stained_glass_pane'},
+    B: {icon: 'book'},
+  }}
+/>
+
+`fill` 如果不传 `false`，会把边框和书一起覆盖成灰色玻璃板。
+
+### 追加到空格子
+
+`addItems` 从槽位 0 开始，按从左到右、从上到下的顺序，把 Item 依次放进还空着的格子，已经有内容的格子会被跳过。接着上面创建空白 Pane 的例子，把奖励依次放进去：
+
+```java
+for (ItemStack reward : rewards) {
+    pane.addItems(Item.simple(reward));
+}
+```
+
+:::warning[放不下的 Item 会被直接丢弃]
+空格子用完后，`addItems` 剩下的 Item 不会放进 Pane，也不会报错。数量可能超过一屏的列表，用 [翻页 Page](/pagination/page) 显示。
+:::
+
+## 槽位序列
+
+`SlotSequence` 是一组有先后顺序的槽位。先选出槽位，再用 `setElements` 为其中每一格生成内容，适合每格内容不同、放置顺序又有讲究的情况。
+
+### 创建槽位序列
+
+| 写法 | 选中的槽位与顺序 |
+|---|---|
+| `SlotSequence.all(size)` | 全部槽位，从左到右、从上到下 |
+| `SlotSequence.row(size, row)` | 一整行，从左到右 |
+| `SlotSequence.column(size, column)` | 一整列，从上到下 |
+| `SlotSequence.range(size, start, end)` | 槽位 `start` 到 `end - 1` |
+| `SlotSequence.rectangle(size, x, y, width, height)` | 一块矩形，逐行收集 |
+| `SlotSequence.borders(size)` | 四周一圈 |
+| `SlotSequence.of(size, slot...)` | 指定的几格，按传入顺序 |
+| `SlotSequence.concat(sequence...)` | 把几组接成一组，不能有重复的格 |
+| `pane.slots("G")` | 模板中标志符 `G` 占的格子 |
+
+`size` 是 Pane 的尺寸，用 `pane.size()` 取得。
+
+### 按序列生成内容
+
+`setElements` 为序列中的每一格生成内容，生成方式与 [ElementSupplier](/pane/ingredients#逐格生成内容elementsupplierelement) 相同，`occurrence` 就是这一格在序列中的序号：
+
+```java
+Pane pane = Pane.empty(9, 3);
+SlotSequence middle = SlotSequence.row(pane.size(), 1);
+
+// 第二行从左到右依次放 1～9 张纸.
+pane.setElements(
+        middle,
+        (slots, occurrence) -> Element.item(Item.simple(new ItemStack(Material.PAPER, occurrence + 1))),
+        true
+);
+```
+
+最后一个参数同样是 `replaceExisting`。
+
+:::warning[序列必须与 Pane 尺寸一致]
+`SlotSequence` 创建时绑定了一个 `PaneSize`。把它用在尺寸不同的 Pane 上，`setElements` 抛出 `IllegalArgumentException`。
+
+生成内容时抛出异常，Pane 不会有任何改动，异常原样抛给调用方。
+:::
+
+### 改变顺序或筛选
+
+`transform(SlotPattern)` 对序列重新排序，或者只保留其中一部分。`SlotPatterns` 提供了几种：
+
+| 写法 | 结果 |
+|---|---|
+| `SlotPatterns.ROW_MAJOR` | 逐行排列，每行从左到右 |
+| `SlotPatterns.COLUMN_MAJOR` | 逐列排列，每列从上到下 |
+| `SlotPatterns.CHECKERBOARD_EVEN` | 只保留 `x + y` 为偶数的格子，像棋盘的一种颜色 |
+| `SlotPatterns.CHECKERBOARD_ODD` | 只保留 `x + y` 为奇数的格子 |
+
+模板中的区域也能这样处理。Builder 的 `addModifier` 在 Pane 创建完成后执行，可以在模板的基础上继续调用本页的方法。`slots` 同时接受一个 `SlotPattern`，下面让 `G` 区域按列编号：
+
+```java
+Pane pane = Pane.builder(
+                "#########",
+                "#GGGGGGG#",
+                "#GGGGGGG#",
+                "#########"
+        )
+        .addModifier(target -> target.setElements(
+                target.slots(SlotPatterns.COLUMN_MAJOR, "G"),
+                (slots, occurrence) -> Element.item(Item.simple(new ItemStack(Material.PAPER, occurrence + 1))),
+                true
+        ))
+        .build();
+```
+
+编号先向下、再向右，第一列是 1、2，第二列是 3、4：
+
+<MinecraftSlotGrid
+  title="按列编号"
+  rows={["#########", "#GGGGGGG#", "#GGGGGGG#", "#########"]}
+  legend={{G: 'COLUMN_MAJOR 顺序', '#': '留空'}}
+  defaultView="game"
+  items={{
+    G: {icon: 'paper', count: [1, 3, 5, 7, 9, 11, 13, 2, 4, 6, 8, 10, 12, 14]},
+  }}
+/>
+
+需要其他顺序时，可以自己实现 `SlotPattern`，按想要的顺序把候选槽位交给输出。
+
+:::info[跟随数据变化的序列]
+`project` 让一组槽位跟着一个 Signal 列表变化，列表更新时自动重新放置内容，见 [把 Signal 接回菜单](/signal/bind-ui)。
+:::
+
+<NextStep
+  to="/window/lifecycle"
+  title="打开与关闭"
+  description="创建 Window，打开、关闭菜单，以及在异步线程中构建菜单。"
+/>

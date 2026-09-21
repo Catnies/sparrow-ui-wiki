@@ -60,7 +60,9 @@
   position: relative;
   top: calc(-2px * var(--mc-scale));
   padding-left: calc(2px * var(--mc-scale));
-  margin: 0 0 calc(4px * var(--mc-scale));
+  /* 用内边距容纳超出行高的中文字形，避免 overflow 裁掉底部。 */
+  padding-bottom: calc(4px * var(--mc-scale));
+  margin: 0;
   font-family: var(--mc-font);
   font-size: calc(16px * var(--mc-scale));
   line-height: calc(16px * var(--mc-scale));
