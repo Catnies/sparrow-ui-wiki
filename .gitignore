@@ -23,3 +23,6 @@ yarn-error.log*
 src/fonts/seguiemj.woff2.manifest
 src/fonts/unifont.woff2.manifest
 /.claude/
+
+# 执行与接手文档，只在本地保留，不进仓库
+WIKI-PLAN.md

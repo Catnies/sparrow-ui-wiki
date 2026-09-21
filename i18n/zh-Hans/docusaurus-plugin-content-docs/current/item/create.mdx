@@ -3,8 +3,228 @@ title: 创建物品
 sidebar_label: 创建物品
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 2.1 节。 */}
+菜单里的一支箭头，可以用来展示信息，也可以在点击后翻页或返回。Sparrow UI 用 **Item** 描述这样的菜单物品：它负责显示什么，以及玩家操作它时做什么。
 
-:::info
-本页尚未撰写。
+## Item 由什么组成
+
+一个 Item 的配置包含显示来源、条件守卫和点击行为：
+
+| 部分 | 职责 |
+|---|---|
+| 显示来源 `ItemProvider` | 提供显示的物品 |
+| 条件守卫 `ItemGuard` | 检查是否允许执行点击行为 |
+| 点击行为 | 接收 `ItemClick`，执行点击操作 |
+
+显示来源提供的是 Bukkit 的 **`ItemStack`**。箭头还是钻石、显示几个、名称是什么，都由这个 `ItemStack` 的数据决定。鼠标悬停时名称下方的说明文字称为 **Lore**。
+
+**`ItemProvider` 决定显示什么，`ItemGuard` 决定是否允许操作，点击处理器决定做什么。** 显示来源可以始终提供同一个固定物品，也可以在渲染时计算物品。后一种用法会在 [渲染与刷新](/item/render) 中展开。
+
+点击处理器接收的 `ItemClick` 包含玩家、点击类型和所在窗口等信息。配置了条件守卫时，先检查守卫，全部通过后才执行点击处理器；任一守卫返回 `false`，本次点击行为就不会执行。
+
+例如，只显示一支原版箭头，不添加点击行为和条件守卫：
+
+```java
+ItemStack stack = new ItemStack(Material.ARROW);
+Item item = Item.simple(stack);
+```
+
+这里先创建箭头的 `ItemStack`，再用 `Item.simple` 创建菜单中的 Item。这个入口会自动为它配置固定的 `ItemProvider`，所以不需要手动创建 Provider。
+
+Item 本身不决定放在哪一格。位置由 **Pane（布局）** 安排；同一个 Item 也可以放到多个格子。创建好 Item 后，还需要把它加入 Pane，再通过 Window 打开菜单。
+
+## 创建 Item 的常见入口
+
+根据已有的内容和需要的行为，选择对应入口：
+
+<ApiTable rows={[
+  {name: 'Item.simple(ItemStack)', summary: '已有一个物品，只需要把它显示在菜单中。'},
+  {name: 'Item.simple(ItemProvider)', summary: '已有显示来源，用它创建一个只负责显示的 Item。'},
+  {name: 'Item.builder()', summary: '逐项配置显示与交互，最后调用 build() 创建 Item。'},
+  {name: 'Item.empty()', summary: '需要一个不显示物品、也不执行交互动作的 Item。'},
+]} />
+
+### 从 ItemStack 创建
+
+最常用的是 `Item.simple(stack)`。先准备要展示的 `ItemStack`，再传给它：
+
+```java
+ItemStack stack = new ItemStack(Material.ARROW);
+Item item = Item.simple(stack);
+```
+
+这个 Item 会显示原版箭头的名称。需要自定义名称和说明时，在创建 Item 之前修改 `ItemStack`。下面使用 Paper 数据组件 API，名称为白色，说明为灰色，并关闭文字的默认斜体：
+
+```java
+ItemStack stack = new ItemStack(Material.ARROW);
+stack.setData(
+        DataComponentTypes.CUSTOM_NAME,
+        Component.text("方向指示", NamedTextColor.WHITE)
+                .decoration(TextDecoration.ITALIC, false)
+);
+stack.setData(
+        DataComponentTypes.LORE,
+        ItemLore.lore(List.of(
+                Component.text("标记菜单中的方向。", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+        ))
+);
+
+Item item = Item.simple(stack);
+```
+
+`CUSTOM_NAME` 设置物品名称，`LORE` 设置名称下方的说明行。它们都是物品外观的一部分，不会给 Item 添加点击动作。
+
+:::info[创建时保存物品副本]
+`Item.simple(stack)` 会复制传入的 `ItemStack`。创建后再修改原来的 `stack`，不会改变这个 Item 的显示内容，因此名称、数量和 Lore 都应在传入前设置好。
 :::
+
+### 从 ItemProvider 创建
+
+如果已经有一个 `ItemProvider`，用 `Item.simple(provider)` 将它作为显示来源：
+
+```java
+ItemStack stack = new ItemStack(Material.ARROW);
+ItemProvider provider = ItemProvider.constant(stack);
+Item item = Item.simple(provider);
+```
+
+`ItemProvider.constant(stack)` 表示“始终提供这个固定物品”，并在创建 Provider 时复制 `stack`。这段代码把前一种入口自动完成的步骤显式写了出来，最终仍然显示一支箭头。
+
+这个入口也接受按需生成物品的 Provider。`simple` 表示这里没有额外配置交互行为，并不要求 Provider 每次都提供相同的物品。
+
+### 用 Builder 组合显示与交互
+
+`Item.builder()` 先返回一个构建器。可以在它上面配置显示来源、添加交互行为，最后调用 `build()` 得到 Item。
+
+例如，一个点击后关闭菜单的按钮，需要同时配置屏障物品和关闭动作：
+
+```java
+ItemStack stack = new ItemStack(Material.BARRIER);
+stack.setData(
+        DataComponentTypes.CUSTOM_NAME,
+        Component.text("关闭菜单", NamedTextColor.YELLOW)
+                .decoration(TextDecoration.ITALIC, false)
+);
+
+Item closeButton = Item.builder()
+        .setItemProviderConstant(stack)
+        .addClickHandler(click -> click.window().close())
+        .build();
+```
+
+这条调用链中：
+
+- `setItemProviderConstant(stack)` 配置固定的显示来源，按钮显示为屏障。
+- `addClickHandler(...)` 添加点击动作。`click` 是本次点击的信息，`click.window()` 是玩家正在操作的窗口。
+- `build()` 把这些配置组合为一个 Item，之后可以放入布局。
+
+`setItemProviderConstant` 是 Builder 的配置方法。完成配置后，仍需调用 `build()` 才能得到 Item。本例没有配置条件守卫，点击后直接执行关闭动作。守卫与其他点击用法见 [点击与守卫](/item/click)。
+
+:::warning[一个 Builder 只能配置一次显示来源]
+重复调用 `setItemProviderConstant`，或在配置后再调用其他显示来源方法，会抛出 `IllegalStateException`。它不会覆盖之前的配置。
+
+固定物品在调用 `setItemProviderConstant` 时就已复制，修改原来的 `stack` 不会改变这份配置。
+:::
+
+### 创建空 Item
+
+`Item.empty()` 返回一个共享的空 Item，不需要准备 `ItemStack`：
+
+```java
+Item empty = Item.empty();
+```
+
+它不会显示物品，也不执行点击等交互动作。需要给某个位置明确放置“空内容”时，可以把它传给布局。
+
+:::info[空 Item 与未安排内容的格子]
+如果 Pane 设置了背景，未安排内容的格子会显示背景；放入 `Item.empty()` 的格子则不会回退到 Pane 背景。
+:::
+
+## 把 Item 放进菜单
+
+创建 Item 后，用 `addIngredient` 将它绑定到布局中的字符。下面的菜单有一行九格：`A` 放箭头，`C` 放关闭按钮，其余 `#` 留空。
+
+<MinecraftSlotGrid
+  rows={["##A###C##"]}
+  legend={{'#': '留空', A: '展示物品', C: '关闭按钮'}}
+/>
+
+玩家看到的物品如下，箭头只展示信息，屏障按钮负责关闭窗口：
+
+<MinecraftWindow
+  type="chest"
+  rows={1}
+  title="物品示例"
+  layout={["##A###C##"]}
+  items={{
+    A: {icon: 'arrow', name: '方向指示', nameColor: '#ffffff', lore: ['标记菜单中的方向。']},
+    C: {icon: 'barrier', name: '关闭菜单', nameColor: '#ffff55'},
+  }}
+/>
+
+完整代码如下。在已完成 [初始化](/getting-started/installation) 的插件中调用 `ItemMenu.open(viewer)` 即可打开：
+
+```java
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ItemLore;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.momirealms.sparrow.ui.item.Item;
+import net.momirealms.sparrow.ui.pane.Pane;
+import net.momirealms.sparrow.ui.window.Window;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.List;
+
+public final class ItemMenu {
+    public static void open(Player viewer) {
+        Pane pane = Pane.builder("##A###C##")
+                .addIngredient('A', createArrow())
+                .addIngredient('C', createCloseButton())
+                .build();
+
+        Window.builder(pane)
+                .setTitle(Component.text("物品示例"))
+                .open(viewer);
+    }
+
+    private static Item createArrow() {
+        ItemStack arrowStack = new ItemStack(Material.ARROW);
+        arrowStack.setData(
+                DataComponentTypes.CUSTOM_NAME,
+                Component.text("方向指示", NamedTextColor.WHITE)
+                        .decoration(TextDecoration.ITALIC, false)
+        );
+        arrowStack.setData(
+                DataComponentTypes.LORE,
+                ItemLore.lore(List.of(
+                        Component.text("标记菜单中的方向。", NamedTextColor.GRAY)
+                                .decoration(TextDecoration.ITALIC, false)
+                ))
+        );
+        return Item.simple(arrowStack);
+    }
+
+    private static Item createCloseButton() {
+        ItemStack closeStack = new ItemStack(Material.BARRIER);
+        closeStack.setData(
+                DataComponentTypes.CUSTOM_NAME,
+                Component.text("关闭菜单", NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false)
+        );
+        return Item.builder()
+                .setItemProviderConstant(closeStack)
+                .addClickHandler(click -> click.window().close())
+                .build();
+    }
+}
+```
+
+<NextStep
+  to="/item/render"
+  title="渲染与刷新"
+  description="通过 ItemProvider 按玩家生成物品，配置异步加载与刷新时机。"
+/>
