@@ -41,7 +41,8 @@ const sidebars: SidebarsConfig = {
         'window/lifecycle',
         'window/layout',
         'window/types',
-        'window/title-data',
+        'window/title',
+        'window/data',
       ],
     },
     {
