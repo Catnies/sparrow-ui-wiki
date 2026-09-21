@@ -3,8 +3,138 @@ title: 滚动 Scroll
 sidebar_label: 滚动 Scroll
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 的 6.2。 */}
+需要让菜单中的内容一行一行往下看，或者一列一列往右看时，可以使用 `Scroll`。例如一次显示两行，向下滚动一次后，原来的第二行移到第一行，下面再补进一行新内容。
 
-:::info
-本页尚未撰写。
+和 Page 一样，Scroll 通过 `addIngredient` 放进 Pane，按钮调用 `advance(...)` 就能移动内容。纵向滚动按行移动，横向滚动按列移动。
+
+## 纵向滚动
+
+`Scroll.vertical(items, width, rows)` 将列表按行排列，`width` 是每行条数，`rows` 是一次显示的行数。
+
+下面有 12 组钻石，每行放 3 组，一共 4 行。菜单只显示其中连续的 2 行，右侧两个按钮向上、向下滚动。
+
+<MinecraftSlotGrid
+  title="纵向滚动"
+  rows={['###MMM#U#', '###MMM#D#']}
+  legend={{M: '滚动内容', U: '向上', D: '向下'}}
+  items={{
+    M: {icon: 'diamond', name: '钻石', count: [1, 2, 3, 4, 5, 6]},
+    U: {icon: 'arrow', name: '向上', nameColor: 'yellow'},
+    D: {icon: 'arrow', name: '向下', nameColor: 'yellow'},
+  }}
+  caption="初始显示第 1、2 行，向下滚动一次后显示第 2、3 行。"
+/>
+
+```java
+// 钻石数量代表它在列表中的位置, 方便观察滚动前后的排列
+List<Item> items = IntStream.rangeClosed(1, 12)
+        .mapToObj(amount -> Item.simple(new ItemStack(Material.DIAMOND, amount)))
+        .toList();
+// 每行 3 组, 一次显示 2 行, 对应模板中两行各 3 个 M
+Scroll<Item> scroll = Scroll.vertical(items, 3, 2);
+
+ItemStack upArrow = new ItemStack(Material.ARROW);
+upArrow.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("向上", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+ItemStack downArrow = new ItemStack(Material.ARROW);
+downArrow.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("向下", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+
+Pane pane = Pane.builder("###MMM#U#", "###MMM#D#")
+        .addIngredient('M', scroll)
+        .addIngredient('U', Item.builder()
+                .setItemProviderConstant(upArrow)
+                .addClickHandler(click -> scroll.advance(-1))
+                .build())
+        .addIngredient('D', Item.builder()
+                .setItemProviderConstant(downArrow)
+                // 向下移动一行, 原来显示的第二行仍留在画面中
+                .addClickHandler(click -> scroll.advance(1))
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("纵向滚动").open(viewer);
+```
+
+初始显示数量为 1～6 的钻石。向下滚动一次，显示 4～9；再滚动一次，显示 7～12。继续点击向下按钮时保持不变。
+
+### 滚动距离与起始位置
+
+| 调用 | 纵向滚动时的效果 |
+|---|---|
+| `scroll.advance(1)` | 从当前位置向下移动一行 |
+| `scroll.advance(-1)` | 从当前位置向上移动一行 |
+| `scroll.advance(2)` | 向下移动两行 |
+| `scroll.setLine(0)` | 回到最上方 |
+| `scroll.setLine(1)` | 从列表的第二行开始显示 |
+
+`setLine` 的下标从 0 开始，表示显示区域从哪一行开始。上例共有 4 行、一次显示 2 行，所以起始位置只有 0、1、2 三种。滚到底时仍会显示最后两行。
+
+两个方法都会限制滚动范围，超出范围时停在最近的一端。内容不足一屏时无法继续滚动；最后一行没有填满时，剩余格子会清空。空列表也会清空整个内容区域。
+
+:::warning[显示区域的尺寸]
+`width` 和 `rows` 都必须为正数。模板中用于显示内容的格子应按相同的宽高排列。上例是 3 列、2 行，共 6 格；若少留一格，那一格对应的内容就不会显示。
 :::
+
+## 横向滚动
+
+`Scroll.horizontal(items, height, columns)` 将列表按列排列，`height` 是每列条数，`columns` 是一次显示的列数。
+
+下面每列放 2 组钻石，一次显示 3 列。列表前两项放在第一列，第 3、4 项放在第二列，因此初始画面上排是 1、3、5，下排是 2、4、6。
+
+<MinecraftSlotGrid
+  title="横向滚动"
+  rows={['###MMM###', 'L##MMM##R']}
+  legend={{M: '滚动内容', L: '向左', R: '向右'}}
+  items={{
+    M: {icon: 'diamond', name: '钻石', count: [1, 3, 5, 2, 4, 6]},
+    L: {icon: 'arrow', name: '向左', nameColor: 'yellow'},
+    R: {icon: 'arrow', name: '向右', nameColor: 'yellow'},
+  }}
+  caption="先填满一列再填下一列，向右滚动一次后，最左列从 3、4 开始。"
+/>
+
+```java
+List<Item> items = IntStream.rangeClosed(1, 12)
+        .mapToObj(amount -> Item.simple(new ItemStack(Material.DIAMOND, amount)))
+        .toList();
+// 参数顺序是每列的高度、可见列数, 这里共显示 2 行 3 列
+Scroll<Item> scroll = Scroll.horizontal(items, 2, 3);
+
+ItemStack leftArrow = new ItemStack(Material.ARROW);
+leftArrow.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("向左", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+ItemStack rightArrow = new ItemStack(Material.ARROW);
+rightArrow.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("向右", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+
+Pane pane = Pane.builder("###MMM###", "L##MMM##R")
+        // 横向 Scroll 会自动按列填入 M, 先上后下, 再移到右边一列
+        .addIngredient('M', scroll)
+        .addIngredient('L', Item.builder()
+                .setItemProviderConstant(leftArrow)
+                .addClickHandler(click -> scroll.advance(-1))
+                .build())
+        .addIngredient('R', Item.builder()
+                .setItemProviderConstant(rightArrow)
+                // 正数向右移动, 一次一列
+                .addClickHandler(click -> scroll.advance(1))
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("横向滚动").open(viewer);
+```
+
+向右滚动一次后，上排显示 3、5、7，下排显示 4、6、8。12 组钻石一共占 6 列，每次显示 3 列，最右侧的起始位置是 3，此时显示第 4～6 列。
+
+横向也使用 `advance` 和 `setLine`，但单位换成列。`setLine(0)` 回到最左侧，`setLine(1)` 从第二列开始显示。`height` 和 `columns` 同样必须为正数，模板中的内容区域应留出对应的行数与列数。
+
+### 内容与按钮状态
+
+`Scroll.vertical` 和 `Scroll.horizontal` 的普通 List 重载都会复制列表。创建后再修改原列表，不会改变滚动内容；其中的 Item 对象仍是原实例，可以继续修改显示内容。
+
+如果列表中存的是业务数据，可以像 [Page](/pagination/page#把数据转换成物品) 一样，使用 `addIngredient('M', scroll, toElement)` 转换成物品。转换函数初次在构建 Pane 的线程执行，后续默认异步执行，适合使用已经准备好的数据。
+
+上面的按钮始终保持原样。需要显示当前位置或在两端禁用按钮时，可以使用 `line()`、`maxLine()` 返回的 Signal；列表内容需要动态增删时也可以接入 Signal，见 [将 Signal 接入 UI](/signal/bind-ui)。
+
+<NextStep to="/pagination/tab" title="标签 Tab" description="在同一块区域切换不同的 Pane。" />
