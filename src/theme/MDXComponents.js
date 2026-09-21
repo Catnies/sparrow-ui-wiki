@@ -16,6 +16,7 @@ import ConceptMap from '@site/src/components/ConceptMap';
 import Exercise, {ExerciseApproach, ExerciseAnswer} from '@site/src/components/Exercise';
 import MinecraftSlotGrid from '@site/src/components/MinecraftSlotGrid';
 import MinecraftWindow from '@site/src/components/MinecraftWindow';
+import MinecraftWindowDemo from '@site/src/components/MinecraftWindowDemo';
 import MinecraftLoadingDemo from '@site/src/components/MinecraftLoadingDemo';
 import NextStep from '@site/src/components/NextStep';
 import SharedPaneDemo from '@site/src/components/SharedPaneDemo';
@@ -44,6 +45,7 @@ export default {
   ExerciseAnswer,
   MinecraftSlotGrid,
   MinecraftWindow,
+  MinecraftWindowDemo,
   MinecraftLoadingDemo,
   NextStep,
   SharedPaneDemo,

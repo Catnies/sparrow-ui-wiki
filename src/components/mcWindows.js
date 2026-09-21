@@ -27,7 +27,33 @@ function grid(x, y, columns, rows) {
   return slots;
 }
 
+function fixedWindow(texture, slots, titleAt = [8, 6], width = 176) {
+  return {
+    texture,
+    width,
+    atlasWidth: width > 256 ? 512 : 256,
+    parts: () => [{srcY: 0, height: 166}],
+    compactParts: () => [{srcY: 0, height: 83}, {srcY: 159, height: 7}],
+    slots: () => slots.map(([x, y]) => [x, y]),
+    titleAt,
+    inventoryX: width === 276 ? 108 : 8,
+  };
+}
+
 export const WINDOWS = {
+  dispenser: fixedWindow('dispenser.png', grid(62, 17, 3, 3)),
+  dropper: fixedWindow('dispenser.png', grid(62, 17, 3, 3)),
+  grindstone: fixedWindow('grindstone.png', [[49, 19], [49, 40], [129, 34]]),
+  smithing: fixedWindow('smithing.png', [[8, 48], [26, 48], [44, 48], [98, 48]], [44, 6]),
+  furnace: fixedWindow('furnace.png', [[56, 17], [56, 53], [116, 35]]),
+  blast_furnace: fixedWindow('blast_furnace.png', [[56, 17], [56, 53], [116, 35]]),
+  smoker: fixedWindow('smoker.png', [[56, 17], [56, 53], [116, 35]]),
+  brewing: fixedWindow('brewing_stand.png', [[56, 51], [79, 58], [102, 51], [79, 17], [17, 17]]),
+  stonecutter: fixedWindow('stonecutter.png', [[20, 33], [143, 33]]),
+  enchantment: fixedWindow('enchanting_table.png', [[15, 47], [35, 47]]),
+  merchant: fixedWindow('villager.png', [[136, 37], [162, 37], [220, 37]], [136, 6], 276),
+  crafter: fixedWindow('crafter.png', [...grid(26, 17, 3, 3), [134, 35]]),
+  cartography: fixedWindow('cartography_table.png', [[15, 15], [15, 52], [145, 39]], [8, 4]),
   // 箱子。行数可变，容器段高度 = 标题区 17 + 每行 18；下半段是玩家物品栏与底边。
   // 槽位实测：容器 y=18 起步长 18，玩家物品栏 y=140/158/176，快捷栏 y=198。
   chest: {
@@ -103,10 +129,13 @@ export function resolveWindow(type, rows, playerInventory = true) {
   const slots = spec.slots(effectiveRows);
   if (playerInventory) {
     const lowerY = height - 96;
-    slots.push(...grid(8, lowerY + 14, 9, 3), ...grid(8, lowerY + 72, 9, 1));
+    const inventoryX = spec.inventoryX ?? 8;
+    slots.push(...grid(inventoryX, lowerY + 14, 9, 3), ...grid(inventoryX, lowerY + 72, 9, 1));
   }
   return {
     texture: spec.texture,
+    atlasWidth: spec.atlasWidth ?? ATLAS,
+    inventoryX: spec.inventoryX ?? 8,
     width: spec.width,
     parts,
     height,

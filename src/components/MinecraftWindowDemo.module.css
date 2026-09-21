@@ -1,0 +1,21 @@
+.demo { margin: 1.5rem 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.sliders { display: flex; flex-wrap: wrap; gap: 16px; max-width: 480px; }
+.slider { flex: 1 1 180px; font-family: var(--mc-font); }
+.slider > span { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.slider input { appearance: none; width: 100%; height: 18px; border: 2px solid #111; border-radius: 0; background: #373737; box-shadow: inset 2px 2px #1b1b1b, inset -2px -2px #777; cursor: pointer; }
+.slider input::-webkit-slider-thumb { appearance: none; width: 16px; height: 26px; background: #aaa; border: 2px solid #111; box-shadow: inset 2px 2px #eee, inset -2px -2px #555; }
+.slider input::-moz-range-thumb { width: 12px; height: 22px; border-radius: 0; background: #aaa; border: 2px solid #111; box-shadow: inset 2px 2px #eee, inset -2px -2px #555; }
+.slider input:focus-visible { outline: 2px solid var(--ifm-color-primary); outline-offset: 3px; }
+.rename { padding: 0; border: 0; border-radius: 0; background: transparent; color: #fff; font-family: var(--mc-font); font-size: calc(8px * var(--mcw-scale)); line-height: 1; outline: none; }
+.rename:focus-visible { box-shadow: 0 1px #fff; }
+.option, .crafterSlot { padding: 0; border: 0; border-radius: 0; cursor: pointer; background-color: transparent; background-size: 100% 100%; image-rendering: pixelated; }
+.option { display: flex; align-items: center; gap: calc(3px * var(--mcw-scale)); justify-content: space-evenly; color: #40391f; font: calc(8px * var(--mcw-scale)) var(--mc-font); }
+.option img { width: calc(16px * var(--mcw-scale)); height: calc(16px * var(--mcw-scale)); border-radius: 0; image-rendering: pixelated; }
+.trade { background-color: #aaa; box-shadow: inset 2px 2px #eee, inset -2px -2px #555; }
+.trade[aria-pressed="true"] { background-color: #8b8b8b; box-shadow: inset 2px 2px #444, inset -2px -2px #ccc; }
+.option:hover, .crafterSlot:hover { filter: brightness(1.18); }
+.option:focus-visible, .crafterSlot:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.cost { color: #75ff21; text-shadow: 1px 1px #153e04; }
+.status { margin-top: 10px; font-size: .9rem; color: var(--ifm-color-emphasis-700); }
+.status:empty { display: none; }

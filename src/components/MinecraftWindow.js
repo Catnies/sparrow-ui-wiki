@@ -32,6 +32,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 import {ATLAS, ICON, resolveWindow} from './mcWindows';
 import {parseRow} from '../utils/parseStructure';
 import styles from './MinecraftWindow.module.css';
+import McSprite from './McSprite';
 
 export default function MinecraftWindow({
   type = 'chest',
@@ -51,6 +52,7 @@ export default function MinecraftWindow({
   highlight = null,
   // 鼠标指向的格子换了标志符时回调，离开时传 null
   onHoverIdentifier,
+  children,
 }) {
   const [hover, setHover] = useState(null); // {index, clientX, clientY}
   const tooltipId = useId();
@@ -128,7 +130,7 @@ export default function MinecraftWindow({
                   height: `calc(${part.height}px * var(--mcw-scale))`,
                   width: `calc(${spec.width}px * var(--mcw-scale))`,
                   backgroundImage: `url(${guiBase}${spec.texture})`,
-                  backgroundSize: `calc(${ATLAS}px * var(--mcw-scale)) calc(${ATLAS}px * var(--mcw-scale))`,
+                  backgroundSize: `calc(${spec.atlasWidth}px * var(--mcw-scale)) calc(${ATLAS}px * var(--mcw-scale))`,
                   backgroundPosition: `0 calc(${-part.srcY}px * var(--mcw-scale))`,
                 }}
               />
@@ -199,10 +201,15 @@ export default function MinecraftWindow({
             );
           })}
 
+          {children ?? <>
+            {type === 'anvil' && <McSprite name="anvil/text_field" x={59} y={20} width={110} height={16} />}
+            {type === 'crafter' && <McSprite name="crafter/unpowered_redstone" x={97} y={35} width={16} height={16} />}
+            {type === 'cartography' && <McSprite name="cartography_table/map" x={67} y={13} width={66} height={66} />}
+          </>}
           {playerInventory && (
             <span
               className={styles.title}
-              style={{left: `calc(8px * var(--mcw-scale))`, top: `calc(${spec.height - 94}px * var(--mcw-scale))`}}
+              style={{left: `calc(${spec.inventoryX}px * var(--mcw-scale))`, top: `calc(${spec.height - 94}px * var(--mcw-scale))`}}
             >
               {translate({id: 'minecraftWindow.inventory', message: 'Inventory'})}
             </span>

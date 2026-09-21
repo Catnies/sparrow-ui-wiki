@@ -3,8 +3,461 @@ title: 窗口类型
 sidebar_label: 窗口类型
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 4.3 节。 */}
+Sparrow UI 提供 17 种原版容器窗口。普通箱子适合自由排版；需要文本输入、进度条或交易列表时，可以选用带这些控件的窗口。
 
-:::info
-本页尚未撰写。
+下面按布局和用途介绍各类窗口。Pane 尺寸均为「宽 × 高」，不含下方固定的 9×4 玩家物品栏。带控件的预览可以直接操作，观察输入、选择和进度变化。
+
+所有窗口都使用前文的 `setTitle`、`open(viewer)`、`close()` 等通用 API。除合并布局外，下部 Pane 都可以通过 Builder 的 `setLowerPane` 设置；不设置时连接玩家背包，见 [窗口布局](/window/layout)。
+
+:::info[原版控件与业务逻辑]
+这些窗口提供原版界面、控件状态和玩家输入事件。烧炼、合成、附魔、交易扣款等业务需要插件自己实现。示例中的 `Item` 用于展示或点击；允许玩家放入、取出真实物品时，连接 [Inventory](/inventory/basics)。
 :::
+
+## 箱子 {/* #chest */}
+
+箱子上部支持 1～6 行，每行 9 格。使用前文的 `Window.builder(pane)`，行数由上部 Pane 决定。
+
+<MinecraftWindow type="chest" title="箱子菜单" playerInventory rows={3} layout={["#########", "####B####", "#########"]} items={{B: {icon: 'book', name: '书'}}} />
+
+```java
+Pane pane = Pane.builder("#########", "####B####", "#########")
+        .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+        .build();
+
+Window.builder(pane)
+        .setTitle("箱子菜单")
+        .open(viewer);
+```
+
+## 漏斗 {/* #hopper */}
+
+漏斗的上部 Pane 固定为 **5×1**，适合选项较少的菜单：
+
+```java
+Pane pane = Pane.builder("##B##")
+        .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+        .build();
+
+HopperWindow.builder()
+        .setUpperPane(pane)
+        .setTitle("选择分类")
+        .open(viewer);
+```
+
+<MinecraftWindow type="hopper" title="选择分类" playerInventory layout={["##B##"]} items={{B: {icon: 'book', name: '书'}}} />
+
+## 发射器与投掷器 {/* #dispenser */}
+
+两者都使用 **3×3** 上部 Pane，九个槽位集中在窗口中央。创建入口分别是 `DispenserWindow` 和 `DropperWindow`，配置方式相同。
+
+<MinecraftWindowDemo type="dispenser" />
+
+```java
+DispenserWindow.builder()
+        .setUpperPane(Pane.builder("###", "#B#", "###")
+                .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+                .build())
+        .setTitle("选择分类")
+        .open(viewer);
+```
+
+将创建入口换成 `DropperWindow.builder()`，即可使用投掷器窗口。
+
+## 砂轮 {/* #grindstone */}
+
+<MinecraftWindow type="grindstone" title="砂轮菜单" playerInventory layout={["BBX"]} items={{B: {icon: 'book', name: '书'}, X: {icon: 'barrier', name: '屏障'}}} />
+
+
+砂轮左边两个输入槽共用一块 **1×2** Pane，右边结果槽单独使用 **1×1** Pane。下面展示两本书，点击右侧屏障关闭菜单：
+
+```java
+GrindstoneWindow.builder()
+        .setInputPane(Pane.builder("B", "B")
+                .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+                .build())
+        .setResultPane(Pane.builder("X")
+                .addIngredient('X', Item.builder()
+                        .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                        .addClickHandler(click -> click.window().close())
+                        .build())
+                .build())
+        .setTitle("砂轮菜单")
+        .open(viewer);
+```
+
+## 锻造台 {/* #smithing */}
+
+<MinecraftWindow type="smithing" title="升级预览" playerInventory layout={["TERO"]} items={{T: {icon: 'netherite_upgrade_smithing_template', name: '下界合金升级'}, E: {icon: 'diamond_sword', name: '钻石剑'}, R: {icon: 'netherite_ingot', name: '下界合金锭'}, O: {icon: 'netherite_sword', name: '下界合金剑'}}} />
+
+锻造台用一块 **4×1** Pane，依次对应模板、装备、材料和结果槽。四格在模板中排成一行，屏幕上的间距由原版界面决定：
+
+```java
+SmithingWindow.builder()
+        .setUpperPane(Pane.builder("TERO")
+                .addIngredient('T', Item.simple(new ItemStack(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE)))
+                .addIngredient('E', Item.simple(new ItemStack(Material.DIAMOND_SWORD)))
+                .addIngredient('R', Item.simple(new ItemStack(Material.NETHERITE_INGOT)))
+                .addIngredient('O', Item.simple(new ItemStack(Material.NETHERITE_SWORD)))
+                .build())
+        .setTitle("升级预览")
+        .open(viewer);
+```
+
+## 熔炉、高炉与烟熏炉 {/* #furnace */}
+
+<MinecraftWindowDemo type="furnace" />
+
+拖动滑块，可以观察烧炼箭头和剩余燃料的显示变化。
+
+
+三种熔炉的输入、燃料和结果各使用一块 **1×1** Pane。创建入口分别为 `FurnaceWindow`、`BlastFurnaceWindow` 和 `SmokerWindow`，它们的布局与进度 API 相同。下面以 `FurnaceWindow` 为例；使用其他两种时，更换变量类型和 Builder 入口即可。`setCookProgress` 控制烧炼箭头，`setFuelProgress` 控制燃料图标：
+
+```java
+FurnaceWindow window = FurnaceWindow.builder()
+        .setInputPane(Pane.builder("I")
+                .addIngredient('I', Item.simple(new ItemStack(Material.RAW_IRON)))
+                .build())
+        .setFuelPane(Pane.builder("F")
+                .addIngredient('F', Item.simple(new ItemStack(Material.COAL)))
+                .build())
+        .setResultPane(Pane.builder("R")
+                .addIngredient('R', Item.simple(new ItemStack(Material.IRON_INGOT)))
+                .build())
+        .setCookProgress(0.5)
+        .setFuelProgress(0.75)
+        .setTitle("烧炼预览")
+        .build(viewer);
+
+window.open();
+```
+
+这三种窗口都支持 [配方书](#recipe-book)。烧炼和燃料进度均接受 0.0～1.0，超出范围、`NaN` 或无穷大会抛出 `IllegalArgumentException`。设置一次只改变当前显示，进度不会自行增长。
+
+菜单打开后，直接更新进度：
+
+```java
+window.setCookProgress(1.0);
+window.setFuelProgress(0.25);
+```
+
+## 酿造台 {/* #brewing */}
+
+<MinecraftWindowDemo type="brewing" />
+
+拖动滑块调整酿造箭头、气泡和燃料条。
+
+
+酿造台的原料与燃料各是一块 1×1 Pane，下面三个药水槽共用一块 3×1 Pane。`setBrewProgress` 设置酿造进度，`setFuelProgress` 设置燃料进度：
+
+```java
+BrewingWindow.builder()
+        .setInputPane(Pane.builder("I")
+                .addIngredient('I', Item.simple(new ItemStack(Material.NETHER_WART)))
+                .build())
+        .setFuelPane(Pane.builder("F")
+                .addIngredient('F', Item.simple(new ItemStack(Material.BLAZE_POWDER)))
+                .build())
+        .setResultPane(Pane.builder("PPP")
+                .addIngredient('P', Item.simple(new ItemStack(Material.POTION)))
+                .build())
+        .setBrewProgress(0.5)
+        .setFuelProgress(0.75)
+        .setTitle("酿造预览")
+        .open(viewer);
+```
+
+:::warning[进度的取值与更新]
+酿造进度和燃料进度都接受 0.0～1.0，超出范围、`NaN` 或无穷大会抛出 `IllegalArgumentException`。设置一次只改变当前显示，进度不会自行增长；按任务实际进展调用对应的 setter。
+:::
+
+## 铁砧 {/* #anvil */}
+
+<MinecraftWindowDemo type="anvil" />
+
+上方文本框默认显示“我的笔记”，结果书的悬停名称会随输入更新。下面的代码实现同样的效果。
+
+
+铁砧上部使用 3×1 Pane，依次对应第一输入、第二输入和结果槽。`addRenameHandler` 接收玩家提交的文本，适合搜索框或命名菜单。
+
+客户端会把第一输入槽物品的名称填进文本框，因此先给书设置 `CUSTOM_NAME`。重命名回调更新结果书的名称，并通知它重新渲染：
+
+```java
+ItemStack input = new ItemStack(Material.BOOK);
+input.setData(DataComponentTypes.CUSTOM_NAME, Component.text("我的笔记"));
+
+AtomicReference<String> currentName = new AtomicReference<>("我的笔记");
+ObservableItem result = Item.builder()
+        .setItemProvider(context -> {
+            ItemStack stack = new ItemStack(Material.BOOK);
+            String name = currentName.get();
+            if (!name.isEmpty()) {
+                stack.setData(DataComponentTypes.CUSTOM_NAME, Component.text(name));
+            }
+            return stack;
+        })
+        .build();
+
+AnvilWindow.builder()
+        .setUpperPane(Pane.builder("B#R")
+                .addIngredient('B', Item.simple(input))
+                .addIngredient('R', result)
+                .build())
+        .setEnchantmentCost(0)
+        .addRenameHandler(text -> {
+            currentName.set(text);
+            result.notifyWindows();
+        })
+        .setTitle("输入文本")
+        .open(viewer);
+```
+
+| 方法 | 用途 |
+|---|---|
+| `addRenameHandler(text -> ...)` | 接收文本变化；当前文本也可用 `getRenameText()` 读取 |
+| `setTextFieldAlwaysEnabled(true)` | 第一输入槽为空时仍可编辑文本框 |
+| `setResultAlwaysValid(true)` | 结果槽为空时仍保持客户端结果按钮有效 |
+| `setEnchantmentCost(levels)` | 设置客户端显示的等级消耗 |
+
+等级消耗是显示设置，业务上的经验扣除由插件处理。结果槽的点击仍交给其中的 Item，文本变化回调也可以只更新搜索条件，无需关闭窗口。
+
+## 切石机 {/* #stonecutter */}
+
+<MinecraftWindowDemo type="stonecutter" />
+
+
+切石机有两块内容：输入与结果使用 **2×1** Pane，中间的配方按钮使用宽度固定为 **4** 的 Pane。按钮里的 Item 决定图标和点击行为。
+
+```java
+Material[] materials = {Material.DIAMOND, Material.IRON_INGOT, Material.EMERALD, Material.LAPIS_LAZULI};
+String[] names = {"钻石", "铁锭", "绿宝石", "青金石"};
+char[] symbols = {'D', 'I', 'E', 'L'};
+var buttonsBuilder = Pane.builder("DIEL");
+for (int i = 0; i < materials.length; i++) {
+    String name = names[i];
+    buttonsBuilder.addIngredient(symbols[i], Item.builder()
+                .setItemProviderConstant(new ItemStack(materials[i]))
+                .addClickHandler(click ->
+                        click.player().sendMessage(Component.text("选择了" + name)))
+                .build());
+}
+Pane buttons = buttonsBuilder.build();
+
+StonecutterWindow window = StonecutterWindow.builder()
+        .setUpperPane(Pane.builder("##").build())
+        .setButtonsPane(buttons)
+        .setSelectedRecipeIndex(0)
+        .setTitle("选择物品")
+        .build(viewer);
+
+window.open();
+```
+
+选择按钮会触发其 Item 的左键点击处理器。`getSelectedRecipeIndex()` 返回当前选择，`setSelectedRecipeIndex(-1)` 清除选择；其他索引从 0 开始，按按钮 Pane 从左到右、从上到下排列。
+
+:::warning[按钮数量与选择范围]
+按钮列表会省略末尾连续的空格，长度取到最后一个非空按钮为止。构建时索引按 Pane 容量检查，打开后按实际显示的按钮范围检查。若初次渲染发现预选索引已不在显示范围内，会清除选择。
+
+按钮 Pane 在构建后不能换成另一块；要更新按钮，修改原来的 Pane 内容。
+:::
+
+## 附魔台 {/* #enchantment */}
+
+<MinecraftWindowDemo type="enchantment" />
+
+预览与代码都提供三个可选项，等级要求依次为 1、8、30。点击预览中的选项可查看选择结果。
+
+
+附魔台的上部 Pane 是 2×1，分别显示待附魔物品与青金石。右侧三个选项单独通过 `setOption` 设置，索引为 0、1、2：
+
+```java
+EnchantmentWindow.builder()
+        .setUpperPane(Pane.builder("IL")
+                .addIngredient('I', Item.simple(new ItemStack(Material.BOOK)))
+                .addIngredient('L', Item.simple(new ItemStack(Material.LAPIS_LAZULI, 3)))
+                .build())
+        .setOption(0, new EnchantmentWindow.EnchantOption(1, Enchantment.SHARPNESS, 1))
+        .setOption(1, new EnchantmentWindow.EnchantOption(8, Enchantment.UNBREAKING, 2))
+        .setOption(2, new EnchantmentWindow.EnchantOption(30, Enchantment.EFFICIENCY, 3))
+        .setEnchantmentSeed(12345)
+        .addEnchantSelectHandler(click ->
+                click.player().sendMessage(Component.text("选择了第 " + (click.index() + 1) + " 项")))
+        .setTitle("附魔预览")
+        .open(viewer);
+```
+
+`EnchantOption(cost, clue, clueLevel)` 中，`cost` 是客户端显示并用于判断按钮可用性的等级，至少为 1；`clue` 和 `clueLevel` 决定提示里的附魔名称与等级。`clue` 可以为 `null`，整个选项传 `null` 则禁用该按钮。`setEnchantmentSeed` 只改变客户端的符文文字。
+
+选择事件提供 `player()`、`window()`、`index()` 和本次 `option()` 快照。收到事件后，由业务代码检查条件、扣除材料和经验，再修改装备。
+
+:::warning[客户端仍会检查附魔按钮条件]
+展示了选项不代表玩家一定能点。玩家等级、青金石数量等仍会影响客户端是否发送选择请求。示例只展示选项并报告选择，不会真的给书附魔。
+:::
+
+## 村民交易 {/* #merchant */}
+
+<MinecraftWindowDemo type="merchant" />
+
+点击左侧交易条目切换选择。预览与代码中的三项交易相同。
+
+
+交易列表通过 `setTrades` 设置，每一项是 `MerchantWindow.Trade`，包含第一输入、可选的第二输入和结果 Item。下面分别用 3、1、5 个绿宝石换书、纸和书与笔：
+
+```java
+MerchantWindow.Trade bookTrade = MerchantWindow.Trade.builder()
+        .setFirstInput(Item.simple(new ItemStack(Material.EMERALD, 3)))
+        .setSecondInput(Item.empty())
+        .setResult(Item.simple(new ItemStack(Material.BOOK)))
+        .setAvailable(true)
+        .build();
+
+MerchantWindow.Trade paperTrade = MerchantWindow.Trade.builder()
+        .setFirstInput(Item.simple(new ItemStack(Material.EMERALD)))
+        .setSecondInput(Item.empty())
+        .setResult(Item.simple(new ItemStack(Material.PAPER)))
+        .setAvailable(true)
+        .build();
+
+MerchantWindow.Trade writableBookTrade = MerchantWindow.Trade.builder()
+        .setFirstInput(Item.simple(new ItemStack(Material.EMERALD, 5)))
+        .setSecondInput(Item.empty())
+        .setResult(Item.simple(new ItemStack(Material.WRITABLE_BOOK)))
+        .setAvailable(true)
+        .build();
+
+MerchantWindow window = MerchantWindow.builder()
+        .setUpperPane(Pane.builder("###").build())
+        .setTrades(List.of(bookTrade, paperTrade, writableBookTrade))
+        .setLevel(0)
+        .setProgress(-1.0)
+        .setRestockMessageEnabled(false)
+        .addTradeSelectHandler(click ->
+                click.player().sendMessage(Component.text("选择了交易 " + click.selectedIndex())))
+        .setTitle("书商")
+        .build(viewer);
+
+window.open();
+```
+
+交易列表与右侧三个容器槽位分别配置。`Trade` 提供列表里的展示内容，`setUpperPane` 控制两个付款槽和结果槽。上例的三个槽位为空，只展示列表并接收选择，不会扣除绿宝石或发放书。
+
+| 方法 | 取值或行为 |
+|---|---|
+| `setTrades(list)` | 替换整份有序交易列表 |
+| `setLevel(level)` | 0～5 |
+| `setProgress(progress)` | 0.0～1.0；`-1.0` 隐藏经验条 |
+| `setRestockMessageEnabled(enabled)` | 控制补货提示 |
+| `trade.setDiscount(amount)` | 第一输入的展示折扣；正数降价，负数加价 |
+| `trade.setAvailable(available)` | 控制交易是否显示为可用 |
+
+选择事件提供 `previousIndex()`、`selectedIndex()` 和前后两项 Trade。第一次选择的 `previousIndex()` 为 `-1`，`previousTrade()` 为 `null`。交易选择回调只表示玩家选中了列表项。扣款和发货应由结果槽的成交操作触发。
+
+:::warning[交易展示状态不代替业务校验]
+`setDiscount` 和 `setAvailable` 控制展示。即使一项交易显示不可用，合法索引的选择请求仍可能触发回调。成交前仍需检查库存、价格及购买条件。
+:::
+
+## 工作台 {/* #recipe-book */}
+
+<MinecraftWindow type="crafting" title="配方预览" playerInventory />
+
+
+工作台的合成区使用 3×3 Pane，结果槽单独使用 1×1 Pane。`CraftingWindow`、`FurnaceWindow`、`BlastFurnaceWindow` 和 `SmokerWindow` 都实现了 `RecipeBookWindow`，共用配方选择与提示 API。
+
+```java
+CraftingWindow window = CraftingWindow.builder()
+        .setCraftingPane(Pane.builder("###", "###", "###").build())
+        .setResultPane(Pane.builder("#").build())
+        .addRecipeSelectHandler(click ->
+                click.player().sendMessage(Component.text("选择配方：" + click.recipeId().asString())))
+        .setTitle("配方预览")
+        .build(viewer);
+
+window.open().thenRun(() ->
+        window.sendGhostRecipe(Key.key("minecraft:crafting_table")));
+```
+
+上方预览显示空槽布局。代码在窗口打开后调用 `sendGhostRecipe`，客户端随后会在槽位中显示配方材料的提示，不会放入真实物品，也不会自动合成。
+
+它返回 `CompletableFuture<GhostRecipeResult>`，结果可能是 `SENT`、`WINDOW_CLOSED`、`RECIPE_NOT_FOUND` 或 `VIEWER_UNAVAILABLE`。`SENT` 表示已交给发送流程，不表示客户端已确认显示。
+
+配方选择事件带有 `recipeId()` 和 `makeAll()`，后者表示客户端要求尽可能多地制作。选择事件只接受玩家已解锁的配方；主动发送配方提示则不要求玩家事先解锁。
+
+## 合成器 {/* #crafter */}
+
+<MinecraftWindowDemo type="crafter" />
+
+点击输入槽可切换按下与弹起状态；红石按钮用于展示中间箭头通电前后的外观。此处的红石开关是网页演示控件，不对应下方的槽位禁用 API。
+
+
+合成器同样有 3×3 输入区和 1×1 结果槽，但不支持配方书。它提供九个输入槽的禁用状态，索引按三行模板从 0 到 8 排列：
+
+```java
+CrafterWindow.builder()
+        .setCraftingPane(Pane.builder("###", "###", "###").build())
+        .setResultPane(Pane.builder("#").build())
+        .setSlotDisabled(4, true)
+        .addSlotToggleHandler((slot, disabled) ->
+                viewer.sendMessage(Component.text("槽位 " + slot + "，禁用状态：" + disabled)))
+        .setTitle("设置合成槽位")
+        .open(viewer);
+```
+
+上例先禁用正中间的槽位。菜单打开后可用 `setSlotDisabled(slot, disabled)` 更改状态，`isSlotDisabled(slot)` 读取当前值；Builder 的 `setDisabledSlots(boolean...)` 可以一次设置九格。
+
+:::warning[Pane 槽位与 Window 槽位]
+输入 Pane 的索引始终是 0～8。合成器的结果槽在 Window 槽位顺序中排在玩家物品栏之后，是第 45 号槽；使用 `setResultPane` 时不需要手动计算这个位置。
+:::
+
+## 制图台 {/* #cartography */}
+
+<MinecraftWindowDemo type="cartography" />
+
+按钮对应四种地图预览模式，可以观察地图边框、复制叠层和锁定图标的变化。
+
+
+制图台左侧输入使用 1×2 Pane，右侧结果槽使用 1×1 Pane。地图预览另有一张 **128×128** 画布，可以直接显示 `BufferedImage`。
+
+下面的方法接收一张 128×128 图片，显示在制图台预览中。输入 Pane 不手动放物品，库会补上预览所需的地图和模式显示物：
+
+```java
+public static void openMap(Player viewer, BufferedImage image) {
+    CartographyWindow.builder()
+            .setInputPane(Pane.builder("#", "#").build())
+            .setResultPane(Pane.builder("#").build())
+            .setMap(image)
+            .setView(CartographyWindow.View.NORMAL)
+            .setTitle("地图预览")
+            .open(viewer);
+}
+```
+
+`setMap(image)` 会把图片转成地图调色板颜色；也可以传入长度为 16384 的地图色 `byte[]`。地图配色与普通 RGB 图片可能有差异。
+
+保留 `CartographyWindow` 引用后，可以局部更新画布、替换图标，或切换预览模式：
+
+```java
+window.applyPatch(16, 16, image.getSubimage(0, 0, 16, 16));
+window.setIcons(Set.of(new CartographyWindow.MapIcon(
+        MapCursor.Type.PLAYER, 128, 128, 0, Component.text("中心")
+)));
+window.setView(CartographyWindow.View.LOCK);
+```
+
+| 方法 | 作用 |
+|---|---|
+| `applyPatch(x, y, image)` | 从画布的 `(x, y)` 开始覆盖一块图片 |
+| `applyPatch(MapPatch)` | 写入已转换为地图色的矩形补丁，颜色按行排列 |
+| `setIcons(set)` | 替换整组图标；传空集合清除图标 |
+| `setView(view)` | 切换 `NORMAL` 普通、`SMALL` 缩小、`DUPLICATE` 复制或 `LOCK` 锁定预览 |
+| `resetMap()` | 清空画布与图标，并换一个虚拟地图编号 |
+
+补丁坐标以画布左上角为 `(0, 0)`，补丁必须完全落在 128×128 画布内。图标使用另一套坐标，`(128, 128)` 位于中心，旋转值为 0～15。
+
+:::warning[预览模式只改变显示]
+复制、锁定等模式用于控制客户端预览，不会替玩家执行地图合成。读取图片文件或下载图片时，把 I/O 放到异步任务里；图片准备好后再构建窗口或更新画布。
+:::
+
+<NextStep
+  to="/window/title-data"
+  title="标题与窗口数据"
+  description="更新窗口标题、携带业务对象，以及处理窗口状态和容器外点击。"
+/>
