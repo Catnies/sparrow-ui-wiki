@@ -52,7 +52,7 @@ Future 完成表示服务端流程已经结束；客户端收到数据并显示�
 :::warning[使用默认玩家物品栏时的构建线程]
 没有显式设置下半部分 Pane 时，`build(viewer)` 会创建默认玩家物品栏映射，并在调用线程读取背包内容，Builder 的 `open(viewer)` 会先执行 `build(viewer)`，同样如此。
 
-大部分情况下无需特别在意异步访问问题，因为目前 Paper 和 Folia 仍然允许异步读取数据，而 `window.open()` 发起后，构建的映射容器会回到玩家线程上进行同步，不会造成实际影响。
+大部分情况下不用特别在意异步访问问题，因为目前 Paper 和 Folia 仍然允许异步读取数据，而 `window.open()` 发起后，构建的映射容器会回到玩家线程上进行同步，不会造成实际影响。
 
 不过，一些 Fork 服务端可能会添加一些方法的访问检查，具体以实际运行时为准。
 :::
@@ -220,7 +220,7 @@ public final class Scheduling {
 
 </Details>
 
-上下 Pane 的尺寸与玩家物品栏映射规则见 [窗口布局](/window/layout)。
+上下 Pane 的尺寸与玩家物品栏映射规则，看 [窗口布局](/window/layout)。
 
 <NextStep
   to="/window/layout"

@@ -138,6 +138,15 @@ const config: Config = {
       }),
     ],
     'docusaurus-plugin-image-zoom',
+    [
+      './plugins/llms-txt/index.mjs',
+      {
+        description: {
+          en: 'Sparrow UI is a packet-based reactive UI library for Paper and Folia. It pulls menu state, inventory interaction, rendering, and session management into one reusable component model.',
+          'zh-Hans': 'Sparrow UI 是一个基于数据包的响应式 UI 库，支持 Paper / Folia。它把菜单状态、库存交互、渲染和会话管理收进一套可复用的组件模型。',
+        },
+      },
+    ],
   ],
 };
 

@@ -13,7 +13,7 @@ sidebar_label: 子菜单与返回
 
 从当前窗口调用 `navigate(...)`，就能打开下一扇窗口并继续当前会话。例如从商品目录进入详情，再从详情返回目录，这两个窗口属于同一次浏览。
 
-`navigate` 接受三种参数，按下一扇窗口的构建方式选择即可。
+`navigate` 接受三种参数，按下一扇窗口的构建方式选择就行。
 
 | 参数 | 用法 |
 |---|---|
@@ -21,7 +21,7 @@ sidebar_label: 子菜单与返回
 | `Window.Builder<?, ?>` | 由库使用当前玩家同步构建下一扇窗口，每次调用都会生成新实例 |
 | `CompletionStage<? extends Window>` | 传入异步构建窗口的 Future，等构建完成后再打开 |
 
-传入 Builder 时，构建就在调用 `navigate` 的线程执行。需要异步构建时，由插件安排任务，再把 Future 交给 `navigate`。实际打开窗口由库调度到玩家实体线程，构建时的线程要求见 [打开与关闭](/window/lifecycle)。
+传入 Builder 时，构建就在调用 `navigate` 的线程执行。需要异步构建时，由插件安排任务，再把 Future 交给 `navigate`。实际打开窗口由库调度到玩家实体线程，构建时的线程要求看 [打开与关闭](/window/lifecycle)。
 
 `navigate(...)` 返回 `CompletableFuture<Window>`，成功时结果为打开的窗口，未能打开时为 `null`。异步构建任务抛出异常时，Future 也会异常完成。构建完成后，库还会检查发起导航的窗口是否仍属于原会话、仍是当前窗口；如果已经切换，就取消这次导航。
 
@@ -29,7 +29,7 @@ sidebar_label: 子菜单与返回
 直接调用另一扇窗口的 `open()` 会开始新会话，原会话以 `OPEN_NEW` 原因结束，无法再通过会话返回原窗口。传给 `navigate(Window)` 的窗口必须属于同一名玩家。
 :::
 
-若下一扇窗口需要商品信息等业务数据，可以在构建时用 `setData` 传入，见 [窗口数据](/window/data)。加入同一个会话不会自动传递这些数据。
+若下一扇窗口需要商品信息等业务数据，可以在构建时用 `setData` 传入，看 [窗口数据](/window/data)。加入同一个会话不会自动传递这些数据。
 
 ## 返回上一扇窗口
 
@@ -44,7 +44,7 @@ sidebar_label: 子菜单与返回
 
 返回按钮通常使用 `backOrClose()`，放在子菜单中用于返回，放在根菜单中用于关闭。两个方法都返回 `CompletableFuture<Window>`，返回成功时结果为重新打开的窗口，没有返回或只关闭了窗口时为 `null`。
 
-会话默认使用栈结构，按进入顺序逐级返回。也可以选择树结构，让窗口返回自己的父节点，区别见 [三种会话结构](/session/structures)。
+会话默认使用栈结构，按进入顺序逐级返回。也可以选择树结构，让窗口返回自己的父节点，区别看 [三种会话结构](/session/structures)。
 
 ### 按 Esc 返回
 
@@ -52,7 +52,7 @@ sidebar_label: 子菜单与返回
 
 这个设置只对当前 Window 生效，需要 Esc 返回的窗口要分别设置。构建后也可以通过 `window.backOnPlayerClose(true)` 修改。
 
-插件调用 `close()` 仍会关闭当前窗口并结束会话，需要返回时使用 `back()` 或 `backOrClose()`。如果窗口设置了 `setCloseable(false)`，玩家的关窗操作会被拦截，见 [打开与关闭](/window/lifecycle)。
+插件调用 `close()` 仍会关闭当前窗口并结束会话，需要返回时使用 `back()` 或 `backOrClose()`。如果窗口设置了 `setCloseable(false)`，玩家的关窗操作会被拦截，看 [打开与关闭](/window/lifecycle)。
 
 ## 会话结束回调
 

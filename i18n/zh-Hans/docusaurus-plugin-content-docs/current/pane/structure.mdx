@@ -48,7 +48,7 @@ Window.builder(pane)
   }}
 />
 
-模板中的字符称为**标志符**（identifier）。字符本身没有含义，只是格子的代号，`addIngredient` 把内容绑定到标志符上。**一个标志符出现在几格，绑定的内容就显示在几格。** `-` 在模板中出现 18 次，一次绑定就铺满上下两行，这 18 格显示的是同一个 Item。需要每格各用一个 Item 时，见 [填充内容](/pane/ingredients)。
+模板中的字符称为**标志符**（identifier）。字符本身没有含义，只是格子的代号，`addIngredient` 把内容绑定到标志符上。**一个标志符出现在几格，绑定的内容就显示在几格。** `-` 在模板中出现 18 次，一次绑定就铺满上下两行，这 18 格显示的是同一个 Item。需要每格各用一个 Item 时，看 [填充内容](/pane/ingredients)。
 
 同一个标志符多次调用 `addIngredient` 时，只保留最后一次绑定。
 
@@ -83,9 +83,9 @@ Pane pane = Pane.builder("##`buy`###`sell`##")
 :::
 
 :::warning[普通窗口要求宽 9、高 1～6]
-Pane 本身不限制尺寸，限制来自它所在的窗口。`Window.builder(pane)` 打开箱子样式的窗口，箱子行数取 Pane 的高度，因此 Pane 宽度必须为 9、高度在 1～6 之间，否则调用 `build` 或 `open` 时抛出 `IllegalArgumentException`。
+Pane 本身不限制尺寸，限制来自它所在的窗口。`Window.builder(pane)` 打开箱子样式的窗口，箱子行数取 Pane 的高度，所以 Pane 宽度必须为 9、高度在 1～6 之间，否则调用 `build` 或 `open` 时抛出 `IllegalArgumentException`。
 
-漏斗、发射器等窗口有各自的固定尺寸，见 [窗口类型](/window/types)。
+漏斗、发射器等窗口有各自的固定尺寸，看 [窗口类型](/window/types)。
 :::
 
 ## 留空的格子
@@ -110,7 +110,7 @@ Pane pane = Pane.builder(
         .build();
 ```
 
-背景的完整用法见 [背景、冻结与嵌套](/pane/composition)。某一格需要保持空白、又不显示背景时，给它绑定 [`Item.empty()`](/item/create#创建空-item)。
+背景的完整用法看 [背景、冻结与嵌套](/pane/composition)。某一格需要保持空白、又不显示背景时，给它绑定 [`Item.empty()`](/item/create#创建空-item)。
 
 :::warning[写错的字符和空格不会报错]
 没有绑定的标志符不会引发任何错误。模板中手误写错的字符会成为一个新的标志符，对应的格子静默留空。
@@ -152,7 +152,7 @@ String identifier = pane.identifierAt(13);   // "B"
 按标志符绑定内容时不需要计算槽位编号。槽位和坐标主要用于 [程序化布局](/pane/programmatic)，也用于读懂异常消息中的位置：`build()` 时某个标志符的内容创建失败，异常会写明标志符、模板行列和槽位编号。
 
 :::info[Pane 槽位与 Window 槽位]
-这里的编号是 **Pane 槽位**，只相对于当前 Pane。`RenderContext.windowSlot` 与 `ItemClick.windowSlot()` 是 **Window 槽位**。Pane 直接作为 `Window.builder(pane)` 的上半部分时，两者数值相同；Pane 嵌套在另一块 Pane 中时则不同，见 [背景、冻结与嵌套](/pane/composition)。
+这里的编号是 **Pane 槽位**，只相对于当前 Pane。`RenderContext.windowSlot` 与 `ItemClick.windowSlot()` 是 **Window 槽位**。Pane 直接作为 `Window.builder(pane)` 的上半部分时，两者数值相同；Pane 嵌套在另一块 Pane 中时则不同，看 [背景、冻结与嵌套](/pane/composition)。
 :::
 
 ## 预先解析布局
@@ -186,7 +186,7 @@ public static Pane createPane() {
 | `Pane.builder(PaneSize)`、`Pane.builder(int, int)` | `Structure.of(PaneSize)` | 只有尺寸，没有标志符 |
 | `Pane.builder(Structure)` | 传入的 `Structure` | 已解析的布局 |
 
-只有尺寸的空白布局中没有标志符，无法使用 `addIngredient`，所有格子初始为空。它用于逐格安排内容的场景，见 [程序化布局](/pane/programmatic)。
+只有尺寸的空白布局中没有标志符，无法使用 `addIngredient`，所有格子初始为空。它用于逐格安排内容的场景，看 [程序化布局](/pane/programmatic)。
 
 ## 示例: 帮助菜单
 

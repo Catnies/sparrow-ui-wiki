@@ -80,7 +80,7 @@ Window.builder(pane).setTitle("纵向滚动").open(viewer);
 
 `Scroll.horizontal(items, height, columns)` 将列表按列排列，`height` 是每列条数，`columns` 是一次显示的列数。
 
-下面每列放 2 组钻石，一次显示 3 列。列表前两项放在第一列，第 3、4 项放在第二列，因此初始画面上排是 1、3、5，下排是 2、4、6。
+下面每列放 2 组钻石，一次显示 3 列。列表前两项放在第一列，第 3、4 项放在第二列，所以初始画面上排是 1、3、5，下排是 2、4、6。
 
 <MinecraftSlotGrid
   title="横向滚动"
@@ -135,6 +135,6 @@ Window.builder(pane).setTitle("横向滚动").open(viewer);
 
 如果列表中存的是业务数据，可以像 [Page](/pagination/page#把数据转换成物品) 一样，使用 `addIngredient('M', scroll, toElement)` 转换成物品。转换函数初次在构建 Pane 的线程执行，后续默认异步执行，适合使用已经准备好的数据。
 
-上面的按钮始终保持原样。需要显示当前位置或在两端禁用按钮时，可以使用 `line()`、`maxLine()` 返回的 Signal；列表内容需要动态增删时也可以接入 Signal，见 [将 Signal 接入 UI](/signal-ui/scroll)。
+上面的按钮始终保持原样。需要显示当前位置或在两端禁用按钮时，可以使用 `line()`、`maxLine()` 返回的 Signal；列表内容需要动态增删时也可以接入 Signal，看 [将 Signal 接入 UI](/signal-ui/scroll)。
 
 <NextStep to="/pagination/tab" title="标签 Tab" description="在同一块区域切换不同的 Pane。" />

@@ -75,7 +75,7 @@ Item item = Item.simple(stack);
 `CUSTOM_NAME` 设置物品名称，`LORE` 设置名称下方的说明行。它们都是物品外观的一部分，不会给 Item 添加点击动作。
 
 :::info[创建时保存物品副本]
-`Item.simple(stack)` 会复制传入的 `ItemStack`。创建后再修改原来的 `stack`，不会改变这个 Item 的显示内容，因此名称、数量和 Lore 都应在传入前设置好。
+`Item.simple(stack)` 会复制传入的 `ItemStack`。创建后再修改原来的 `stack`，不会改变这个 Item 的显示内容，所以名称、数量和 Lore 都应在传入前设置好。
 :::
 
 ### 从 ItemProvider 创建
@@ -118,7 +118,7 @@ Item closeButton = Item.builder()
 - `addClickHandler(...)` 添加点击动作。`click` 是本次点击的信息，`click.window()` 是玩家正在操作的窗口。
 - `build()` 把这些配置组合为一个 Item，之后可以放入布局。
 
-`setItemProviderConstant` 是 Builder 的配置方法。完成配置后，仍需调用 `build()` 才能得到 Item。本例没有配置条件守卫，点击后直接执行关闭动作。守卫与其他点击用法见 [点击与守卫](/item/click)。
+`setItemProviderConstant` 是 Builder 的配置方法。完成配置后，仍需调用 `build()` 才能得到 Item。本例没有配置条件守卫，点击后直接执行关闭动作。守卫与其他点击用法看 [点击与守卫](/item/click)。
 
 :::warning[一个 Builder 只能配置一次显示来源]
 重复调用 `setItemProviderConstant`，或在配置后再调用其他显示来源方法，会抛出 `IllegalStateException`。它不会覆盖之前的配置。
@@ -154,7 +154,7 @@ Item empty = Item.empty();
   }}
 />
 
-完整代码如下。在已完成 [初始化](/getting-started/installation) 的插件中调用 `ItemMenu.open(viewer)` 即可打开：
+完整代码如下。在已完成 [初始化](/getting-started/installation) 的插件中调用 `ItemMenu.open(viewer)` 就能打开：
 
 ```java
 import io.papermc.paper.datacomponent.DataComponentTypes;

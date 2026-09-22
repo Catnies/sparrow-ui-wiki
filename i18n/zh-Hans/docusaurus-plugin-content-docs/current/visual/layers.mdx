@@ -63,7 +63,7 @@ window.setCursorVisualizerItem(actual -> actual == null ? null : mark);
 
 演示用不同颜色的玻璃板表示各层给出的物品，三层盖住的格子互相重叠。关掉某一层，下面一层就会露出来。窗口层和光标层只改变玩家 A 看到的内容；无论怎样开关，容器中的真实内容都不变。
 
-在 Pane、容器或窗口上播放的动画，会盖住同一处设置的映射，见 [动画](/visual/animation)。
+在 Pane、容器或窗口上播放的动画，会盖住同一处设置的映射，看 [动画](/visual/animation)。
 
 ## 只改变显示
 
@@ -154,7 +154,7 @@ window.open();
 
 `sellPane` 是寄售箱上方的 Pane，`prices` 记录每种物品的单价，下面的预览按钻石 100、绿宝石 10、铁锭 5、青金石 20、煤炭 1 金币计算。
 
-`window.defaultLowerInventory()` 取得窗口下方映射玩家背包的容器，见 [窗口布局](/window/layout#修改默认玩家物品栏)。这个映射容器在每次构建窗口时新建，只显示在这个窗口中，所以售价只出现在寄售箱里。
+`window.defaultLowerInventory()` 取得窗口下方映射玩家背包的容器，看 [窗口布局](/window/layout#修改默认玩家物品栏)。这个映射容器在每次构建窗口时新建，只显示在这个窗口中，所以售价只出现在寄售箱里。
 
 左边是打开其他容器时的背包，右边是打开寄售箱后的背包。把鼠标移到背包中的物品上比较：寄售箱中能出售的物品追加了售价，青金石原有的说明保留在售价上方，剑和书不能出售，保持原样。
 
@@ -224,7 +224,7 @@ shop.setVisualizerProvider(actual -> {
 
 `withPrice`、`priceFor` 是自己编写的方法，分别给物品加上售价说明、按玩家计算价格。
 
-返回的 `ItemProvider` 也可以异步计算，写法见 [渲染与刷新](/item/render)。结果算出之前显示真实物品；`setVisualizerProvider` 的第二个参数可以指定这段时间显示的占位物品。格子的内容在算出结果前变了，这次结果会被丢弃。
+返回的 `ItemProvider` 也可以异步计算，写法看 [渲染与刷新](/item/render)。结果算出之前显示真实物品；`setVisualizerProvider` 的第二个参数可以指定这段时间显示的占位物品。格子的内容在算出结果前变了，这次结果会被丢弃。
 
 Pane 和窗口的 `setVisualizerProvider`、光标的 `setCursorVisualizerProvider` 用法相同。Pane 层和窗口层的格子没有连接容器时，结果算出之前显示为空。
 
@@ -248,7 +248,7 @@ pane.setFrozen(false);
 
 绑定 Item 的格子和空格收到的是 `null`。上例的映射不看输入，所以按钮、背景和容器的格子全部被盖住。只想处理连接容器的格子时，对 `null` 返回 `null`。
 
-多名玩家共用这块 Pane 时，他们的窗口一起显示维护状态，见 [背景、冻结与嵌套](/pane/composition)。
+多名玩家共用这块 Pane 时，他们的窗口一起显示维护状态，看 [背景、冻结与嵌套](/pane/composition)。
 
 ## 窗口层
 
@@ -267,7 +267,7 @@ if (newPlayer) {
 window.open();
 ```
 
-`SIGN_IN_SLOT` 是窗口的格子序号。窗口先给上方的格子编号，再给下方的玩家物品栏编号，上方 Pane 的格子序号与窗口的相同，见 [窗口布局](/window/layout)。
+`SIGN_IN_SLOT` 是窗口的格子序号。窗口先给上方的格子编号，再给下方的玩家物品栏编号，上方 Pane 的格子序号与窗口的相同，看 [窗口布局](/window/layout)。
 
 窗口层是最上面的一层，会盖住 Pane 层和容器层。只对某名玩家生效的效果放在这里，例如新手引导、这名玩家自己的选中状态。
 

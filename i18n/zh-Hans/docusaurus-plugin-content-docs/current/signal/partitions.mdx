@@ -54,13 +54,13 @@ System.out.println(apples.get());
 System.out.println(stock.keys().get().contains("apple"));
 ```
 
-输出依次是 `true`、`10`、`true`。这里的 `apples` 是一个稳定句柄，也就是长期指向苹果分区的 Signal。清理后再次读取，它会重建分区并执行初始函数，因此读到 `10`，苹果也重新出现在 `keys()` 中。
+输出依次是 `true`、`10`、`true`。这里的 `apples` 是一个稳定句柄，也就是长期指向苹果分区的 Signal。清理后再次读取，它会重建分区并执行初始函数，所以读到 `10`，苹果也重新出现在 `keys()` 中。
 
-`remove(key)` 不会删除数据库记录，也不会向该分区的订阅者发送通知。已有句柄的订阅与派生关系会保留，重建后继续跟随新分区。因此业务上的「商品下架」仍需要更新商品目录，不能只靠清理缓存表达。
+`remove(key)` 不会删除数据库记录，也不会向该分区的订阅者发送通知。已有句柄的订阅与派生关系会保留，重建后继续跟随新分区。所以业务上的「商品下架」仍需要更新商品目录，不能只靠清理缓存表达。
 
 `clear()` 清理全部分区。`keys()` 返回一个 Signal，记录当前已经创建的 key；建分区和删分区会通知它，修改某个分区的值则不会。它的值是顺序不定的不可修改快照。
 
-读取陌生 key、甚至仅调用 `at(key)`，都会创建分区。因此 `keys()` 不能直接当作商品目录或在线玩家名单；这些名单应由业务数据单独维护。
+读取陌生 key、甚至仅调用 `at(key)`，都会创建分区。所以 `keys()` 不能直接当作商品目录或在线玩家名单；这些名单应由业务数据单独维护。
 
 ## 按玩家保存状态
 
@@ -125,7 +125,7 @@ PlayerKeyedSignal<Long> balances = PlayerKeyedSignal.polling(
 
 **只有句柄存在订阅的玩家分区才会轮询。** 单独取句柄不会启动轮询；一个玩家停止订阅，也不会影响其他玩家。玩家退出时，对应分区的轮询随清理一起停止。
 
-按现实时间轮询可用 `PlayerKeyedSignal.pollingMillis(null, ioExecutor, economy::loadBalance, 5000L)`，周期和订阅规则见[定期轮询](./polling)。普通 `KeyedSignal` 也提供 `async`、`polling` 和 `pollingMillis`，适合查询商品库存等非玩家数据。异步来源返回只读分区句柄，结果由查询函数提供，不能通过 `at(key).set(...)` 写入。
+按现实时间轮询可用 `PlayerKeyedSignal.pollingMillis(null, ioExecutor, economy::loadBalance, 5000L)`，周期和订阅规则看[定期轮询](./polling)。普通 `KeyedSignal` 也提供 `async`、`polling` 和 `pollingMillis`，适合查询商品库存等非玩家数据。异步来源返回只读分区句柄，结果由查询函数提供，不能通过 `at(key).set(...)` 写入。
 
 <NextStep
   to="/signal-ui/item"

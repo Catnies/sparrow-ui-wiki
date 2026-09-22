@@ -719,5 +719,17 @@
   "signalFlowDemo.stale": {
     "message": "过期",
     "description": "SignalFlowDemo 等待重算的派生值"
+  },
+  "llmsMenu.label": {
+    "message": "供 AI 使用",
+    "description": "打开 llms.txt 链接菜单的按钮"
+  },
+  "llmsMenu.llmsTxt.description": {
+    "message": "全站文档索引，供 AI 大模型按需读取",
+    "description": "llms.txt 菜单项的说明"
+  },
+  "llmsMenu.llmsFullTxt.description": {
+    "message": "全部文档合并成的单个文件",
+    "description": "llms-full.txt 菜单项的说明"
   }
 }

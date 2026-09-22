@@ -26,7 +26,7 @@ Item levelItem = Item.builder()
         .build();
 ```
 
-函数在渲染时读取等级，因此同一个 Item 显示给不同玩家时，可以得到不同的物品。若希望菜单打开期间也更新等级，可在 Builder 上添加后文的 `updatePeriodically`。
+函数在渲染时读取等级，所以同一个 Item 显示给不同玩家时，可以得到不同的物品。若希望菜单打开期间也更新等级，可在 Builder 上添加后文的 `updatePeriodically`。
 
 `setItemProvider` 会把函数包装成同步 Provider。需要单独保存 Provider 时，也可以先使用 `ItemProvider.sync(renderer)`，再传给 `Item.simple(provider)`。
 
@@ -163,7 +163,7 @@ public final class PointsItem {
 }
 ```
 
-`PointsItem.create()` 返回的 Item 可直接传给 Pane 的 `addIngredient`。接入实际业务时，将 `loadPoints()` 换成返回积分 Future 的查询方法即可。
+`PointsItem.create()` 返回的 Item 可直接传给 Pane 的 `addIngredient`。接入实际业务时，将 `loadPoints()` 换成返回积分 Future 的查询方法就行。
 
 :::warning[异步配置与线程切换是两件事]
 `setItemProviderAsync` 不会自动把回调搬到异步线程。上例由 `delayedExecutor` 延迟一秒执行任务，没有阻塞渲染线程。实际异步任务中不要访问玩家、世界或 Bukkit 容器状态；需要玩家 UUID 等参数时，在提交异步任务前读取并传入。
@@ -171,11 +171,11 @@ public final class PointsItem {
 也可以使用 `ItemProvider.async(renderer)`，它会在 Paper 的全局异步调度器执行整个 renderer。采用这种写法时，renderer 内同样不能读取 Bukkit 玩家或世界状态。
 :::
 
-Future 完成后无需手动刷新窗口。窗口关闭或显示来源已更换时，旧任务的结果不会再应用到原显示位置；这不代表数据库查询本身会被取消。
+Future 完成后不用手动刷新窗口。窗口关闭或显示来源已更换时，旧任务的结果不会再应用到原显示位置；这不代表数据库查询本身会被取消。
 
 ## 控制刷新时机
 
-Provider 定义如何生成物品，刷新规则定义何时重新生成。固定 Provider 始终返回同一份内容，即使刷新也不会因此变成动态物品。
+Provider 定义如何生成物品，刷新规则定义何时重新生成。固定 Provider 始终返回同一份内容，即使刷新也不会变成动态物品。
 
 ### 手动刷新
 
@@ -201,7 +201,7 @@ pointsItem.notifyWindows();
 
 需要手动刷新时，保留 `ObservableItem` 类型的引用。
 
-**共享同一个 Item 时，`notifyWindows()` 会通知所有正在显示它的窗口及槽位。** 每个位置仍使用自己的 RenderContext 重新生成物品，因此刷新范围相同，不代表所有玩家看到的内容相同。
+**共享同一个 Item 时，`notifyWindows()` 会通知所有正在显示它的窗口及槽位。** 每个位置仍使用自己的 RenderContext 重新生成物品，所以刷新范围相同，不代表所有玩家看到的内容相同。
 
 ### 定时刷新
 

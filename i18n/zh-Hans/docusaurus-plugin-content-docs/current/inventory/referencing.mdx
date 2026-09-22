@@ -26,7 +26,7 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 }
 ```
 
-这个方法在玩家右键木桶的事件处理器等能访问木桶的线程中调用，原因见 [线程要求](#线程要求)。窗口下方默认显示玩家背包，玩家可以在木桶与背包之间 Shift 转移、双击收集。
+这个方法在玩家右键木桶的事件处理器等能访问木桶的线程中调用，原因看 [线程要求](#线程要求)。窗口下方默认显示玩家背包，玩家可以在木桶与背包之间 Shift 转移、双击收集。
 
 创建映射有三种写法，区别在于映射容器的哪些格子：
 
@@ -46,7 +46,7 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 | 玩家背包 | 这名玩家，重生后仍对应这名玩家当前的背包 | 玩家离线 |
 | `Bukkit.createInventory` 创建的容器 | 这个容器 | 不会自动退役 |
 
-其他插件自己实现的 `Inventory` 通过 Bukkit 的 `getItem`、`setItem` 读写，不会自动退役。退役的含义见 [退役](#退役)。
+其他插件自己实现的 `Inventory` 通过 Bukkit 的 `getItem`、`setItem` 读写，不会自动退役。退役的含义看 [退役](#退役)。
 
 同一个位置被映射多次时，例如大箱子和其中一半，库能认出它们是同一格。一个窗口同时显示这两份映射时，Shift 转移和双击收集不会把同一格处理两次。
 
@@ -76,7 +76,7 @@ public static void openBackpackOf(Player viewer, Player target) {
 
 前 3 行是 `target` 的主背包，第 4 行是快捷栏。`target` 离线后映射退役，这 36 格变为空格。
 
-物品通过 Shift 转入这个映射时，和原版一样按反向顺序放入：从快捷栏的最后一格开始，经过快捷栏，再到主背包。窗口默认的下部 Pane 也是这样映射查看者自己的背包，可以用 `window.defaultLowerInventory()` 取得，见 [窗口布局](/window/layout)。
+物品通过 Shift 转入这个映射时，和原版一样按反向顺序放入：从快捷栏的最后一格开始，经过快捷栏，再到主背包。窗口默认的下部 Pane 也是这样映射查看者自己的背包，可以用 `window.defaultLowerInventory()` 取得，看 [窗口布局](/window/layout)。
 
 :::warning[Folia 上不能这样映射其他玩家]
 查看者和 `target` 在 Folia 上由不同的线程管理，窗口在查看者的线程上读写 `target` 的背包，不满足 [线程要求](#线程要求)。上例只适用于 Paper。
@@ -113,7 +113,7 @@ Sparrow UI 不检查当前线程，在错误的线程访问时，服务端抛出
 
 被映射的容器也可能在菜单之外被修改，例如漏斗向木桶输送物品、另一名玩家直接打开这个木桶，或者其他插件改动了它。
 
-窗口显示映射容器期间，每 tick 在查看者的线程上调用一次 `refresh()`：发现改动后更新窗口，并派发来源为 `UpdateReason.External` 的更新事件。外部改动已经发生，所以不经过访问规则，也不能取消，事件的用法见 [访问规则与事件](/inventory/rules-events)。通过 [`linkInventory`](/inventory/basics#没有显示的容器) 声明的映射容器同样会刷新。每次写入前，映射容器也会先刷新一次，按最新内容计算。
+窗口显示映射容器期间，每 tick 在查看者的线程上调用一次 `refresh()`：发现改动后更新窗口，并派发来源为 `UpdateReason.External` 的更新事件。外部改动已经发生，所以不经过访问规则，也不能取消，事件的用法看 [访问规则与事件](/inventory/rules-events)。通过 [`linkInventory`](/inventory/basics#没有显示的容器) 声明的映射容器同样会刷新。每次写入前，映射容器也会先刷新一次，按最新内容计算。
 
 读取总是读到被映射容器的当前内容，不需要先刷新。没有窗口显示这个映射、又订阅了它的更新事件时，需要自己调用 `refresh()`：
 

@@ -21,13 +21,13 @@ VirtualInventory rewards = new VirtualInventory(new ItemStack[]{
 
 按数组创建时会复制其中的物品，之后修改原数组或原物品不影响容器。格子数为负数时抛出 `IllegalArgumentException`。
 
-每个虚拟容器都有一个 UUID，默认随机生成，保存时会一起写入。需要指定 UUID 时，使用 `new VirtualInventory(uuid, size)` 或 `new VirtualInventory(uuid, items)`，用法见 [保存与读取](#保存与读取)。
+每个虚拟容器都有一个 UUID，默认随机生成，保存时会一起写入。需要指定 UUID 时，使用 `new VirtualInventory(uuid, size)` 或 `new VirtualInventory(uuid, items)`，用法看 [保存与读取](#保存与读取)。
 
 把容器绑定到 Pane 后，玩家的操作都由 Sparrow UI 处理，受 [访问规则](/inventory/rules-events) 和 [冻结](/inventory/basics#冻结容器) 约束。
 
 ## 堆叠上限
 
-每一格默认最多放 99 个，实际还要受物品自身的堆叠上限限制，两者取较小值。因此默认情况下钻石一格最多 64 个，剑只能放 1 把，与原版一致。
+每一格默认最多放 99 个，实际还要受物品自身的堆叠上限限制，两者取较小值。所以默认情况下钻石一格最多 64 个，剑只能放 1 把，与原版一致。
 
 `setMaxStackSizes` 按格子顺序设置每格的上限。下面的三个镶嵌槽每格只放 1 颗宝石：
 

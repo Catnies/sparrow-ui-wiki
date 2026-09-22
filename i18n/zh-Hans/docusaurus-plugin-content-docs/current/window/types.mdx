@@ -7,7 +7,7 @@ Sparrow UI 提供 17 种原版容器窗口。普通箱子适合自由排版；�
 
 下面按布局和用途介绍各类窗口。Pane 尺寸均为「宽 × 高」，不含下方固定的 9×4 玩家物品栏。带控件的预览可以直接操作，观察输入、选择和进度变化。
 
-所有窗口都使用前文的 `setTitle`、`open(viewer)`、`close()` 等通用 API。除合并布局外，下部 Pane 都可以通过 Builder 的 `setLowerPane` 设置；不设置时连接玩家背包，见 [窗口布局](/window/layout)。
+所有窗口都使用前文的 `setTitle`、`open(viewer)`、`close()` 等通用 API。除合并布局外，下部 Pane 都可以通过 Builder 的 `setLowerPane` 设置；不设置时连接玩家背包，看 [窗口布局](/window/layout)。
 
 :::info[原版控件与业务逻辑]
 这些窗口提供原版界面、控件状态和玩家输入事件。烧炼、合成、附魔、交易扣款等业务需要插件自己实现。示例中的 `Item` 用于展示或点击；允许玩家放入、取出真实物品时，连接 [Inventory](/inventory/basics)。
@@ -61,7 +61,7 @@ DispenserWindow.builder()
         .open(viewer);
 ```
 
-将创建入口换成 `DropperWindow.builder()`，即可使用投掷器窗口。
+将创建入口换成 `DropperWindow.builder()`，就能使用投掷器窗口。
 
 ## 砂轮 {/* #grindstone */}
 
@@ -110,7 +110,7 @@ SmithingWindow.builder()
 拖动滑块，可以观察烧炼箭头和剩余燃料的显示变化。
 
 
-三种熔炉的输入、燃料和结果各使用一块 **1×1** Pane。创建入口分别为 `FurnaceWindow`、`BlastFurnaceWindow` 和 `SmokerWindow`，它们的布局与进度 API 相同。下面以 `FurnaceWindow` 为例；使用其他两种时，更换变量类型和 Builder 入口即可。`setCookProgress` 控制烧炼箭头，`setFuelProgress` 控制燃料图标：
+三种熔炉的输入、燃料和结果各使用一块 **1×1** Pane。创建入口分别为 `FurnaceWindow`、`BlastFurnaceWindow` 和 `SmokerWindow`，它们的布局与进度 API 相同。下面以 `FurnaceWindow` 为例；使用其他两种时，更换变量类型和 Builder 入口就行。`setCookProgress` 控制烧炼箭头，`setFuelProgress` 控制燃料图标：
 
 ```java
 FurnaceWindow window = FurnaceWindow.builder()
@@ -179,7 +179,7 @@ BrewingWindow.builder()
 
 铁砧上部使用 3×1 Pane，依次对应第一输入、第二输入和结果槽。`addRenameHandler` 接收玩家提交的文本，适合搜索框或命名菜单。
 
-客户端会把第一输入槽物品的名称填进文本框，因此先给书设置 `CUSTOM_NAME`。重命名回调更新结果书的名称，并通知它重新渲染：
+客户端会把第一输入槽物品的名称填进文本框，所以先给书设置 `CUSTOM_NAME`。重命名回调更新结果书的名称，并通知它重新渲染：
 
 ```java
 ItemStack input = new ItemStack(Material.BOOK);
@@ -218,7 +218,7 @@ AnvilWindow.builder()
 | `setResultAlwaysValid(true)` | 结果槽为空时仍保持客户端结果按钮有效 |
 | `setEnchantmentCost(levels)` | 设置客户端显示的等级消耗 |
 
-等级消耗是显示设置，业务上的经验扣除由插件处理。结果槽的点击仍交给其中的 Item，文本变化回调也可以只更新搜索条件，无需关闭窗口。
+等级消耗是显示设置，业务上的经验扣除由插件处理。结果槽的点击仍交给其中的 Item，文本变化回调也可以只更新搜索条件，不用关闭窗口。
 
 ## 切石机 {/* #stonecutter */}
 

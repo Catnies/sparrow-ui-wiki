@@ -44,7 +44,7 @@ Pane pane = Pane.builder(
 
 绑定 [`Item.empty()`](/item/create#创建空-item) 的格子不显示背景，保持空白。
 
-`setBackground` 也接受 `ItemProvider`，背景可以在渲染时按查看者生成，写法见 [渲染与刷新](/item/render)。
+`setBackground` 也接受 `ItemProvider`，背景可以在渲染时按查看者生成，写法看 [渲染与刷新](/item/render)。
 
 菜单打开期间，可以调用 Pane 的 `setBackgroundItem(stack)` 或 `setBackground(provider)` 更换背景，传入 `null` 清除背景。正在显示这块 Pane 的窗口会随之更新。
 
@@ -112,7 +112,7 @@ Pane pane = Pane.builder(
         .build();
 ```
 
-不指定偏移时，`C` 区域从子 Pane 的 `(0, 0)` 开始显示。它只有 3 列、2 行，因此取到的是左上角的六格：第一行是 **1、2、3**，第二行是 **6、7、8**。子 Pane 原有的行列关系会保留。
+不指定偏移时，`C` 区域从子 Pane 的 `(0, 0)` 开始显示。它只有 3 列、2 行，所以取到的是左上角的六格：第一行是 **1、2、3**，第二行是 **6、7、8**。子 Pane 原有的行列关系会保留。
 
 <MinecraftSlotGrid
   title="无偏移：从 (0, 0) 开始"

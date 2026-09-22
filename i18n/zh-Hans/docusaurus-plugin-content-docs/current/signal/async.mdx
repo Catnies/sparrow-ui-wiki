@@ -29,15 +29,15 @@ Subscription subscription = balanceText.onDirty(() ->
 System.out.println(balanceText.get());
 ```
 
-`Signal.async` 创建时就把查询提交给执行器。它的三个参数分别是首次结果返回前的占位值、执行查询的执行器，以及实际查询函数。函数捕获的是 UUID，后台任务无需保留玩家对象。
+`Signal.async` 创建时就把查询提交给执行器。它的三个参数分别是首次结果返回前的占位值、执行查询的执行器，以及实际查询函数。函数捕获的是 UUID，后台任务不用保留玩家对象。
 
 查询还没完成时，`balance.get()` 返回 `null`，`balanceText.get()` 返回「加载中…」。查到余额后，Signal 保存 `100` 并通知依赖者，回调读取的文字变成「余额：100」。查询如果已经完成，首次读取就会直接得到余额；不能依赖程序一定先输出「加载中…」。
 
-这里把首次读取与订阅都写出来，是因为 `onDirty` 不会立即回放当前值。示例中的控制台订阅只用于观察变化，结束观察时应调用 `subscription.close()`；实际菜单的绑定方式见[绑定到 UI](/signal-ui/item)。
+这里把首次读取与订阅都写出来，是因为 `onDirty` 不会立即回放当前值。示例中的控制台订阅只用于观察变化，结束观察时应调用 `subscription.close()`；实际菜单的绑定方式看[绑定到 UI](/signal-ui/item)。
 
 用 `null` 作占位值，是为了区分「还没查到」和「余额为零」。如果业务允许先显示零，也可以传 `0L`。占位值和查询结果都允许为 `null`，含义由业务决定。
 
-默认使用 `Objects.equals` 比较新旧余额，相同的结果不会再次通知。需要自定义判等时，可在 `Signal.async` 的最后一个参数传入 `sameValue`，规则见[基础用法](./basics)。
+默认使用 `Objects.equals` 比较新旧余额，相同的结果不会再次通知。需要自定义判等时，可在 `Signal.async` 的最后一个参数传入 `sameValue`，规则看[基础用法](./basics)。
 
 ## 发放奖励后刷新余额
 
@@ -53,7 +53,7 @@ ioExecutor.execute(() -> {
 });
 ```
 
-`AsyncSignal` 的值由查询函数提供，因此刷新时调用 `dirty()`，让它重新执行 `() -> economy.loadBalance(playerId)`。它不提供 `set` 或 `update`。
+`AsyncSignal` 的值由查询函数提供，所以刷新时调用 `dirty()`，让它重新执行 `() -> economy.loadBalance(playerId)`。它不提供 `set` 或 `update`。
 
 重新查询期间，`get()` 继续返回上一次的结果，不会退回“加载中”。例如余额已经查到 `100`，刷新时仍显示 `100`，直到新结果替换它。
 

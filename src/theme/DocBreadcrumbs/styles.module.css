@@ -1,0 +1,15 @@
+/* 面包屑与 AI 菜单同一行：面包屑靠左，菜单靠右，放不下时菜单换到下一行仍靠右。
+   原本面包屑自带 0.8rem 下边距，移到这一行上，两者才能垂直居中对齐。 */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.row > :global(.theme-doc-breadcrumbs) {
+  min-width: 0;
+  margin-bottom: 0;
+}

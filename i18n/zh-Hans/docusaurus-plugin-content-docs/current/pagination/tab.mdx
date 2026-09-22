@@ -56,7 +56,7 @@ key 可以是字符串，也可以是枚举等类型。按钮的排列由 Pane �
 初始 key 和传给 `select` 的 key 都必须在创建 Tab 时提供的 Map 中，否则会抛出 `IllegalArgumentException`。Tab 会复制 Map，之后向原 Map 添加分类不会改变这组标签。
 :::
 
-这里的分类按钮保持固定外观。需要高亮当前分类时，可以使用 `selected()` 返回的 Signal，见 [将 Signal 接入 UI](/signal-ui/tab)。
+这里的分类按钮保持固定外观。需要高亮当前分类时，可以使用 `selected()` 返回的 Signal，看 [将 Signal 接入 UI](/signal-ui/tab)。
 
 ## 内容区的尺寸与布局
 
@@ -86,7 +86,7 @@ Pane pane = Pane.builder("###VVV###", "###VVV###")
 Window.builder(pane).setTitle("分类布局").open(viewer);
 ```
 
-子 Pane 比内容区小时，覆盖不到的格子会清空；比内容区大时，超出的部分不会显示，也不会自动缩放或换行。通常让各分类使用相同尺寸，再留出对应的矩形区域即可。
+子 Pane 比内容区小时，盖不到的格子会清空；比内容区大时，超出的部分不会显示，也不会自动缩放或换行。通常让各分类使用相同尺寸，再留出对应的矩形区域就行。
 
 如果 V 之间有间隔，间隔也会算进相对坐标。例如一行 `V#V` 对应子 Pane 的第 1、3 格，中间的 `#` 保持外层 Pane 的内容。
 

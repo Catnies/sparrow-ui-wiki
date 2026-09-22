@@ -178,11 +178,11 @@ AnimationHandle border = pane.visual().play(AnimationDefinition.loop(pane.slots(
   ]}
 />
 
-`#` 没有绑定内容，同样可以用 `pane.slots("#")` 取出它的格子。循环动画要保留 `play` 返回的句柄，不需要时调用 `cancel()` 停止，见 [播放句柄](#播放句柄)。
+`#` 没有绑定内容，同样可以用 `pane.slots("#")` 取出它的格子。循环动画要保留 `play` 返回的句柄，不需要时调用 `cancel()` 停止，看 [播放句柄](#播放句柄)。
 
 ### 逐格露出：reveal
 
-`reveal` 先用 `cover` 盖住所有格子，再按顺序每隔 `stagger` tick 露出一格，效果见本页开头的预览。第 1 格在开始时立即露出，第 n 格在 `stagger × (n − 1)` tick 时露出，最后一格露出时动画结束。
+`reveal` 先用 `cover` 盖住所有格子，再按顺序每隔 `stagger` tick 露出一格，效果看本页开头的预览。第 1 格在开始时立即露出，第 n 格在 `stagger × (n − 1)` tick 时露出，最后一格露出时动画结束。
 
 `cover` 传入 `null` 时不盖住任何格子，动画只剩一段计时，可以配合 [播放句柄](#播放句柄) 在一段时间后执行代码。
 
@@ -271,7 +271,7 @@ pane.visual().play(AnimationDefinition.of(bar, 5, 45,
 
 - `pane.slots("R")`：模板中某个标志符的格子，从左到右、从上到下
 - `pane.slots(SlotPatterns.COLUMN_MAJOR, "R")`：同上，改为按列排列
-- `SlotSequence.all`、`row`、`column`、`borders`、`rectangle`：按形状选取，见 [程序化布局](/pane/programmatic)
+- `SlotSequence.all`、`row`、`column`、`borders`、`rectangle`：按形状选取，看 [程序化布局](/pane/programmatic)
 - `int[]`：直接写出格子序号，按写出的顺序播放
 
 下面先露出棋盘格中的一半，再露出另一半：

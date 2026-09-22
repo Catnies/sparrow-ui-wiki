@@ -31,7 +31,7 @@ Pane pane = Pane.builder("A#B#C####")
         .build();
 ```
 
-简写得到的 Item 只负责显示，点击没有任何反应。需要点击行为、守卫或刷新规则时，用 `Item.builder()` 创建完整的 Item，见 [创建物品](/item/create)。
+简写得到的 Item 只负责显示，点击没有任何反应。需要点击行为、守卫或刷新规则时，用 `Item.builder()` 创建完整的 Item，看 [创建物品](/item/create)。
 `ItemStack` 在调用 `addIngredient` 时就会复制一份，之后再修改原来的物品，不会影响菜单中的显示。
 
 **标志符出现在多格时，这三种写法都是所有格子共用同一个 Item。** 需要每格各有一个 Item 时，见下一节。
@@ -157,7 +157,7 @@ Pane pane = Pane.builder(
         .build();
 ```
 
-`VirtualInventory` 是库提供的内存容器。容器的规则、事件等用法见 [把容器放进菜单](/inventory/basics)。
+`VirtualInventory` 是库提供的内存容器。容器的规则、事件等用法看 [把容器放进菜单](/inventory/basics)。
 
 :::warning[格子数与容器大小保持一致]
 格子比容器多时会从头循环，同一个容器格出现在两个位置；格子比容器少时，多出来的容器格不显示。
@@ -166,7 +166,7 @@ Pane pane = Pane.builder(
 :::warning[新建的容器随菜单一起丢失]
 在打开菜单的方法里新建 `VirtualInventory` 时，菜单关闭后这个容器就不再被引用，玩家放进去的物品也随之丢失。
 
-需要保存物品时，在关闭前序列化容器内容，见 [虚拟容器](/inventory/virtual)；需要多名玩家共用一个容器时，让菜单引用同一个实例。
+需要保存物品时，在关闭前序列化容器内容，看 [虚拟容器](/inventory/virtual)；需要多名玩家共用一个容器时，让菜单引用同一个实例。
 :::
 
 ## 子面板：Pane
@@ -206,16 +206,16 @@ public static Pane createPane() {
 `F` 占第 3 行的第 3～7 列，共 5 格，依次对应页脚的 `H###X`。页脚里的按钮保留自己的点击行为，同一个 `footer()` 可以嵌入任意多个菜单。
 
 :::warning[区域不能超出子 Pane]
-标志符占据的区域比子 Pane 大时，多出的格子找不到对应位置，`build()` 抛出 `IllegalStateException`。区域比子 Pane 小时只显示子 Pane 左上角的一部分，想显示其他部分，或了解嵌套后的背景与点击规则，见 [背景、冻结与嵌套](/pane/composition)。
+标志符占据的区域比子 Pane 大时，多出的格子找不到对应位置，`build()` 抛出 `IllegalStateException`。区域比子 Pane 小时只显示子 Pane 左上角的一部分，想显示其他部分，或了解嵌套后的背景与点击规则，看 [背景、冻结与嵌套](/pane/composition)。
 :::
 
 :::info[翻页、滚动、标签与 Signal]
 下面几种内容同样用 `addIngredient` 绑定，它们会在数据变化时更新格子，分别在后面的章节介绍：
 
-- `Page`：按页显示一份列表，见 [翻页 Page](/pagination/page)
-- `Scroll`：按行或按列滚动显示一份列表，见 [滚动 Scroll](/pagination/scroll)
-- `Tab`：在几块 Pane 之间切换，见 [标签 Tab](/pagination/tab)
-- `Signal` 列表：列表数据变化后自动更新格子，见 [Signal 在 UI 中的使用](/signal-ui/list)
+- `Page`：按页显示一份列表，看 [翻页 Page](/pagination/page)
+- `Scroll`：按行或按列滚动显示一份列表，看 [滚动 Scroll](/pagination/scroll)
+- `Tab`：在几块 Pane 之间切换，看 [标签 Tab](/pagination/tab)
+- `Signal` 列表：列表数据变化后自动更新格子，看 [Signal 在 UI 中的使用](/signal-ui/list)
 :::
 
 <NextStep

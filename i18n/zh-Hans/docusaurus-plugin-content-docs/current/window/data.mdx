@@ -3,13 +3,13 @@ title: 窗口数据
 sidebar_label: 窗口数据
 ---
 
-窗口可以携带业务对象，供点击处理器读取。本页还介绍客户端状态确认，以及容器外点击事件中的光标数据和取消操作。
+窗口可以带业务对象，给点击处理器读。这页还会讲客户端状态确认，还有容器外点击事件中的光标数据和取消操作。
 
-## 携带自定义上下文
+## 带自定义上下文
 
 Builder 的 `setData` 可以给窗口附带一个对象。点击处理器拿到 Window 后，通过 `data(Class)` 取回，适合保存商品编号、筛选条件或当前菜单的上下文。
 
-下面把商品信息放进窗口。按钮读取当前窗口的数据，因此这段点击逻辑不需要捕获某个商品对象：
+下面把商品信息放进窗口。按钮读取当前窗口的数据，所以这段点击逻辑不需要捕获某个商品对象：
 
 ```java
 record ProductContext(String id, String name) {}
@@ -33,9 +33,9 @@ Window.builder(pane)
 
 Window 保存的是传入对象的引用，不会复制、序列化或监听其中的字段。修改可变对象后，需要按用途主动刷新标题或 Item；共享同一个对象的窗口也会读到同一份业务数据。
 
-`setData` 是构建时的配置，Window 没有用于替换这份引用的同名 setter。`data()` 返回原始对象，`data(Class)` 只做类型转换：未设置数据时返回 `null`，类型不匹配时抛出 `ClassCastException`。上例始终在构建时设置 `ProductContext`，因此点击时可以直接按这个类型读取。
+`setData` 是构建时的配置，Window 没有用来替换这份引用的同名 setter。`data()` 返回原始对象，`data(Class)` 只做类型转换：未设置数据时返回 `null`，类型不匹配时抛出 `ClassCastException`。上例始终在构建时设置 `ProductContext`，所以点击时可以直接按这个类型读取。
 
-窗口仍被业务代码或会话持有时，附带的对象也会被持有。会话如何保留窗口，见 [会话与导航](/session/navigation)。
+窗口仍被业务代码或会话持有时，附带的对象也会被持有。会话如何保留窗口，看 [会话与导航](/session/navigation)。
 
 ## 等待客户端确认窗口状态
 
@@ -93,7 +93,7 @@ Window.builder(pane)
 
 `WindowOutsideClick` 使用 `getPlayer()`、`getWindow()`、`getClickType()` 和 `getCursor()` 等 getter，写法与 Item 点击事件的 `player()`、`window()` 不同。
 
-`getCursor()` 是事件派发时光标物品的副本，修改它不会替换实际光标物品。处理器返回后，库会检查取消状态；已取消就停止后续容器外点击处理，否则继续执行这次点击的物品操作。取消容器外点击不会阻止玩家按 Esc 关闭窗口，关闭控制见 [打开与关闭](/window/lifecycle)。
+`getCursor()` 是事件派发时光标物品的副本，修改它不会替换实际光标物品。处理器返回后，库会检查取消状态；已取消就停止后续容器外点击处理，否则继续执行这次点击的物品操作。取消容器外点击不会阻止玩家按 Esc 关闭窗口，关闭控制看 [打开与关闭](/window/lifecycle)。
 
 <NextStep
   to="/session/navigation"

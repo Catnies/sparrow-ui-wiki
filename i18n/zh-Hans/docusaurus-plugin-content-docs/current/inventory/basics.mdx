@@ -9,8 +9,8 @@ Pane 的格子可以连接容器，玩家在这些格子里放入、取出的物
 
 Sparrow UI 的容器类型是 `SparrowInventory`，与 Bukkit 的 `Inventory` 是两套 API。它有两种实现：
 
-- `VirtualInventory`：物品保存在内存中，见 [虚拟容器](/inventory/virtual)
-- `ReferencingInventory`：把箱子、玩家背包等已有的容器映射进菜单，见 [映射容器](/inventory/referencing)
+- `VirtualInventory`：物品保存在内存中，看 [虚拟容器](/inventory/virtual)
+- `ReferencingInventory`：把箱子、玩家背包等已有的容器映射进菜单，看 [映射容器](/inventory/referencing)
 
 `SparrowInventory` 不能用 `player.openInventory` 打开。把它绑定到 Pane 的标志符上，再用 Window 打开，玩家就能在菜单中操作它。容器不属于某一个菜单，同一个容器可以同时显示在多个菜单中，也可以在菜单之外单独读写。
 
@@ -52,9 +52,9 @@ storage.clear();
 | `containsSimilar(item)` | 判断容器中有没有同类物品 |
 | `countSimilar(item)` | 统计有几格放着同类物品，不累加格内的数量 |
 
-通过这些方法修改容器后，显示这个容器的窗口会自动更新。它们直接写入容器，不经过访问规则，也不受下文的冻结限制。以 `try` 开头的同名方法（如 `tryAdd`、`trySetItem`）会先检查访问规则，结果可能被拒绝，见 [访问规则与事件](/inventory/rules-events)。
+通过这些方法修改容器后，显示这个容器的窗口会自动更新。它们直接写入容器，不经过访问规则，也不受下文的冻结限制。以 `try` 开头的同名方法（如 `tryAdd`、`trySetItem`）会先检查访问规则，结果可能被拒绝，看 [访问规则与事件](/inventory/rules-events)。
 
-`VirtualInventory` 的方法可以在任意线程调用 <ThreadBadge type="any" />。`ReferencingInventory` 会直接读写被映射的容器，必须在能访问那个容器的线程调用，见 [线程要求](/inventory/referencing#线程要求)。
+`VirtualInventory` 的方法可以在任意线程调用 <ThreadBadge type="any" />。`ReferencingInventory` 会直接读写被映射的容器，必须在能访问那个容器的线程调用，看 [线程要求](/inventory/referencing#线程要求)。
 
 :::warning[读取和写入都会复制物品]
 `itemAt` 和 `snapshot` 返回的是副本，修改它们不会改变容器。`setItem`、`add` 等方法会复制传入的物品，之后再修改原来的物品也不会影响容器。
@@ -68,7 +68,7 @@ storage.clear();
 
 ## 连接到 Pane
 
-`addIngredient` 把容器绑定到标志符。标志符第 1 次出现的格子连接容器的第 0 格，第 2 次出现的格子连接第 1 格，依此类推，顺序与字符模板一致，从左到右、从上到下。格子数与容器大小不一致时的表现见 [填充内容](/pane/ingredients)。
+`addIngredient` 把容器绑定到标志符。标志符第 1 次出现的格子连接容器的第 0 格，第 2 次出现的格子连接第 1 格，依此类推，顺序与字符模板一致，从左到右、从上到下。格子数与容器大小不一致时的表现看 [填充内容](/pane/ingredients)。
 
 ### 多名玩家共用一个容器
 
@@ -109,7 +109,7 @@ Pane pane = Pane.builder("SSSSSSSSS")
         .build();
 ```
 
-`occurrence` 是这一格在标志符中的出现次序，从 0 开始，参数的完整含义见 [填充内容](/pane/ingredients)。格子序号超出容器范围时，`build()` 抛出 `IllegalStateException`。
+`occurrence` 是这一格在标志符中的出现次序，从 0 开始，参数的完整含义看 [填充内容](/pane/ingredients)。格子序号超出容器范围时，`build()` 抛出 `IllegalStateException`。
 
 ## 容器背景
 
@@ -171,7 +171,7 @@ private static ItemStack hintItem() {
 
 Pane 的背景只填充没有绑定内容的格子，不会显示在容器的空格上。上例四周的黑色玻璃板是 Pane 的背景，中间一格空着时显示的是容器自己的背景；容器没有设置背景时，这一格保持空白。
 
-背景设置在容器上，这个容器显示在哪个菜单，空格都显示同一个背景。`setBackground` 还接受 `ItemProvider`，可以在渲染时按查看者生成背景，写法见 [渲染与刷新](/item/render)。传入 `null` 清除背景，正在显示的窗口会随之更新。
+背景设置在容器上，这个容器显示在哪个菜单，空格都显示同一个背景。`setBackground` 还接受 `ItemProvider`，可以在渲染时按查看者生成背景，写法看 [渲染与刷新](/item/render)。传入 `null` 清除背景，正在显示的窗口会随之更新。
 
 ## 冻结容器
 

@@ -41,7 +41,7 @@ options.update(value -> new OrderOptions(value.quantity() + 1, value.giftWrap())
 System.out.println(options.get());
 ```
 
-结果为 `OrderOptions[quantity=2, giftWrap=false]`。Signal 保存的是对象引用，直接修改对象字段不会触发通知，再把同一个引用传给 `set` 通常也会被判为相同。因此这里用新对象替换旧状态。列表等集合的更新方式见 [集合状态](/signal/collections)。
+结果为 `OrderOptions[quantity=2, giftWrap=false]`。Signal 保存的是对象引用，直接修改对象字段不会触发通知，再把同一个引用传给 `set` 通常也会被判为相同。所以这里用新对象替换旧状态。列表等集合的更新方式看 [集合状态](/signal/collections)。
 
 ## 订阅变化
 
@@ -71,7 +71,7 @@ coins.set(200);
 
 通知只表示值可能变了，不保存触发通知时的那份值。并发写入时，回调里的 `get()` 可能已读到后一次写入的结果。若要逐笔记录金币收支，应在业务操作处记录。
 
-菜单通过 `dependsOn` 等方式绑定 Signal 时，库会管理订阅，无需自己保存 `Subscription`。具体用法见 [Signal 在 UI 中的使用](/signal-ui/item)，订阅的寿命约定见 [生命周期与清理](/advanced/lifecycle)。
+菜单通过 `dependsOn` 等方式绑定 Signal 时，库会管理订阅，不用自己保存 `Subscription`。具体用法看 [Signal 在 UI 中的使用](/signal-ui/item)，订阅的寿命约定看 [生命周期与清理](/advanced/lifecycle)。
 
 ## 用 map 派生值
 
@@ -87,7 +87,7 @@ quantity.set(4);
 System.out.println(total.get());
 ```
 
-两次输出分别是 `60` 和 `120`。`total` 在被读取时才计算，并缓存结果；`quantity` 变化后，下一次读取才重新计算。上例跳过了数量为 `3` 时的读取，因此也跳过了总价 `90` 的计算。
+两次输出分别是 `60` 和 `120`。`total` 在被读取时才计算，并缓存结果；`quantity` 变化后，下一次读取才重新计算。上例跳过了数量为 `3` 时的读取，所以也跳过了总价 `90` 的计算。
 
 `map` 会转发上游的变化通知，不检查派生结果是否相同。若只关心结果有没有变化，可以用 `mapDistinct`。
 
@@ -126,7 +126,7 @@ try (Subscription subscription = affordable.onDirty(() ->
 
 `mapDistinct` 默认用 `Objects.equals` 比较结果。首次订阅时先算出当前结果，随后每次收到上游通知，都重新计算并与前一次比较，结果不同才通知订阅者。没有订阅者时，仍然等到 `get()` 才计算。
 
-这次比较需要先计算结果，所以 `mapDistinct` 的函数也可能在写入上游时执行，应尽量简短。如果每次数量变化都会改变总价，直接用 `map` 即可。
+这次比较需要先计算结果，所以 `mapDistinct` 的函数也可能在写入上游时执行，应尽量简短。如果每次数量变化都会改变总价，直接用 `map` 就行。
 
 ## 自定义相等规则
 

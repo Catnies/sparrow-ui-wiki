@@ -117,7 +117,7 @@ Window.builder(boardPane).setTitle(Component.text("公告")).open(bob);
 ```
 
 :::warning[共享时不能在组件里存玩家状态]
-这条**只在共享时成立**。既然一个组件同时服务多名玩家，就不能在它内部缓存"当前玩家是谁"。需要按玩家区分的东西，从 `RenderContext` 或 `ItemClick` 里取。
+这条**只在共享时成立**。既然一个组件同时给多名玩家用，就不能在它内部缓存"当前玩家是谁"。需要按玩家区分的东西，从 `RenderContext` 或 `ItemClick` 里取。
 
 上面"每次打开新建"的写法不受这条限制。
 :::

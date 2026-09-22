@@ -57,7 +57,7 @@ payment.setAccessRule(0, context -> !context.isAdd() || context.addedItem().getT
 | `before()`、`after()` | 这一格修改前、修改后的物品，空格为 `null` |
 | `isAdd()`、`addedItem()`、`addedAmount()` | 有没有物品流入，流入的是什么、多少个 |
 | `isRemove()`、`removedItem()`、`removedAmount()` | 有没有物品流出，流出的是什么、多少个 |
-| `reason()` | 修改的原因，见 [修改原因](#修改原因) |
+| `reason()` | 修改的原因，看 [修改原因](#修改原因) |
 
 `addedItem()` 带的是实际移动的数量。光标上有 8 个物品、右键放入 1 个时，`addedAmount()` 为 1。交换两件不同的物品时，`isAdd()` 与 `isRemove()` 同时为 `true`。
 
@@ -82,7 +82,7 @@ rewards.subscribeClick(event -> {
 
 事件提供 `player()`、`slot()`、`clickType()`、`hotbarButton()` 和 `action()`。`slot()` 是容器自己的格子序号；`action()` 是这次点击最终的效果，点了之后什么都没有变化时为 `NOTHING`。
 
-只有被点击的那个容器收到点击事件。Shift 转移时，接收物品的容器收不到点击事件，只收到下文的提交前、提交后事件。拖拽和点击按钮格不派发这个事件，按钮的点击见 [点击与守卫](/item/click)。
+只有被点击的那个容器收到点击事件。Shift 转移时，接收物品的容器收不到点击事件，只收到下文的提交前、提交后事件。拖拽和点击按钮格不派发这个事件，按钮的点击看 [点击与守卫](/item/click)。
 
 玩家在容器格子里选择收纳袋中的物品时，`subscribeBundleSelect` 会收到通知。
 

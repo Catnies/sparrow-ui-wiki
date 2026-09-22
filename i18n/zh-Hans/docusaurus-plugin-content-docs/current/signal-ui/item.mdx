@@ -5,7 +5,7 @@ sidebar_label: 物品显示
 
 玩家在购买菜单中点击钻石，每次把购买数量加一。按钮名称初始为「购买数量：1」，点击后应变为「购买数量：2」。这个数量只属于本次打开的菜单，所以在创建菜单时新建一个普通 Signal。
 
-示例中的 `viewer` 是当前打开菜单的玩家，使用前应已完成 Sparrow UI 初始化。`named` 用于创建带名称的物品，将下面的方法放入菜单类即可。
+示例中的 `viewer` 是当前打开菜单的玩家，使用前应已完成 Sparrow UI 初始化。`named` 用来创建带名称的物品，将下面的方法放入菜单类就行。
 
 <Details summary="示例共用的物品命名方法" previewHeight={0}>
 
@@ -47,7 +47,7 @@ Pane pane = Pane.builder("####Q####")
 Window.builder(pane).setTitle("选择数量").open(viewer);
 ```
 
-`dependsOn(quantity)` 声明这个 Item 的显示依赖数量。点击只更新数据，库会请求重画显示这个 Item 的位置，再次执行 Provider 取得新名称，无需调用 `updateOnClick()`。
+`dependsOn(quantity)` 声明这个 Item 的显示依赖数量。点击只更新数据，库会请求重画显示这个 Item 的位置，再次执行 Provider 取得新名称，不用调用 `updateOnClick()`。
 
 只在 Provider 中读取 `quantity.get()` 不会自动建立依赖。外观同时取决于多个独立状态时，可以传入 `dependsOn(quantity, price)`；如果已用 `combine` 派生出总价，也可以直接依赖总价 Signal。
 

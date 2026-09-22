@@ -1,0 +1,123 @@
+/* LlmsMenu.module.css
+   颜色全部接 --ifm-* 体系，主题色、深色和护眼底色覆盖这些变量时自动跟随。
+   悬停底色与 UrlCard 同一种做法：在当前 surface 上叠极少量黑/白，护眼黄底上也不会发灰。 */
+
+.root {
+  --llms-menu-border: var(--ifm-color-emphasis-300);
+  --llms-menu-hover: color-mix(in srgb, var(--ifm-background-surface-color) 94%, light-dark(#000, #fff));
+  --llms-menu-muted: var(--ifm-color-emphasis-700);
+
+  position: relative;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* ---- 按钮 ---- */
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.55rem 0.35rem 0.65rem;
+  border: 1px solid var(--llms-menu-border);
+  border-radius: 0.5rem;
+  background: var(--ifm-background-surface-color);
+  color: var(--ifm-font-color-base);
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.toggle:hover,
+.toggleOpen {
+  background: var(--llms-menu-hover);
+}
+
+.chevron {
+  transition: transform 0.2s ease;
+}
+
+.toggleOpen .chevron {
+  transform: rotate(180deg);
+}
+
+/* ---- 下拉菜单 ---- */
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--ifm-z-index-dropdown);
+  width: min(19rem, calc(100vw - 2rem));
+  padding: 0.35rem;
+  border: 1px solid var(--llms-menu-border);
+  border-radius: 0.65rem;
+  background: var(--ifm-background-surface-color);
+  box-shadow: var(--ifm-global-shadow-md);
+  animation: menuIn 0.16s ease-out;
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu,
+  .chevron {
+    animation: none;
+    transition: none;
+  }
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 1.1rem 1fr;
+  column-gap: 0.65rem;
+  align-items: center;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.45rem;
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--llms-menu-hover);
+  color: var(--ifm-font-color-base);
+  text-decoration: none;
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: -2px;
+}
+
+.itemIcon {
+  color: var(--llms-menu-muted);
+}
+
+.itemTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.external {
+  color: var(--llms-menu-muted);
+  font-size: 0.75rem;
+}
+
+.itemDescription {
+  grid-column: 2;
+  margin-top: 0.1rem;
+  color: var(--llms-menu-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
