@@ -85,20 +85,42 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '⚡ Signal',
+      label: '⚡ Signal (Optional)',
       items: [
         'signal/why',
         'signal/basics',
         'signal/derive',
         'signal/async',
+        'signal/polling',
         'signal/collections',
-        'signal/bind-ui',
-        'signal/practices',
+        'signal/partitions',
+        {
+          type: 'category',
+          label: 'Binding Signals to Menus',
+          items: [
+            'signal-ui/item',
+            'signal-ui/player',
+            'signal-ui/list',
+            'signal-ui/page',
+            'signal-ui/scroll',
+            'signal-ui/tab',
+            'signal-ui/title',
+            'signal-ui/visual',
+          ],
+        },
       ],
     },
     {
       type: 'category',
-      label: '🔬 Advanced',
+      label: '🌐 Network (Optional)',
+      items: [
+        'network/listen',
+        'network/send-receive',
+      ],
+    },
+    {
+      type: 'category',
+      label: '🔬 Advanced (Optional)',
       items: [
         'advanced/threading',
         'advanced/sharing',
@@ -109,27 +131,12 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '🌐 Network',
-      items: [
-        'network/listen',
-        'network/send-receive',
-      ],
-    },
-    {
-      type: 'category',
       label: '🍳 Examples',
       items: [
         'examples/overview',
       ],
     },
-    {
-      type: 'category',
-      label: '📎 Appendix',
-      items: [
-        'appendix/faq',
-        'appendix/glossary',
-      ],
-    },
+    'faq',
     // Temporary: the component self-check page. Remove it together with the
     // page once all the prose is finished.
     {

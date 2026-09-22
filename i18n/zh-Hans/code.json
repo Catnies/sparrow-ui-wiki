@@ -667,5 +667,57 @@
   "animationPreview.idle": {
     "message": "点击播放查看效果。",
     "description": "AnimationPreview 还没有开始播放"
+  },
+  "signalFlowDemo.actions.aria": {
+    "message": "修改数据源",
+    "description": "SignalFlowDemo 修改数据源按钮组的无障碍标签"
+  },
+  "signalFlowDemo.reset": {
+    "message": "重置",
+    "description": "SignalFlowDemo 重置按钮"
+  },
+  "signalFlowDemo.separator": {
+    "message": "、",
+    "description": "SignalFlowDemo 节点名称之间的分隔符"
+  },
+  "signalFlowDemo.unchanged": {
+    "message": "值没有变化，不发送通知。",
+    "description": "SignalFlowDemo 写入了相同的值"
+  },
+  "signalFlowDemo.written": {
+    "message": "{nodes} 被写入新值。",
+    "description": "SignalFlowDemo 数据源被写入"
+  },
+  "signalFlowDemo.dirty": {
+    "message": "{nodes} 收到通知，标记为过期，此时还不计算。",
+    "description": "SignalFlowDemo 派生节点失效"
+  },
+  "signalFlowDemo.pending": {
+    "message": "{nodes} 标记为需要重新显示。",
+    "description": "SignalFlowDemo 消费者被标脏"
+  },
+  "signalFlowDemo.rendered": {
+    "message": "下一 tick，{nodes} 重新显示，这时才读取并计算最新的值。",
+    "description": "SignalFlowDemo 消费者重新显示"
+  },
+  "signalFlowDemo.idle": {
+    "message": "点击上方的按钮修改数据源，观察通知怎样传开。",
+    "description": "SignalFlowDemo 还没有修改数据源时的提示"
+  },
+  "signalFlowDemo.sources": {
+    "message": "数据源",
+    "description": "SignalFlowDemo 列标题"
+  },
+  "signalFlowDemo.derived": {
+    "message": "派生",
+    "description": "SignalFlowDemo 列标题"
+  },
+  "signalFlowDemo.consumers": {
+    "message": "消费者",
+    "description": "SignalFlowDemo 列标题"
+  },
+  "signalFlowDemo.stale": {
+    "message": "过期",
+    "description": "SignalFlowDemo 等待重算的派生值"
   }
 }

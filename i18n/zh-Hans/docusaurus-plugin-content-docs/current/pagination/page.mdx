@@ -72,13 +72,13 @@ Window.builder(pane).setTitle("钻石目录").open(viewer);
 
 页码从 0 开始。超出范围会停在最近的一端，所以第一页点击上一页、最后一页点击下一页都不会越界。空列表也按一页处理，只是不显示内容。
 
-这里的箭头始终保持原样。若需要显示页码，或在首页、末页将按钮变灰，可以用 `page()` 和 `count()` 提供的 Signal，见 [将 Signal 接入 UI](/signal/bind-ui)。
+这里的箭头始终保持原样。若需要显示页码，或在首页、末页将按钮变灰，可以用 `page()` 和 `count()` 提供的 Signal，见 [翻页按钮与页码](/signal-ui/page)。
 
 ### 列表修改与刷新
 
 `Page.of(List, pageSize)` 会复制列表。创建后再向原列表添加、删除或替换元素，分页内容不会跟着变化；列表中的 Item 对象本身仍是同一份，修改 Item 的显示内容依然有效。
 
-`refresh()` 只对下文的异步分页生效，不会重新读取传给 `Page.of` 的普通 List。需要让分页跟随列表的增删变化时，见 [将 Signal 接入 UI](/signal/bind-ui)。
+`refresh()` 只对下文的异步分页生效，不会重新读取传给 `Page.of` 的普通 List。需要让分页跟随列表的增删变化时，见 [翻页按钮与页码](/signal-ui/page)。
 
 ## 从数据库懒加载数据
 

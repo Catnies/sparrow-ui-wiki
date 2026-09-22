@@ -1,0 +1,59 @@
+---
+title: 窗口标题
+sidebar_label: 窗口标题
+---
+
+有时需要把玩家选择的购买数量显示在窗口标题上。`setTitleSupplier` 负责计算标题，再用 `window.bind` 把数量变化接到 `updateTitle()`。
+
+示例中的 `viewer` 是当前打开菜单的玩家，使用前应已完成 Sparrow UI 初始化。`named` 用于创建带名称的物品，将下面的方法放入菜单类即可。
+
+<Details summary="示例共用的物品命名方法" previewHeight={0}>
+
+```java
+private static ItemStack named(Material material, String name) {
+    ItemStack stack = new ItemStack(material);
+    stack.setData(DataComponentTypes.CUSTOM_NAME,
+            Component.text(name).decoration(TextDecoration.ITALIC, false));
+    return stack;
+}
+```
+
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](/item/render)中的写法相同。
+
+</Details>
+
+## 让标题跟随数量
+
+
+下面初始标题为「购买 1 件」，点击钻石后变为「购买 2 件」。绑定在打开窗口之前声明。
+
+<MinecraftSlotGrid
+  title="购买 1 件"
+  rows={['####Q####']}
+  legend={{Q: '增加数量'}}
+  items={{Q: {icon: 'diamond', name: '增加数量'}}}
+  caption="初始标题为购买 1 件。点击钻石后标题变为购买 2 件，物品名称保持增加数量。"
+/>
+
+```java
+MutableSignal<Integer> quantity = Signal.of(1);
+Pane pane = Pane.builder("####Q####")
+        .addIngredient('Q', Item.builder()
+                .setItemProviderConstant(named(Material.DIAMOND, "增加数量"))
+                .addClickHandler(click -> quantity.update(value -> value + 1))
+                .build())
+        .build();
+Window window = Window.builder(pane)
+        .setTitleSupplier(() -> Component.text("购买 " + quantity.get() + " 件"))
+        .build(viewer);
+window.bind(quantity, Window::updateTitle);
+window.open();
+```
+
+首次打开时会计算标题。`window.bind` 不立即调用回调，之后收到 Signal 通知才请求更新；绑定随窗口打开而启用，关闭后暂停，重新打开时恢复。`updateTitle()` 会将标题更新交给玩家线程，普通 `bind` 回调本身并不会自动切换线程。
+
+<NextStep
+  to="/signal-ui/visual"
+  title="视觉映射"
+  description="通过 Signal 切换商品的视觉标记。"
+/>

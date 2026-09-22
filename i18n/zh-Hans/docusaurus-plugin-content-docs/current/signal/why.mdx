@@ -3,8 +3,229 @@ title: 为什么需要 Signal
 sidebar_label: 为什么需要 Signal
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 9.1 节。 */}
+菜单显示的数据会变：Boss 的血量在下降，玩家的金币刚到账，商品卖掉了几件。Signal 保存一个会变化的值，值变化时通知依赖它的地方重新显示。前面几章用固定数据做出的菜单，接上 Signal 后就能跟着数据自动更新。
 
-:::info
-本页尚未撰写。
-:::
+## 三个常见场景
+
+下面三个场景分别用两种方式实现。切换标签，比较不用 Signal 和使用 Signal 的写法，三个场景的标签会一起切换。
+
+### 多名玩家看着同一份数据
+
+世界 Boss 的血量显示在每名玩家打开的菜单里，Boss 受到攻击时，所有打开的菜单都要更新。
+
+<Tabs groupId="signal-compare">
+<TabItem value="without" label="不用 Signal" default>
+
+```java
+public final class Boss {
+    private volatile int health = 1000;
+    // Boss 必须知道哪些物品在显示它的血量
+    private final Set<ObservableItem> healthItems = ConcurrentHashMap.newKeySet();
+
+    public void damage(int amount) {
+        this.health = Math.max(0, this.health - amount);
+        // 每次改动都要逐个通知
+        for (ObservableItem item : this.healthItems) {
+            item.notifyWindows();
+        }
+    }
+}
+
+// 菜单: 打开时登记, 关闭时移除. 忘了移除, 物品会一直留在集合里
+ObservableItem healthItem = Item.builder()
+        .setItemProvider(context -> healthIcon(boss.health()))
+        .build();
+boss.healthItems().add(healthItem);
+window.addCloseHandler(reason -> boss.healthItems().remove(healthItem));
+```
+
+</TabItem>
+<TabItem value="with" label="使用 Signal">
+
+```java
+public final class Boss {
+    private final MutableSignal<Integer> health = Signal.of(1000);
+
+    public Signal<Integer> health() {
+        return this.health;
+    }
+
+    // 任意线程都可以调用, Boss 不需要知道谁在显示血量
+    public void damage(int amount) {
+        this.health.update(value -> Math.max(0, value - amount));
+    }
+}
+
+// 菜单: 声明渲染时读取了 health, 血量变化后自动重新显示
+Item healthItem = Item.builder()
+        .setItemProvider(context -> healthIcon(boss.health().get()))
+        .dependsOn(boss.health())
+        .build();
+```
+
+</TabItem>
+</Tabs>
+
+不用 Signal 时，Boss 要维护一张「谁在显示我」的表，菜单关闭时还要记得从表里移除，多个线程同时扣血时也要自己处理。使用 Signal 后，Boss 只修改自己的值；菜单声明依赖，关闭后订阅自动解除。
+
+### 一个按钮取决于三个状态
+
+商店的购买按钮在买得起、库存又够时显示为可购买。能否购买取决于购买数量、玩家余额和剩余库存，三者分别由数量按钮、经济系统和商店系统修改。
+
+<Tabs groupId="signal-compare">
+<TabItem value="without" label="不用 Signal" default>
+
+```java
+ObservableItem confirm = Item.builder()
+        .setItemProvider(context -> confirmIcon(this.quantity <= this.stock && this.balance >= this.quantity * PRICE))
+        .build();
+
+Item plus = Item.builder()
+        .setItemProviderConstant(plusIcon)
+        .addClickHandler(click -> {
+            this.quantity++;
+            // 数量变了, 通知购买按钮
+            confirm.notifyWindows();
+        })
+        .build();
+
+// 余额在经济系统里变化, 库存在商店系统里变化,
+// 这两处也要找到这个按钮并通知它
+```
+
+</TabItem>
+<TabItem value="with" label="使用 Signal">
+
+```java
+// 三个状态合成一个结果, 任意一个变化都会重新计算
+Signal<Boolean> affordable = Signals.combine(quantity, balance, stock,
+        (amount, money, left) -> amount <= left && money >= (long) amount * PRICE);
+
+Item confirm = Item.builder()
+        .setItemProvider(context -> confirmIcon(affordable.get()))
+        .dependsOn(affordable)
+        .build();
+
+Item plus = Item.builder()
+        .setItemProviderConstant(plusIcon)
+        // 只改数量, 不需要知道谁依赖它
+        .addClickHandler(click -> quantity.update(value -> value + 1))
+        .build();
+```
+
+</TabItem>
+</Tabs>
+
+不用 Signal 时，每个修改状态的地方都要知道哪些按钮依赖它，再多一个依赖这些状态的物品，就要回头给所有修改的地方补上通知。使用 Signal 后，修改的地方只管写入，依赖关系写在读取的一方。
+
+### 数据在数据库里
+
+玩家的金币存在数据库中，打开菜单时要在异步线程查询。查询结果返回时，玩家可能已经关闭了菜单。
+
+<Tabs groupId="signal-compare">
+<TabItem value="without" label="不用 Signal" default>
+
+```java
+UUID uuid = viewer.getUniqueId();
+CompletableFuture.supplyAsync(() -> database.loadCoins(uuid), executor)
+        .thenAccept(result -> {
+            // 查询期间玩家可能已经关闭菜单, 甚至已经下线
+            if (!window.isOpen()) {
+                return;
+            }
+            this.coins = result;
+            coinsItem.notifyWindows();
+        });
+
+// 每次打开菜单都要查一次; 金币在别处改了,
+// 还要重新查询, 再通知每一个打开着的菜单
+```
+
+</TabItem>
+<TabItem value="with" label="使用 Signal">
+
+```java
+// 每名玩家一份金币, 第一次读取时在 executor 上查询, 查询完成前显示 0
+PlayerKeyedSignal<Long> coins = PlayerKeyedSignal.async(0L, executor, database::loadCoins);
+
+// 按查看者读取各自的金币
+Item coinsItem = Item.builder()
+        .setItemProvider(context -> coinsIcon(coins.get(context.player())))
+        .dependsOn(coins)
+        .build();
+
+// 金币在别处改了: 标记过期, 后台重新查询, 查完后正在显示的菜单自动更新
+coins.dirty(uuid);
+```
+
+</TabItem>
+</Tabs>
+
+不用 Signal 时，每次打开菜单都要查询，结果返回后要自己判断菜单还在不在。使用 Signal 后，每名玩家的金币查询一次后缓存下来，读取时立即返回：
+
+- 查询完成时如果菜单已经关闭，没有菜单在等这个结果，不会发生任何事；下次打开直接使用缓存
+- 重新查询期间，菜单继续显示上一次的结果，查完再更新，不会出现空白
+- 玩家 A 的金币变化只让 A 的菜单重新显示
+- 玩家退出后，这名玩家的缓存自动丢弃
+
+## Signal 是什么
+
+Signal 是一个会变化的值，值变化时通知依赖它的地方。使用 Signal 时会遇到三种角色：
+
+| 角色 | 是什么 | 例子 |
+|---|---|---|
+| 数据源 | 保存值，可以写入 | `Signal.of`、`Signal.async`、`PlayerKeyedSignal` |
+| 派生 | 由其他 Signal 计算出来，上游变化时跟着变化 | `map`、`Signals.combine` |
+| 消费者 | 读取 Signal 并更新界面 | Item 的 `dependsOn`，Window、Pane、容器的 `bind` |
+
+通知只说「值过期了」，不带新值。数据源变化后，通知沿着依赖关系传给派生和消费者；消费者只把格子标记为需要重新显示，等下一 tick 重新显示时才读取、计算最新的值。点击下面的按钮修改数据源，观察通知怎样一层层传开：
+
+<SignalFlowDemo
+  title="商店"
+  sources={[
+    {id: 'quantity', label: '购买数量', value: 1},
+    {id: 'balance', label: '余额', value: 100, format: (value) => `${value} 金币`},
+    {id: 'stock', label: '库存', value: 5},
+  ]}
+  derived={[
+    {id: 'total', label: '总价', deps: ['quantity'], compute: (values) => values.quantity * 30, format: (value) => `${value} 金币`},
+    {id: 'affordable', label: '能否购买', deps: ['quantity', 'balance', 'stock'],
+      compute: (values) => values.quantity <= values.stock && values.balance >= values.quantity * 30,
+      format: (value) => (value ? '可以' : '不可以')},
+  ]}
+  consumers={[
+    {id: 'quantityItem', label: '数量', deps: ['quantity'], slot: 1,
+      item: (values) => ({icon: 'paper', name: `购买数量：${values.quantity}`, count: values.quantity})},
+    {id: 'totalItem', label: '总价', deps: ['total'], slot: 3,
+      item: (values) => ({icon: 'gold_ingot', name: `总价：${values.total} 金币`})},
+    {id: 'confirmItem', label: '购买按钮', deps: ['affordable'], slot: 5,
+      item: (values) => (values.affordable
+        ? {icon: 'lime_dye', name: '确认购买', nameColor: '#55ff55'}
+        : {icon: 'gray_dye', name: '无法购买', nameColor: '#aaaaaa'})},
+    {id: 'balanceItem', label: '余额', deps: ['balance'], slot: 7,
+      item: (values) => ({icon: 'emerald', name: `余额：${values.balance} 金币`})},
+  ]}
+  actions={[
+    {label: '数量 +1', apply: (values) => ({quantity: Math.min(9, values.quantity + 1)})},
+    {label: '数量 −1', apply: (values) => ({quantity: Math.max(1, values.quantity - 1)})},
+    {label: '余额 +50', apply: (values) => ({balance: values.balance + 50})},
+    {label: '余额 −50', apply: (values) => ({balance: Math.max(0, values.balance - 50)})},
+    {label: '库存 −1', apply: (values) => ({stock: Math.max(0, values.stock - 1)})},
+  ]}
+/>
+
+演示中每件物品只依赖它显示的数据：修改库存时，只有购买按钮重新显示，数量、总价和余额都不动。数量已经是 1 时再点「数量 −1」，写入的值没有变化，不会发送通知。
+
+这种方式带来几点好处：
+
+- 数据源不需要知道谁在使用它，任意线程都可以写入
+- 只有依赖变化数据的格子重新显示，同一 tick 内的多次变化只重新显示一次
+- 重新显示时读到的总是最新的值
+- 没有菜单在看时，派生不计算，定时查询的数据源也停止查询
+- 菜单关闭后订阅自动解除，不需要写取消订阅的代码
+
+<NextStep
+  to="/signal/basics"
+  title="Signal 基础"
+  description="创建、读取和写入 Signal，派生新的值，并订阅它的变化。"
+/>

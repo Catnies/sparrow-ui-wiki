@@ -52,7 +52,7 @@ export default function MinecraftWindow({
   playerInventory = false,
   // 留空标志符：这些格子不放任何物品
   empty = [],
-  // 给这个标志符占的全部格子描白边，供图例联动使用
+  // 给这个标志符占的全部格子描白边，供图例联动使用；传数组时给其中每个标志符都描边
   highlight = null,
   // 鼠标指向的格子换了标志符时回调，离开时传 null
   onHoverIdentifier,
@@ -162,7 +162,7 @@ export default function MinecraftWindow({
             return (
               <div
                 key={`${x}-${y}`}
-                className={`${styles.slot} ${highlight != null && identifier === highlight ? styles.slotMarked : ''}`}
+                className={`${styles.slot} ${isMarked(highlight, identifier) ? styles.slotMarked : ''}`}
                 style={{
                   left: `calc(${x}px * var(--mcw-scale))`,
                   top: `calc(${y}px * var(--mcw-scale))`,
@@ -226,6 +226,12 @@ export default function MinecraftWindow({
       )}
     </div>
   );
+}
+
+// highlight 可以是单个标志符，也可以是标志符数组
+function isMarked(highlight, identifier) {
+  if (highlight == null || identifier == null) return false;
+  return Array.isArray(highlight) ? highlight.includes(identifier) : identifier === highlight;
 }
 
 function MinecraftTooltip({id, item, hover, scale}) {

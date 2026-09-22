@@ -135,6 +135,6 @@ Window.builder(pane).setTitle("横向滚动").open(viewer);
 
 如果列表中存的是业务数据，可以像 [Page](/pagination/page#把数据转换成物品) 一样，使用 `addIngredient('M', scroll, toElement)` 转换成物品。转换函数初次在构建 Pane 的线程执行，后续默认异步执行，适合使用已经准备好的数据。
 
-上面的按钮始终保持原样。需要显示当前位置或在两端禁用按钮时，可以使用 `line()`、`maxLine()` 返回的 Signal；列表内容需要动态增删时也可以接入 Signal，见 [将 Signal 接入 UI](/signal/bind-ui)。
+上面的按钮始终保持原样。需要显示当前位置或在两端禁用按钮时，可以使用 `line()`、`maxLine()` 返回的 Signal；列表内容需要动态增删时也可以接入 Signal，见 [将 Signal 接入 UI](/signal-ui/scroll)。
 
 <NextStep to="/pagination/tab" title="标签 Tab" description="在同一块区域切换不同的 Pane。" />

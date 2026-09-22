@@ -82,20 +82,42 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '⚡ 响应式 Signal',
+      label: '⚡ 响应式 Signal（可选）',
       items: [
         'signal/why',
         'signal/basics',
         'signal/derive',
         'signal/async',
+        'signal/polling',
         'signal/collections',
-        'signal/bind-ui',
-        'signal/practices',
+        'signal/partitions',
+        {
+          type: 'category',
+          label: 'Signal 在 UI 中的使用',
+          items: [
+            'signal-ui/item',
+            'signal-ui/player',
+            'signal-ui/list',
+            'signal-ui/page',
+            'signal-ui/scroll',
+            'signal-ui/tab',
+            'signal-ui/title',
+            'signal-ui/visual',
+          ],
+        },
       ],
     },
     {
       type: 'category',
-      label: '🔬 进阶',
+      label: '🌐 网络 Network（可选）',
+      items: [
+        'network/listen',
+        'network/send-receive',
+      ],
+    },
+    {
+      type: 'category',
+      label: '🔬 进阶（可选）',
       items: [
         'advanced/threading',
         'advanced/sharing',
@@ -106,27 +128,12 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '🌐 网络 Network',
-      items: [
-        'network/listen',
-        'network/send-receive',
-      ],
-    },
-    {
-      type: 'category',
       label: '🍳 实战示例',
       items: [
         'examples/overview',
       ],
     },
-    {
-      type: 'category',
-      label: '📎 附录',
-      items: [
-        'appendix/faq',
-        'appendix/glossary',
-      ],
-    },
+    'faq',
     // 临时项: 通用组件的自查页。正文全部收口后连同页面一起删掉。
     {
       type: 'doc',
