@@ -201,4 +201,48 @@ To reach the inventory linked to the bottom half, call `window.defaultLowerInven
 
 On the merged layout, `lowerPane()` returns the whole merged Pane, so `setFrozen(true)` freezes the entire menu. To freeze only the bottom half, use the split layout.
 
+## Freezing single slots and the offhand
+
+A Pane's freeze covers the whole Pane. To lock only a few slots of one window, use the Window's own freeze:
+
+| Method | Purpose |
+| - | - |
+| `frozenAt(windowSlot, frozen)` | Freeze or unfreeze one Window slot |
+| `frozenAt(windowSlot)` | Whether this Window has frozen the slot |
+| `windowSlotAtHotbar(hotbarSlot)` | The Window slot of hotbar slot `hotbarSlot` (0–8) |
+| `offhandFrozen(frozen)`, `offhandFrozen()` | Freeze or query offhand swaps |
+
+Window slots use the same numbering as `click.windowSlot()`: the container at the top first, then the player inventory below. A frozen slot is treated like a slot inside a frozen Pane: player clicks have no effect, no Bukkit or Sparrow events fire, the Item's click handlers do not run, and the slot takes no part in shift-click transfers or double-click collection. Display and refreshes are unaffected.
+
+The menu below is opened from the item in the player's hand. Freezing that item's hotbar slot while the menu is open keeps the player from moving it away inside the menu:
+
+```java
+public static void openForHeldItem(Player viewer, Pane upper) {
+    int heldSlot = viewer.getInventory().getHeldItemSlot();
+
+    Window window = Window.builder(upper)
+            .setTitle("Edit the held item")
+            .build(viewer);
+    // Freeze the hotbar slot that holds the item
+    window.frozenAt(window.windowSlotAtHotbar(heldSlot), true);
+    window.open();
+}
+```
+
+`windowSlotAtHotbar` converts through the window's actual layout, so you never count the top container's slots yourself.
+
+The offhand is not a Window slot, so neither `frozenAt` nor a Pane's freeze reaches it. When the item is in the offhand, call `offhandFrozen(true)` instead. Pressing the offhand swap key in this window then changes neither the clicked slot nor the offhand, and no events fire:
+
+```java
+window.offhandFrozen(true);
+```
+
+> **Info: Window freezes and Pane freezes are independent**
+>
+> A slot is locked when either `frozenAt` or the Pane's `setFrozen` applies. `frozenAt(slot, false)` only lifts the window-side freeze; if the Pane is still frozen, the slot stays locked. `frozenAt(slot)` likewise reports only the window-side setting.
+>
+> All of these only limit what the player does in this window. Plugins can still modify containers and the offhand directly.
+
+You can set these after `build` and before `open`, or toggle them while the menu is open. The change runs on the player's entity thread, so `frozenAt(slot)` may not reflect it right after the call. The settings stay in place when the same Window is closed and opened again. An out-of-range slot or hotbar index throws `IndexOutOfBoundsException`.
+
 **Next**: [Window types](https://catnies.github.io/sparrow-ui-wiki/window/types.md) — Pick chests, hoppers, anvils, and other vanilla containers, and use their native features.

@@ -41,13 +41,13 @@ repositories {
 </repositories>
 ```
 
-Then the dependency. Relocate the whole `net.momirealms.sparrow.ui` package under your own package name, replacing `com.example.myplugin.libraries.sparrow.ui` with a package unique to your plugin:
+Then the dependency. Relocate the whole `net.momirealms.sparrow.ui` package under your own package name. Replace `VERSION` below with the latest version listed in the README of the [GitHub repository](https://github.com/Catnies/sparrow-ui), and `com.example.myplugin.libraries.sparrow.ui` with a package unique to your plugin:
 
 **Gradle Kotlin**
 
 ```kotlin
 dependencies {
-  implementation("net.momirealms:sparrow-ui:beta.33")
+  implementation("net.momirealms:sparrow-ui:VERSION")
 }
 
 tasks.shadowJar {
@@ -59,7 +59,7 @@ tasks.shadowJar {
 
 ```groovy
 dependencies {
-  implementation 'net.momirealms:sparrow-ui:beta.33'
+  implementation 'net.momirealms:sparrow-ui:VERSION'
 }
 
 shadowJar {
@@ -73,7 +73,7 @@ shadowJar {
 <dependency>
 <groupId>net.momirealms</groupId>
 <artifactId>sparrow-ui</artifactId>
-<version>beta.33</version>
+<version>VERSION</version>
 </dependency>
 
 <!-- inside <configuration> of maven-shade-plugin -->

@@ -25,7 +25,7 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 }
 ```
 
-这个方法在玩家右键木桶的事件处理器等能访问木桶的线程中调用，原因看 [线程要求](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/referencing.md#线程要求)。窗口下方默认显示玩家背包，玩家可以在木桶与背包之间 Shift 转移、双击收集。
+这个方法一般在玩家右键木桶的事件处理器中调用，线程方面的要求看 [线程要求](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/referencing.md#线程要求)。窗口下方默认显示玩家背包，玩家可以在木桶与背包之间 Shift 转移、双击收集。
 
 创建映射有三种写法，区别在于映射容器的哪些格子：
 
@@ -83,10 +83,12 @@ public static void openBackpackOf(Player viewer, Player target) {
 
 ## 线程要求
 
-映射容器不会替你切换线程。创建映射、`refresh()`、读取和写入，都会直接访问被映射的容器，必须在这个容器所属的线程调用：
+映射容器不会替你切换线程。`refresh()`、读取和写入都会直接访问被映射的容器，必须在这个容器所属的线程调用：
 
 - Paper：服务器主线程
 - Folia：方块容器所在区域的线程；实体、坐骑和玩家背包所属实体的线程
+
+创建映射不受这条限制，可以在异步任务中和菜单一起构建。创建时会读取一次容器内容，Paper 和 Folia 目前都允许这样的异步读取，窗口打开后也会在查看者的线程上重新同步。不过，部分 Fork 服务端会给某些方法加上访问检查，请以实际运行环境为准。
 
 窗口在查看者的线程上刷新和写入它显示的映射容器。Paper 上这就是主线程，不需要额外处理。Folia 上，只有查看者与被映射的容器属于同一个区域时才安全：玩家自己的背包始终满足；映射身边的箱子时，玩家走远后可能进入另一个区域。
 

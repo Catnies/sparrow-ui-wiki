@@ -41,13 +41,13 @@ repositories {
 </repositories>
 ```
 
-再加依赖，并把 `net.momirealms.sparrow.ui` 整体 relocate 到你自己的包名下。把下面的 `com.example.myplugin.libraries.sparrow.ui` 换成你插件独有的目标包名：
+再加依赖，并把 `net.momirealms.sparrow.ui` 整体 relocate 到你自己的包名下。把下面的 `VERSION` 换成 [GitHub 仓库](https://github.com/Catnies/sparrow-ui) README 中的最新版本号，`com.example.myplugin.libraries.sparrow.ui` 换成你插件独有的目标包名：
 
 **Gradle Kotlin**
 
 ```kotlin
 dependencies {
-  implementation("net.momirealms:sparrow-ui:beta.33")
+  implementation("net.momirealms:sparrow-ui:VERSION")
 }
 
 tasks.shadowJar {
@@ -59,7 +59,7 @@ tasks.shadowJar {
 
 ```groovy
 dependencies {
-  implementation 'net.momirealms:sparrow-ui:beta.33'
+  implementation 'net.momirealms:sparrow-ui:VERSION'
 }
 
 shadowJar {
@@ -73,7 +73,7 @@ shadowJar {
 <dependency>
 <groupId>net.momirealms</groupId>
 <artifactId>sparrow-ui</artifactId>
-<version>beta.33</version>
+<version>VERSION</version>
 </dependency>
 
 <!-- maven-shade-plugin 的 <configuration> 里 -->

@@ -201,4 +201,48 @@ window.open();
 
 合并布局的 `lowerPane()` 返回整块合并 Pane，调用 `setFrozen(true)` 会冻结整个菜单。要单独冻结下半部分，使用分离布局。
 
+## 冻结单个格子与副手
+
+Pane 的冻结作用于整块 Pane。只想锁住窗口中的某几格时，用 Window 自己的冻结：
+
+| 方法 | 作用 |
+| - | - |
+| `frozenAt(windowSlot, frozen)` | 冻结或解冻一个 Window 槽位 |
+| `frozenAt(windowSlot)` | 查询这一格是否被窗口冻结 |
+| `windowSlotAtHotbar(hotbarSlot)` | 快捷栏第 `hotbarSlot` 格（0～8）对应的 Window 槽位 |
+| `offhandFrozen(frozen)`、`offhandFrozen()` | 冻结或查询副手交换 |
+
+Window 槽位的编号与 `click.windowSlot()` 相同，先编上方容器，再编下方玩家物品栏。被冻结的格子与冻结 Pane 中的格子待遇相同：玩家的点击不生效，不派发 Bukkit 与 Sparrow 的事件，不执行 Item 的点击处理器，也不参与 Shift 点击转移和双击收集。格子的显示和刷新不受影响。
+
+下面的菜单由玩家手中的物品打开。打开期间冻结这件物品所在的快捷栏格子，玩家就无法在菜单里拿走它或换位置：
+
+```java
+public static void openForHeldItem(Player viewer, Pane upper) {
+    int heldSlot = viewer.getInventory().getHeldItemSlot();
+
+    Window window = Window.builder(upper)
+            .setTitle("编辑手中的物品")
+            .build(viewer);
+    // 冻结手持物品所在的快捷栏格子
+    window.frozenAt(window.windowSlotAtHotbar(heldSlot), true);
+    window.open();
+}
+```
+
+`windowSlotAtHotbar` 按窗口的实际布局换算，上方容器有几格都不用自己计算。
+
+副手不是 Window 槽位，`frozenAt` 和 Pane 的冻结都管不到它。物品在副手时，调用 `offhandFrozen(true)`。之后玩家在这个窗口里按副手交换键，被点的格子和副手都不会变化，也不会派发事件：
+
+```java
+window.offhandFrozen(true);
+```
+
+> **信息：窗口冻结与 Pane 冻结互相独立**
+>
+> `frozenAt` 与 Pane 的 `setFrozen` 任意一个生效，这一格就不能操作。`frozenAt(slot, false)` 只撤销窗口这一侧的冻结，Pane 仍然冻结时，这一格照样不能操作；`frozenAt(slot)` 也只反映窗口这一侧的设置。
+>
+> 这些冻结都只限制玩家在这个窗口中的操作，插件直接修改容器或副手不受影响。
+
+冻结可以在 `build` 之后、`open` 之前设置，也可以在菜单打开期间切换。修改交给玩家的实体线程执行，刚调用完就查询时，`frozenAt(slot)` 不一定已经反映这次修改。同一个 Window 关闭后再打开，冻结设置仍然保留。槽位或快捷栏索引超出范围时抛出 `IndexOutOfBoundsException`。
+
 **下一步**：[窗口类型](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/types.md) — 选择箱子、漏斗、铁砧等原版容器，并使用它们各自的功能。

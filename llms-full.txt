@@ -87,13 +87,13 @@ repositories {
 </repositories>
 ```
 
-Then the dependency. Relocate the whole `net.momirealms.sparrow.ui` package under your own package name, replacing `com.example.myplugin.libraries.sparrow.ui` with a package unique to your plugin:
+Then the dependency. Relocate the whole `net.momirealms.sparrow.ui` package under your own package name. Replace `VERSION` below with the latest version listed in the README of the [GitHub repository](https://github.com/Catnies/sparrow-ui), and `com.example.myplugin.libraries.sparrow.ui` with a package unique to your plugin:
 
 **Gradle Kotlin**
 
 ```kotlin
 dependencies {
-  implementation("net.momirealms:sparrow-ui:beta.33")
+  implementation("net.momirealms:sparrow-ui:VERSION")
 }
 
 tasks.shadowJar {
@@ -105,7 +105,7 @@ tasks.shadowJar {
 
 ```groovy
 dependencies {
-  implementation 'net.momirealms:sparrow-ui:beta.33'
+  implementation 'net.momirealms:sparrow-ui:VERSION'
 }
 
 shadowJar {
@@ -119,7 +119,7 @@ shadowJar {
 <dependency>
 <groupId>net.momirealms</groupId>
 <artifactId>sparrow-ui</artifactId>
-<version>beta.33</version>
+<version>VERSION</version>
 </dependency>
 
 <!-- inside <configuration> of maven-shade-plugin -->
@@ -2560,6 +2560,50 @@ To reach the inventory linked to the bottom half, call `window.defaultLowerInven
 
 On the merged layout, `lowerPane()` returns the whole merged Pane, so `setFrozen(true)` freezes the entire menu. To freeze only the bottom half, use the split layout.
 
+## Freezing single slots and the offhand
+
+A Pane's freeze covers the whole Pane. To lock only a few slots of one window, use the Window's own freeze:
+
+| Method | Purpose |
+| - | - |
+| `frozenAt(windowSlot, frozen)` | Freeze or unfreeze one Window slot |
+| `frozenAt(windowSlot)` | Whether this Window has frozen the slot |
+| `windowSlotAtHotbar(hotbarSlot)` | The Window slot of hotbar slot `hotbarSlot` (0–8) |
+| `offhandFrozen(frozen)`, `offhandFrozen()` | Freeze or query offhand swaps |
+
+Window slots use the same numbering as `click.windowSlot()`: the container at the top first, then the player inventory below. A frozen slot is treated like a slot inside a frozen Pane: player clicks have no effect, no Bukkit or Sparrow events fire, the Item's click handlers do not run, and the slot takes no part in shift-click transfers or double-click collection. Display and refreshes are unaffected.
+
+The menu below is opened from the item in the player's hand. Freezing that item's hotbar slot while the menu is open keeps the player from moving it away inside the menu:
+
+```java
+public static void openForHeldItem(Player viewer, Pane upper) {
+    int heldSlot = viewer.getInventory().getHeldItemSlot();
+
+    Window window = Window.builder(upper)
+            .setTitle("Edit the held item")
+            .build(viewer);
+    // Freeze the hotbar slot that holds the item
+    window.frozenAt(window.windowSlotAtHotbar(heldSlot), true);
+    window.open();
+}
+```
+
+`windowSlotAtHotbar` converts through the window's actual layout, so you never count the top container's slots yourself.
+
+The offhand is not a Window slot, so neither `frozenAt` nor a Pane's freeze reaches it. When the item is in the offhand, call `offhandFrozen(true)` instead. Pressing the offhand swap key in this window then changes neither the clicked slot nor the offhand, and no events fire:
+
+```java
+window.offhandFrozen(true);
+```
+
+> **Info: Window freezes and Pane freezes are independent**
+>
+> A slot is locked when either `frozenAt` or the Pane's `setFrozen` applies. `frozenAt(slot, false)` only lifts the window-side freeze; if the Pane is still frozen, the slot stays locked. `frozenAt(slot)` likewise reports only the window-side setting.
+>
+> All of these only limit what the player does in this window. Plugins can still modify containers and the offhand directly.
+
+You can set these after `build` and before `open`, or toggle them while the menu is open. The change runs on the player's entity thread, so `frozenAt(slot)` may not reflect it right after the call. The settings stay in place when the same Window is closed and opened again. An out-of-range slot or hotbar index throws `IndexOutOfBoundsException`.
+
 **Next**: [Window types](https://catnies.github.io/sparrow-ui-wiki/window/types.md) — Pick chests, hoppers, anvils, and other vanilla containers, and use their native features.
 
 # Window types
@@ -4664,7 +4708,7 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 }
 ```
 
-Call this from a thread that may access the barrel, such as the handler for the player's right-click event on it; see [Thread requirements](https://catnies.github.io/sparrow-ui-wiki/inventory/referencing.md#thread-requirements). The player inventory shows below the Window by default, and players can shift transfer and double-click collect between the barrel and their inventory.
+This is usually called from the handler for the player's right-click event on the barrel; the threading rules are under [Thread requirements](https://catnies.github.io/sparrow-ui-wiki/inventory/referencing.md#thread-requirements). The player inventory shows below the Window by default, and players can shift transfer and double-click collect between the barrel and their inventory.
 
 There are three mapping factories, differing in which slots they map:
 
@@ -4722,10 +4766,12 @@ When items shift transfer into this mapping, they fill in reverse order like van
 
 ## Thread requirements
 
-Referenced inventories do not switch threads for you. Creating a mapping, calling `refresh()`, reading, and writing all touch the mapped container directly, so they must run on the thread that owns it:
+Referenced inventories do not switch threads for you. Calling `refresh()`, reading, and writing all touch the mapped container directly, so they must run on the thread that owns it:
 
 - Paper: the server main thread
 - Folia: the region thread owning the block container; the entity thread for entity, mount, and player inventory mappings
+
+Creating a mapping is exempt from this rule; you can build it together with the menu in an async task. Creation reads the container's contents once. Paper and Folia currently allow such async reads, and once the Window opens it syncs again on the viewer's thread. Some Fork server software does add access checks to certain methods, though; go by your actual runtime.
 
 The Window refreshes and writes the referenced inventories it displays on the viewer's thread. On Paper that is the main thread and nothing more is needed. On Folia it is only safe when the viewer and the mapped container share a region: the player's own inventory always does; a chest next to them may drift into another region as they walk away.
 

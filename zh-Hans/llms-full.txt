@@ -87,13 +87,13 @@ repositories {
 </repositories>
 ```
 
-再加依赖，并把 `net.momirealms.sparrow.ui` 整体 relocate 到你自己的包名下。把下面的 `com.example.myplugin.libraries.sparrow.ui` 换成你插件独有的目标包名：
+再加依赖，并把 `net.momirealms.sparrow.ui` 整体 relocate 到你自己的包名下。把下面的 `VERSION` 换成 [GitHub 仓库](https://github.com/Catnies/sparrow-ui) README 中的最新版本号，`com.example.myplugin.libraries.sparrow.ui` 换成你插件独有的目标包名：
 
 **Gradle Kotlin**
 
 ```kotlin
 dependencies {
-  implementation("net.momirealms:sparrow-ui:beta.33")
+  implementation("net.momirealms:sparrow-ui:VERSION")
 }
 
 tasks.shadowJar {
@@ -105,7 +105,7 @@ tasks.shadowJar {
 
 ```groovy
 dependencies {
-  implementation 'net.momirealms:sparrow-ui:beta.33'
+  implementation 'net.momirealms:sparrow-ui:VERSION'
 }
 
 shadowJar {
@@ -119,7 +119,7 @@ shadowJar {
 <dependency>
 <groupId>net.momirealms</groupId>
 <artifactId>sparrow-ui</artifactId>
-<version>beta.33</version>
+<version>VERSION</version>
 </dependency>
 
 <!-- maven-shade-plugin 的 <configuration> 里 -->
@@ -2188,9 +2188,9 @@ Future 完成表示服务端流程已经结束；客户端收到数据并显示�
 >
 > 没有显式设置下半部分 Pane 时，`build(viewer)` 会创建默认玩家物品栏映射，并在调用线程读取背包内容，Builder 的 `open(viewer)` 会先执行 `build(viewer)`，同样如此。
 >
-> `window.open()` 会把后续打开和映射同步安排到玩家线程，但构建阶段的背包读取仍发生在调用线程。
+> 大多数情况下不需要为此特别处理：Paper 和 Folia 目前都允许异步读取，`window.open()` 开始后，构建好的映射容器会在玩家线程重新同步，实际使用中不会出问题。
 >
-> 如果在异步任务中构建，需要考虑服务端对背包读取的线程要求。下文的异步示例显式提供上下 Pane，避免构建默认背包映射。
+> 不过，部分 Fork 服务端会给某些方法加上访问检查，请以实际运行环境为准。
 
 ## 关闭窗口
 
@@ -2559,6 +2559,50 @@ window.open();
 > 通过 `ReferencingInventory` 写入真实背包时，应在能访问该玩家容器的线程执行；Pane 的冻结只限制玩家在窗口中的操作，不会阻止插件主动修改容器。
 
 合并布局的 `lowerPane()` 返回整块合并 Pane，调用 `setFrozen(true)` 会冻结整个菜单。要单独冻结下半部分，使用分离布局。
+
+## 冻结单个格子与副手
+
+Pane 的冻结作用于整块 Pane。只想锁住窗口中的某几格时，用 Window 自己的冻结：
+
+| 方法 | 作用 |
+| - | - |
+| `frozenAt(windowSlot, frozen)` | 冻结或解冻一个 Window 槽位 |
+| `frozenAt(windowSlot)` | 查询这一格是否被窗口冻结 |
+| `windowSlotAtHotbar(hotbarSlot)` | 快捷栏第 `hotbarSlot` 格（0～8）对应的 Window 槽位 |
+| `offhandFrozen(frozen)`、`offhandFrozen()` | 冻结或查询副手交换 |
+
+Window 槽位的编号与 `click.windowSlot()` 相同，先编上方容器，再编下方玩家物品栏。被冻结的格子与冻结 Pane 中的格子待遇相同：玩家的点击不生效，不派发 Bukkit 与 Sparrow 的事件，不执行 Item 的点击处理器，也不参与 Shift 点击转移和双击收集。格子的显示和刷新不受影响。
+
+下面的菜单由玩家手中的物品打开。打开期间冻结这件物品所在的快捷栏格子，玩家就无法在菜单里拿走它或换位置：
+
+```java
+public static void openForHeldItem(Player viewer, Pane upper) {
+    int heldSlot = viewer.getInventory().getHeldItemSlot();
+
+    Window window = Window.builder(upper)
+            .setTitle("编辑手中的物品")
+            .build(viewer);
+    // 冻结手持物品所在的快捷栏格子
+    window.frozenAt(window.windowSlotAtHotbar(heldSlot), true);
+    window.open();
+}
+```
+
+`windowSlotAtHotbar` 按窗口的实际布局换算，上方容器有几格都不用自己计算。
+
+副手不是 Window 槽位，`frozenAt` 和 Pane 的冻结都管不到它。物品在副手时，调用 `offhandFrozen(true)`。之后玩家在这个窗口里按副手交换键，被点的格子和副手都不会变化，也不会派发事件：
+
+```java
+window.offhandFrozen(true);
+```
+
+> **信息：窗口冻结与 Pane 冻结互相独立**
+>
+> `frozenAt` 与 Pane 的 `setFrozen` 任意一个生效，这一格就不能操作。`frozenAt(slot, false)` 只撤销窗口这一侧的冻结，Pane 仍然冻结时，这一格照样不能操作；`frozenAt(slot)` 也只反映窗口这一侧的设置。
+>
+> 这些冻结都只限制玩家在这个窗口中的操作，插件直接修改容器或副手不受影响。
+
+冻结可以在 `build` 之后、`open` 之前设置，也可以在菜单打开期间切换。修改交给玩家的实体线程执行，刚调用完就查询时，`frozenAt(slot)` 不一定已经反映这次修改。同一个 Window 关闭后再打开，冻结设置仍然保留。槽位或快捷栏索引超出范围时抛出 `IndexOutOfBoundsException`。
 
 **下一步**：[窗口类型](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/types.md) — 选择箱子、漏斗、铁砧等原版容器，并使用它们各自的功能。
 
@@ -4660,7 +4704,7 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 }
 ```
 
-这个方法在玩家右键木桶的事件处理器等能访问木桶的线程中调用，原因看 [线程要求](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/referencing.md#线程要求)。窗口下方默认显示玩家背包，玩家可以在木桶与背包之间 Shift 转移、双击收集。
+这个方法一般在玩家右键木桶的事件处理器中调用，线程方面的要求看 [线程要求](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/referencing.md#线程要求)。窗口下方默认显示玩家背包，玩家可以在木桶与背包之间 Shift 转移、双击收集。
 
 创建映射有三种写法，区别在于映射容器的哪些格子：
 
@@ -4718,10 +4762,12 @@ public static void openBackpackOf(Player viewer, Player target) {
 
 ## 线程要求
 
-映射容器不会替你切换线程。创建映射、`refresh()`、读取和写入，都会直接访问被映射的容器，必须在这个容器所属的线程调用：
+映射容器不会替你切换线程。`refresh()`、读取和写入都会直接访问被映射的容器，必须在这个容器所属的线程调用：
 
 - Paper：服务器主线程
 - Folia：方块容器所在区域的线程；实体、坐骑和玩家背包所属实体的线程
+
+创建映射不受这条限制，可以在异步任务中和菜单一起构建。创建时会读取一次容器内容，Paper 和 Folia 目前都允许这样的异步读取，窗口打开后也会在查看者的线程上重新同步。不过，部分 Fork 服务端会给某些方法加上访问检查，请以实际运行环境为准。
 
 窗口在查看者的线程上刷新和写入它显示的映射容器。Paper 上这就是主线程，不需要额外处理。Folia 上，只有查看者与被映射的容器属于同一个区域时才安全：玩家自己的背包始终满足；映射身边的箱子时，玩家走远后可能进入另一个区域。
 
