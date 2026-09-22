@@ -26,7 +26,7 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 }
 ```
 
-Call this from a thread that may access the barrel, such as the handler for the player's right-click event on it; see [Thread requirements](#thread-requirements). The player inventory shows below the Window by default, and players can shift transfer and double-click collect between the barrel and their inventory.
+This is usually called from the handler for the player's right-click event on the barrel; the threading rules are under [Thread requirements](#thread-requirements). The player inventory shows below the Window by default, and players can shift transfer and double-click collect between the barrel and their inventory.
 
 There are three mapping factories, differing in which slots they map:
 
@@ -84,10 +84,12 @@ On Folia, the viewer and `target` are managed by different threads, and the Wind
 
 ## Thread requirements
 
-Referenced inventories do not switch threads for you. Creating a mapping, calling `refresh()`, reading, and writing all touch the mapped container directly, so they must run on the thread that owns it:
+Referenced inventories do not switch threads for you. Calling `refresh()`, reading, and writing all touch the mapped container directly, so they must run on the thread that owns it:
 
 - Paper: the server main thread
 - Folia: the region thread owning the block container; the entity thread for entity, mount, and player inventory mappings
+
+Creating a mapping is exempt from this rule; you can build it together with the menu in an async task. Creation reads the container's contents once. Paper and Folia currently allow such async reads, and once the Window opens it syncs again on the viewer's thread. Some Fork server software does add access checks to certain methods, though; go by your actual runtime.
 
 The Window refreshes and writes the referenced inventories it displays on the viewer's thread. On Paper that is the main thread and nothing more is needed. On Folia it is only safe when the viewer and the mapped container share a region: the player's own inventory always does; a chest next to them may drift into another region as they walk away.
 
