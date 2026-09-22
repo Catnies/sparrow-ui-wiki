@@ -3306,7 +3306,9 @@ Window.builder(home)
 
 ## 进入与返回的区别
 
-下方按钮会同时操作三种会话。A、B 各对应一个固定的 Window 实例，「会话持有」列出会话仍引用的窗口，不包括示例变量保存的引用。
+下方演示会同时操作三种会话：两种栈从下往上压入窗口，树的连线表示首次进入时确定的父子关系。可以自动播放、点击步骤跳转，也可以用底部按钮自由操作。
+
+A、B 各对应一个固定的 Window 实例。绿色高亮节点是当前窗口，金色虚线节点或标签表示路径外仍保留的窗口；「会话持有」只列出会话仍引用的窗口，不包括示例变量保存的引用。
 
 点击「进入 A → 返回」后，普通栈不再持有 A，保留栈和树仍保留 A。
 
@@ -5724,11 +5726,17 @@ private static final TitleAnimationDefinition OPENING_TITLE = TitleAnimationDefi
         Component.text("开启中...")
 ));
 
+// 这里每隔 10 tick 露出一格, 便于观察标题换帧
+AnimationHandle opening = pane.visual().play(
+        AnimationDefinition.reveal(pane.slots("R"), 10, glass(Material.GRAY_STAINED_GLASS_PANE)));
+
 // 标题每 10 tick 换一帧, 循环播放
 AnimationHandle title = window.playTitleAnimation(OPENING_TITLE);
 // 奖励全部露出后停止, 标题恢复成 setTitle 设置的内容
 opening.whenFinished(reason -> title.cancel());
 ```
+
+点击播放后，标题每 10 tick 换一帧；第 60 tick，七个奖励全部露出，标题恢复为「宝箱」。点击「停止」也会恢复原来的标题。
 
 `TitleAnimationDefinition` 与格子动画的写法对应：`frames(period, frames)` 播完一遍后结束，`loop(period, frames)` 循环播放，`of(period, total, elapsedTicks -> ...)` 自己计算每一刻的标题，返回 `null` 时显示原来的标题。
 

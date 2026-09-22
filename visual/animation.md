@@ -254,11 +254,17 @@ private static final TitleAnimationDefinition OPENING_TITLE = TitleAnimationDefi
         Component.text("Opening...")
 ));
 
+// Uncover a reward every 10 ticks so the title changes are easy to follow
+AnimationHandle opening = pane.visual().play(
+        AnimationDefinition.reveal(pane.slots("R"), 10, glass(Material.GRAY_STAINED_GLASS_PANE)));
+
 // The title swaps frames every 10 ticks, looping
 AnimationHandle title = window.playTitleAnimation(OPENING_TITLE);
 // Stop once every reward is uncovered; the title returns to what setTitle set
 opening.whenFinished(reason -> title.cancel());
 ```
+
+During playback, the title changes every 10 ticks. At tick 60, all seven rewards are uncovered and the title returns to “Treasure chest”. Pressing Stop also restores the original title.
 
 `TitleAnimationDefinition` mirrors the slot animations: `frames(period, frames)` plays through once and ends, `loop(period, frames)` cycles, and `of(period, total, elapsedTicks -> ...)` computes the title yourself, with `null` showing the original.
 

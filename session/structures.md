@@ -31,7 +31,9 @@ Submenus opened through `navigate` inherit the current session's structure; `set
 
 ## How entering differs from returning
 
-The buttons below drive all three session types at once. A and B are each backed by one fixed Window instance; "held by session" lists the Windows the session still references, not the references kept in example variables.
+The demo drives all three session types at once. Both stacks grow upward; tree edges show the parent relationships established on the first visit. Play a walkthrough, jump to any step, or use the buttons at the bottom to navigate freely.
+
+A and B each represent one fixed Window instance. The green highlighted node is the current Window; gold dashed nodes or badges mark Windows retained outside the current path. "Held by the session" lists only the Windows the session still references, excluding references kept in example variables.
 
 After "enter A → back", the plain stack no longer holds A, while the retained stack and the tree still do.
 

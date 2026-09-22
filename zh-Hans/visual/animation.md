@@ -252,11 +252,17 @@ private static final TitleAnimationDefinition OPENING_TITLE = TitleAnimationDefi
         Component.text("开启中...")
 ));
 
+// 这里每隔 10 tick 露出一格, 便于观察标题换帧
+AnimationHandle opening = pane.visual().play(
+        AnimationDefinition.reveal(pane.slots("R"), 10, glass(Material.GRAY_STAINED_GLASS_PANE)));
+
 // 标题每 10 tick 换一帧, 循环播放
 AnimationHandle title = window.playTitleAnimation(OPENING_TITLE);
 // 奖励全部露出后停止, 标题恢复成 setTitle 设置的内容
 opening.whenFinished(reason -> title.cancel());
 ```
+
+点击播放后，标题每 10 tick 换一帧；第 60 tick，七个奖励全部露出，标题恢复为「宝箱」。点击「停止」也会恢复原来的标题。
 
 `TitleAnimationDefinition` 与格子动画的写法对应：`frames(period, frames)` 播完一遍后结束，`loop(period, frames)` 循环播放，`of(period, total, elapsedTicks -> ...)` 自己计算每一刻的标题，返回 `null` 时显示原来的标题。
 
