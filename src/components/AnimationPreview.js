@@ -78,6 +78,8 @@ function frameAt(animation, orderIndex, slot, elapsed) {
 
 export default function AnimationPreview({
   title,
+  // 随格子动画一起开始、停止的循环标题；结束后恢复 title。
+  titleLoop,
   rows = 3,
   // 动画下面原本的显示，长度为 rows × 9，null 表示空格
   base = [],
@@ -110,6 +112,9 @@ export default function AnimationPreview({
   }, [base, animations, itemBase]);
 
   const running = tick !== null;
+  const shownTitle = running && titleLoop
+    ? titleLoop.frames[Math.floor(tick / titleLoop.period) % titleLoop.frames.length] ?? title
+    : title;
   useEffect(() => {
     if (!running) return undefined;
     const timer = setInterval(() => {
@@ -190,7 +195,7 @@ export default function AnimationPreview({
         <span className={styles.status} aria-live="polite">{status}</span>
       </div>
       <div className={styles.window}>
-        <MinecraftWindow type={windowType} rows={rows} title={title} layout={layout} items={items} />
+        <MinecraftWindow type={windowType} rows={rows} title={shownTitle} layout={layout} items={items} />
       </div>
     </div>
   );

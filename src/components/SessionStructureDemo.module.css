@@ -1,107 +1,130 @@
 .demo {
+  --graph-accent: #9ade64;
+  --graph-retained: #e9bd67;
+  container-type: inline-size;
   margin: 1.5rem 0;
   padding: 1rem;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: 12px;
-  background: var(--ifm-background-surface-color);
+  border: 8px solid transparent;
+  border-image: url('../../static/img/mc/inventory-background.png') 4 / 1 / 0 repeat;
+  background: #c6c6c6;
+  background-clip: padding-box;
+  color: #303030;
+  image-rendering: pixelated;
 }
 
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+.demo button:focus-visible { outline: 2px solid #4c8229; outline-offset: 3px; }
+.demo button:disabled { cursor: default; }
+.demo .mcButton { --mcb-scale: 1.75; gap: 0.4rem; }
+.demo .mcButton:disabled {
+  border-image-source: url('../../static/img/mc/widget/button_disabled.png');
+  color: #a0a0a0;
+  text-shadow: 1px 1px #282828;
 }
-
-.controls button:disabled {
-  opacity: 0.45;
-  cursor: default;
+.demo .mcButton:disabled .itemIcon { opacity: 0.45; }
+.itemIcon { width: 22px; height: 22px; object-fit: contain; image-rendering: pixelated; flex-shrink: 0; }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+.headingTitle { display: flex; align-items: center; gap: 0.7rem; }
+.headingTitle > .itemIcon { width: 32px; height: 32px; }
+.heading strong { font: 18px var(--mc-font); font-synthesis: none; color: #303030; }
+.heading p { margin: 0.3rem 0 0; color: #505050; font-size: 0.8rem; }
+.counter { flex-shrink: 0; font: 14px var(--mc-font); color: #505050; }
+.scenarios { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 1rem; }
+.scenarios .mcButton[aria-pressed='true'] { color: #ffffa0; }
+.walkthrough { margin-top: 0.85rem; padding: 0.7rem; border: 2px solid; border-color: #717171 #fff #fff #717171; background: #ababab; }
+.steps { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
+.steps button {
+  padding: 0.4rem;
+  border: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: #444;
+  font: 14px var(--mc-font);
+  font-synthesis: none;
+  line-height: 1.2;
+  cursor: pointer;
 }
-
-.hint {
-  margin: 0.9rem 0 1rem;
-  font-size: 0.88rem;
-  color: var(--ifm-color-emphasis-700);
-}
-
-.comparison {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-}
-
+.steps button:hover { background: #c6c6c6; }
+.steps .visitedStep { color: #315817; }
+.steps .selectedStep { color: #253b15; background: #bdd5a9; border-color: #4e6d36 #e3f2d5 #e3f2d5 #4e6d36; }
+.stepNumber { margin-right: 0.3rem; font-size: 11px; opacity: 0.7; }
+.stepArrow { color: #555; font-size: 0.8rem; }
+.playback { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.65rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; margin: 0.9rem 0 0.6rem; font-size: 0.72rem; color: #444; }
+.legend span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.legend i { width: 10px; height: 10px; }
+.currentDot { background: #548b2b; border: 1px solid #365c1b; }
+.pathDot { border: 1px solid #555; background: #8b8b8b; }
+.retainedDot { border: 1px dashed #785219; background: #d9bd85; }
+.comparison { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
 .card {
   min-width: 0;
-  padding: 1rem;
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid;
+  border-color: #565656 #efefef #efefef #565656;
+  background: #303030;
+  color: #eee;
+  box-shadow: inset 0 0 0 2px #171717;
+}
+.cardHeading { padding: 0.85rem 0.8rem 0; }
+.cardHeading h3 { margin: 0 0 0.35rem; font: 17px var(--mc-font); color: #f2f2f2; text-shadow: 2px 2px #111; font-synthesis: none; }
+.cardHeading code { padding: 0; border: 0; background: transparent; font-size: 0.65rem; color: #b6b6b6; }
+.description { min-height: 4.5em; margin: 0.5rem 0.8rem 0; font-size: 0.75rem; line-height: 1.5; color: #ccc; }
+.graphViewport, .graphEmpty { height: 270px; margin: 0.65rem 2px; }
+.graphViewport {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #777 #222;
+  background-color: #242424;
+  background-image: linear-gradient(#ffffff03 1px, transparent 1px), linear-gradient(90deg, #ffffff03 1px, transparent 1px);
+  background-size: 16px 16px;
+  box-shadow: inset 0 2px #1b1b1b, inset 0 -2px #424242;
+}
+.graphEmpty { display: grid; place-items: center; font: 16px var(--mc-font); color: #aaa; }
+.graph { display: block; width: 100%; min-height: 100%; }
+.stackOutline { fill: none; stroke: #777; stroke-width: 2; }
+.edge { fill: none; stroke: var(--graph-retained); stroke-width: 2; stroke-dasharray: 4 4; transition: stroke 220ms; }
+.pathEdge { stroke: var(--graph-accent); stroke-dasharray: none; }
+.graphPosition { transition: transform 360ms ease; }
+.graphNode { animation: nodeAppear 300ms ease both; }
+.graphNode rect { fill: #565656; stroke: #a0a0a0; stroke-width: 2; transition: fill 220ms, stroke 220ms; }
+.graphNode text { fill: #fff; font: 16px var(--mc-font); font-synthesis: none; text-shadow: 1px 1px #222; }
+.nodeBevel { fill: none; stroke: #292929; stroke-width: 2; }
+.nodeItem { image-rendering: pixelated; }
+.currentNode rect { fill: #3c582b; stroke: var(--graph-accent); }
+.currentNode text { fill: #d6ffb3; }
+.graphNode .nodeCaption { font-size: 10px; }
+.retainedNode rect { fill: #514431; stroke: var(--graph-retained); stroke-dasharray: 4 3; }
+.retainedNode text { fill: #ffe0a2; }
+.topArrow { fill: none; stroke: var(--graph-accent); stroke-width: 2; }
+.axisLabel { fill: #aaa; font: 12px var(--mc-font); }
+.destination { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin: 0 0.8rem; padding: 0.65rem 0; border-top: 2px solid #484848; font-size: 0.72rem; }
+.destination span { color: #ccc; }
+.destination strong { color: var(--graph-accent); font: 14px var(--mc-font); }
+.members { padding: 0.1rem 0.8rem 0.8rem; }
+.label { font-size: 0.72rem; color: #505050; }
+.members .label { color: #ccc; }
+.members > div { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; min-height: 2.1rem; margin-top: 0.3rem; }
+.member { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.2rem 0.3rem; border: 2px solid; border-color: #171717 #b0b0b0 #b0b0b0 #171717; background: #626262; color: #fff; font: 14px var(--mc-font); text-shadow: 1px 1px #222; }
+.member .itemIcon { width: 18px; height: 18px; }
+.retainedMember { color: #ffe0a2; border-color: var(--graph-retained); border-style: dashed; background: #514431; }
+.empty { color: #aaa; font-size: 0.8rem; }
+.explanation { min-height: 3em; margin: 0.9rem 0; padding-left: 0.75rem; border-left: 3px solid #638343; font-size: 0.82rem; color: #383838; }
+.manual { padding-top: 0.85rem; border-top: 2px solid #999; }
+.controls { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.controls .resetButton { margin-left: auto; }
+
+@keyframes nodeAppear {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.card h3 {
-  margin: 0 0 0.65rem;
-  font-size: 0.9rem;
-  overflow-wrap: anywhere;
+@container (max-width: 560px) {
+  .comparison { grid-template-columns: 1fr; }
+  .description { min-height: 0; }
+  .graph { max-width: 280px; margin: auto; }
+  .heading { align-items: flex-start; }
 }
 
-.description {
-  min-height: 4.5em;
-  font-size: 0.85rem;
-  color: var(--ifm-color-emphasis-700);
-}
-
-.label {
-  margin-top: 1rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--ifm-color-emphasis-700);
-}
-
-.path {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  min-height: 5rem;
-  padding: 0.5rem 0;
-}
-
-.node {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--ifm-color-emphasis-400);
-  border-radius: 5px;
-  font-family: var(--mc-font);
-}
-
-.current {
-  border: 2px solid var(--ifm-color-primary);
-  background: var(--ifm-color-emphasis-100);
-}
-
-.badge {
-  font-family: var(--ifm-font-family-base);
-  font-size: 0.65rem;
-  color: var(--ifm-color-primary);
-}
-
-.members, .edges {
-  padding-top: 0.35rem;
-  font-size: 0.88rem;
-}
-
-.edges {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-@media (max-width: 700px) {
-  .comparison {
-    grid-template-columns: 1fr;
-  }
-
-  .description {
-    min-height: 0;
-  }
+@media (prefers-reduced-motion: reduce) {
+  .demo *, .demo *::before, .demo *::after { animation: none !important; transition: none !important; }
 }

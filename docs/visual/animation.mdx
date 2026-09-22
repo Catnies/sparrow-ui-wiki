@@ -398,11 +398,39 @@ private static final TitleAnimationDefinition OPENING_TITLE = TitleAnimationDefi
         Component.text("Opening...")
 ));
 
+// Uncover a reward every 10 ticks so the title changes are easy to follow
+AnimationHandle opening = pane.visual().play(
+        AnimationDefinition.reveal(pane.slots("R"), 10, glass(Material.GRAY_STAINED_GLASS_PANE)));
+
 // The title swaps frames every 10 ticks, looping
 AnimationHandle title = window.playTitleAnimation(OPENING_TITLE);
 // Stop once every reward is uncovered; the title returns to what setTitle set
 opening.whenFinished(reason -> title.cancel());
 ```
+
+<AnimationPreview
+  title="Treasure chest"
+  titleLoop={{period: 10, frames: ['Opening', 'Opening.', 'Opening..', 'Opening...']}}
+  rows={3}
+  base={[
+    null, null, null, null, null, null, null, null, null,
+    null,
+    {icon: 'diamond', name: 'Diamond', count: 3},
+    {icon: 'emerald', name: 'Emerald', count: 16},
+    {icon: 'gold_ingot', name: 'Gold ingot', count: 8},
+    {icon: 'golden_apple', name: 'Golden apple'},
+    {icon: 'iron_ingot', name: 'Iron ingot', count: 32},
+    {icon: 'lapis_lazuli', name: 'Lapis lazuli', count: 12},
+    {icon: 'netherite_ingot', name: 'Netherite ingot'},
+    null,
+    null, null, null, null, null, null, null, null, null,
+  ]}
+  animations={[
+    {type: 'reveal', order: [10, 11, 12, 13, 14, 15, 16], stagger: 10, cover: {icon: 'gray_stained_glass_pane'}},
+  ]}
+/>
+
+During playback, the title changes every 10 ticks. At tick 60, all seven rewards are uncovered and the title returns to “Treasure chest”. Pressing Stop also restores the original title.
 
 `TitleAnimationDefinition` mirrors the slot animations: `frames(period, frames)` plays through once and ends, `loop(period, frames)` cycles, and `of(period, total, elapsedTicks -> ...)` computes the title yourself, with `null` showing the original.
 
