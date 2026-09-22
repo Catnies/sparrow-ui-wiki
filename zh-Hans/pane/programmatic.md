@@ -6,7 +6,7 @@
 
 > **信息：优先使用字符模板**
 >
-> 形状固定的菜单，用 [字符布局](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/structure.md) 和 [填充内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients.md) 的写法更直观，模板本身就是菜单的样子。这页的方法用在两种情况：布局要在运行时才能算出来，或者菜单打开后要替换某些格子的内容。
+> 固定布局优先使用 [字符模板](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/structure.md)。程序化布局适合动态计算槽位或在运行时替换内容。
 
 ## 槽位填充
 

@@ -2,9 +2,9 @@
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async>
 
-玩家打开商店时，菜单需要显示账户余额，但余额保存在数据库里，查询可能要花几百毫秒。我们希望菜单先显示「加载中」，查询完成后再显示余额；期间读取菜单状态的代码可以继续执行。
+打开商店时，余额需要从数据库查询。菜单可以先显示「加载中」，查询完成后再显示余额，避免等待查询阻塞玩家线程。
 
-`Signal.async` 可以处理这个加载过程。下面用控制台输出演示查询和刷新，显示到菜单中的用法见 [物品显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
+`Signal.async` 在指定执行器上加载数据。首次查询完成前返回占位值，完成后保存结果并通知订阅者。菜单绑定方式见 [物品显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
 
 ## 打开商店时查询余额
 
@@ -32,7 +32,7 @@ System.out.println(balanceText.get());
 
 查询还没完成时，`balance.get()` 返回 `null`，`balanceText.get()` 返回「加载中…」。查到余额后，Signal 保存 `100` 并通知依赖者，回调读取的文字变成「余额：100」。查询如果已经完成，首次读取就会直接得到余额；不能依赖程序一定先输出「加载中…」。
 
-`onDirty` 不会立即返回当前值，所以示例先调用 `get()`，再订阅后续变化。示例中的控制台订阅只用于观察变化，结束观察时应调用 `subscription.close()`；实际菜单的绑定方式看[绑定到 UI](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
+`onDirty` 注册时不会立即触发回调，所以示例在订阅后调用一次 `get()`，读取当前结果。示例中的控制台订阅只用于观察变化，结束观察时应调用 `subscription.close()`；实际菜单的绑定方式看[绑定到 UI](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
 
 用 `null` 作占位值，是为了区分「还没查到」和「余额为零」。如果业务允许先显示零，也可以传 `0L`。占位值和查询结果都允许为 `null`，含义由业务决定。
 
@@ -40,7 +40,7 @@ System.out.println(balanceText.get());
 
 ## 发放奖励后刷新余额
 
-玩家领取了一笔 `50` 金币的奖励，数据库中的余额从 `100` 变成 `150`。之前的 `balance` 仍保存着旧结果，我们需要让它再查一次。
+玩家领取 50 金币奖励后，数据库余额从 100 变为 150，但 `balance` 仍保存着上次查询的结果。写入成功后调用 `dirty()`，让菜单重新获取余额。
 
 下面接着使用上一节的 `playerId`、`balance` 和 `ioExecutor`。假设领取资格已经由业务层确认，`economy.deposit(playerId, 50L)` 会写入数据库，并在提交成功后返回。这段代码应放在奖励发放流程中。
 

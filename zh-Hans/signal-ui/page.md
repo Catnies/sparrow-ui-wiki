@@ -4,7 +4,7 @@
 
 [翻页 Page](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md)里的箭头始终显示为可用。这次让上一页在首页变灰，下一页在末页变灰，并在中间显示「1 / 2」这样的页码。
 
-示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+示例共用的 `named` 辅助方法见页尾。
 
 ## 翻页时更新箭头、页码和内容
 

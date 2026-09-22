@@ -4,7 +4,7 @@
 
 要在窗口标题中显示购买数量，可以用 `setTitleSupplier` 读取数量，再通过 `window.bind` 在数量变化时调用 `updateTitle()`。
 
-示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+示例共用的 `named` 辅助方法见页尾。
 
 ## 让标题跟随数量
 

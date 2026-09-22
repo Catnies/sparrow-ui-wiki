@@ -35,7 +35,7 @@ Window.builder(pane)
         .open(viewer);
 ```
 
-这里写了 3 个字符串，每个有 9 个字符，所以这块 Pane 是 3 行 9 列，共 27 格。点「字符模板」和「玩家视角」按钮，可以在模板和玩家看到的菜单之间切换：
+这个模板对应三行九列的帮助菜单。点击预览中的「字符模板」或「玩家视角」，可以对照标志符与实际物品的位置。
 
 ```text title="帮助"
 ---------
@@ -47,7 +47,7 @@ Window.builder(pane)
 - `B`：帮助手册（`book`）
 - `#`：留空
 
-模板中的字符称为**标志符**（identifier）。字符本身没有含义，只是格子的代号，`addIngredient` 把内容绑定到标志符上。**一个标志符出现在几格，绑定的内容就显示在几格。** `-` 在模板中出现 18 次，一次绑定就铺满上下两行，这 18 格显示的是同一个 Item。需要每格各用一个 Item 时，看 [填充内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients.md)。
+模板中的字符称为**标志符**（identifier），通过 `addIngredient` 绑定内容。直接绑定 Item 时，同一标志符对应的槽位共用该实例。需要每格独立创建 Item 时，见 [填充内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients.md)。
 
 同一个标志符多次调用 `addIngredient` 时，只保留最后一次绑定。
 

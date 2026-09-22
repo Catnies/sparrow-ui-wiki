@@ -34,8 +34,6 @@ Window.builder(upper)
         .open(viewer);
 ```
 
-打开后，书和关闭按钮出现在上方，玩家背包显示在下方。图中以空背包为例：
-
 ```text title="帮助菜单"
 #########
 ####B####
@@ -124,7 +122,7 @@ Window.splitBuilder(upper, lower)
 
 `mergedBuilder(pane)` 让一块 Pane 同时提供上下两部分的内容。模板的最后 4 行放在玩家物品栏区域，前面的行放在箱子区域。
 
-下面用七行模板安排一个三行箱子和下方的玩家物品栏。所有 `#` 共用灰色玻璃板背景，两个 `X` 都是关闭按钮：
+下面用一份七行模板同时安排三行箱子和下方的玩家物品栏。两个区域共用背景，上下各放一个关闭按钮。
 
 ```java
 Pane pane = Pane.builder(
@@ -148,8 +146,6 @@ Window.mergedBuilder(pane)
         .setTitle("帮助菜单")
         .open(viewer);
 ```
-
-打开后仍是三行箱子，下方保留主背包与快捷栏的排布：
 
 ```text title="帮助菜单"
 #########

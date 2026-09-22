@@ -284,16 +284,16 @@ public final class WelcomeMenu {
 }
 ```
 
-1. **画出布局**（第 27-31 行）：三行字符串对应三行九列，共 27 格。每个字符代表一格，下一步用这些字符指定格子里的内容。
-2. **铺上背景**（第 32,64-68 行）：setBackground 管的是所有没被单独安排的格子，也就是这里的一整圈 #。背景物品点不动，用来占位和分区。
+1. **画出布局**（第 27-31 行）：下面的模板对应一个三行箱子菜单。每个字符代表一个槽位，G 和 C 用于绑定两个按钮，# 留作背景。
+2. **铺上背景**（第 32,64-68 行）：setBackground 为未绑定内容的槽位设置背景。本例用灰色玻璃板填充 # 区域，背景不响应点击。
 3. **把按钮填进格子**（第 33-34 行）：addIngredient 为字符指定一个 Item，布局中相同字符的格子都会显示它。这里两个按钮的字符各出现一次，各占一格。
-4. **按钮长什么样**（第 40-42 行）：按钮外观由 ItemStack 决定。这里用 Paper 的数据组件 API 设置名称，并关闭自定义名称默认的斜体。
-5. **点下去做什么**（第 46-47,59 行）：addClickHandler 收到的 click 里有这次点击的全部上下文：谁点的、点在哪一格、哪种点击、当时光标上拿着什么、属于哪扇窗口。关闭按钮要用的就是其中的 window()。
+4. **设置物品外观**（第 40-42 行）：示例使用 Paper 数据组件 API 设置名称，并关闭默认斜体。
+5. **处理点击**（第 46-47,59 行）：addClickHandler 注册点击处理器。问候按钮通过 click.player() 发送消息，关闭按钮通过 click.window().close() 关闭当前窗口。
 6. **打开它**（第 19-23 行）：Window\.builder 接一块 Pane 作为上半部分，下半部分自动映射玩家自己的物品栏。open 把菜单发给玩家。
 
 ## 添加一个命令打开它
 
-菜单类写完了，还差一个调用它的地方。下面用 Paper 的 Brigadier 命令 API 注册一条 `/welcome`，进服务器打 `/welcome`，菜单就出来了。
+最后用 Paper Brigadier API 注册 `/welcome` 命令。玩家执行命令后，调用 WelcomeMenu.open 打开刚才的菜单。
 
 ```java
 // 在你的 JavaPlugin#onEnable 里
@@ -398,7 +398,7 @@ Window.builder(boardPane).setTitle(Component.text("公告")).open(bob);
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/create>
 
-菜单里的一支箭头，可以用来展示信息，也可以在点击后翻页或返回。Sparrow UI 用 **Item** 描述这样的菜单物品：它负责显示什么，以及玩家操作它时做什么。
+菜单中的图标可以只展示信息，也可以作为翻页、返回等按钮。Sparrow UI 用 **Item** 配置物品显示和交互行为，用 Pane 安排它的位置。
 
 ## Item 由什么组成
 
@@ -410,26 +410,13 @@ Window.builder(boardPane).setTitle(Component.text("公告")).open(bob);
 | 条件守卫 `ItemGuard` | 检查是否允许执行点击行为 |
 | 点击行为 | 接收 `ItemClick`，执行点击操作 |
 
-显示来源提供的是 Bukkit 的 **`ItemStack`**。箭头还是钻石、显示几个、名称是什么，都由这个 `ItemStack` 的数据决定。
-
-显示来源可以始终提供同一个固定物品，也可以在渲染时计算物品。后一种用法会在 [渲染与刷新](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md) 中展开。
+`ItemProvider` 提供用于显示的 Bukkit `ItemStack`，支持固定物品和[动态渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)。
 
 点击处理器接收的 `ItemClick` 包含玩家、点击类型和所在窗口等信息。配置了条件守卫时，先检查守卫，全部通过后才执行点击处理器；任一守卫返回 `false`，本次点击行为就不会执行。
 
-例如，只显示一支原版箭头，不添加点击行为和条件守卫：
-
-```java
-ItemStack stack = new ItemStack(Material.ARROW);
-Item item = Item.simple(stack);
-```
-
-这里先创建箭头的 `ItemStack`，再用 `Item.simple` 创建菜单中的 Item。这个入口会自动为它配置固定的 `ItemProvider`，所以不需要手动创建 Provider。
-
-Item 本身不决定放在哪一格。位置由 **Pane（布局）** 安排；同一个 Item 也可以放到多个格子。创建好 Item 后，还需要把它加入 Pane，再通过 Window 打开菜单。
+同一个 Item 可以放入多个槽位，也可以供多个窗口共用。
 
 ## 创建 Item 的常见入口
-
-根据已有的内容和需要的行为，选择对应入口：
 
 | API | 说明 |
 | - | - |
@@ -440,14 +427,14 @@ Item 本身不决定放在哪一格。位置由 **Pane（布局）** 安排；�
 
 ### 从 ItemStack 创建
 
-最常用的是 `Item.simple(stack)`。先准备要展示的 `ItemStack`，再传给它：
+只需要显示物品时，可以用 `Item.simple(stack)`。下面创建一支用于展示的箭头，不添加点击行为。
 
 ```java
 ItemStack stack = new ItemStack(Material.ARROW);
 Item item = Item.simple(stack);
 ```
 
-这个 Item 会显示原版箭头的名称。需要自定义名称和说明时，在创建 Item 之前修改 `ItemStack`。下面使用 Paper 数据组件 API，名称为白色，说明为灰色，并关闭文字的默认斜体：
+下面给箭头添加名称和说明，并关闭默认斜体。先设置 `ItemStack`，再传给 `Item.simple`。
 
 ```java
 ItemStack stack = new ItemStack(Material.ARROW);
@@ -467,8 +454,6 @@ stack.setData(
 Item item = Item.simple(stack);
 ```
 
-`CUSTOM_NAME` 设置物品名称，`LORE` 设置名称下方的说明行。它们都是物品外观的一部分，不会给 Item 添加点击动作。
-
 > **信息：创建时保存物品副本**
 >
 > `Item.simple(stack)` 会复制传入的 `ItemStack`。创建后再修改原来的 `stack`，不会改变这个 Item 的显示内容，所以名称、数量和 Lore 都应在传入前设置好。
@@ -483,15 +468,13 @@ ItemProvider provider = ItemProvider.constant(stack);
 Item item = Item.simple(provider);
 ```
 
-`ItemProvider.constant(stack)` 表示“始终提供这个固定物品”，并在创建 Provider 时复制 `stack`。这与前面的 `Item.simple(stack)` 效果相同，只是单独创建了 Provider。
+`ItemProvider.constant(stack)` 在创建时复制物品；上例与 `Item.simple(stack)` 等效。
 
 这个入口也接受按需生成物品的 Provider。`simple` 表示这里没有额外配置交互行为，并不要求 Provider 每次都提供相同的物品。
 
 ### 用 Builder 组合显示与交互
 
-`Item.builder()` 先返回一个构建器。可以在它上面配置显示来源、添加交互行为，最后调用 `build()` 得到 Item。
-
-例如，一个点击后关闭菜单的按钮，需要同时配置屏障物品和关闭动作：
+需要配置交互时，使用 `Item.builder()`。下面创建一个显示为屏障的关闭按钮，点击后关闭当前窗口。
 
 ```java
 ItemStack stack = new ItemStack(Material.BARRIER);
@@ -507,13 +490,7 @@ Item closeButton = Item.builder()
         .build();
 ```
 
-这条调用链中：
-
-- `setItemProviderConstant(stack)` 配置固定的显示来源，按钮显示为屏障。
-- `addClickHandler(...)` 添加点击动作。`click` 是本次点击的信息，`click.window()` 是玩家正在操作的窗口。
-- `build()` 把这些配置组合为一个 Item，之后可以放入布局。
-
-本例没有配置条件守卫，点击后直接执行关闭动作。守卫与其他点击用法看 [点击与守卫](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/click.md)。
+权限检查、节流和其他交互用法见 [点击与守卫](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/click.md)。
 
 > **注意：一个 Builder 只能配置一次显示来源**
 >
@@ -523,13 +500,11 @@ Item closeButton = Item.builder()
 
 ### 创建空 Item
 
-`Item.empty()` 返回一个共享的空 Item，不需要准备 `ItemStack`：
+`Item.empty()` 返回共享的空 Item，不显示物品，也不处理交互。
 
 ```java
 Item empty = Item.empty();
 ```
-
-它不会显示物品，也不执行点击等交互动作。需要给某个位置明确放置“空内容”时，可以把它传给布局。
 
 > **信息：空 Item 与未安排内容的格子**
 >
@@ -537,7 +512,7 @@ Item empty = Item.empty();
 
 ## 把 Item 放进菜单
 
-创建 Item 后，用 `addIngredient` 将它绑定到布局中的字符。下面的菜单有一行九格：`A` 放箭头，`C` 放关闭按钮，其余 `#` 留空。箭头只展示信息，屏障按钮负责关闭窗口，切换到「玩家视角」可以查看玩家看到的物品：
+下面将展示箭头和关闭按钮放进同一个菜单，分别绑定到 `A`、`C`，其余槽位留空。`addIngredient` 负责绑定，Window 负责打开菜单。
 
 ```text title="物品示例"
 ##A###C##
@@ -869,7 +844,7 @@ Item counter = Item.builder()
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/click>
 
-按钮被点击后要做什么，写在点击处理器里。需要先检查权限、限制点击频率时，再添加条件守卫；检查通过后才执行处理器。
+通过点击处理器响应玩家操作，通过条件守卫检查权限、限制点击频率。守卫通过后才执行处理器。
 
 ## 处理点击
 
@@ -1194,7 +1169,7 @@ Window.builder(pane)
         .open(viewer);
 ```
 
-这里写了 3 个字符串，每个有 9 个字符，所以这块 Pane 是 3 行 9 列，共 27 格。点「字符模板」和「玩家视角」按钮，可以在模板和玩家看到的菜单之间切换：
+这个模板对应三行九列的帮助菜单。点击预览中的「字符模板」或「玩家视角」，可以对照标志符与实际物品的位置。
 
 ```text title="帮助"
 ---------
@@ -1206,7 +1181,7 @@ Window.builder(pane)
 - `B`：帮助手册（`book`）
 - `#`：留空
 
-模板中的字符称为**标志符**（identifier）。字符本身没有含义，只是格子的代号，`addIngredient` 把内容绑定到标志符上。**一个标志符出现在几格，绑定的内容就显示在几格。** `-` 在模板中出现 18 次，一次绑定就铺满上下两行，这 18 格显示的是同一个 Item。需要每格各用一个 Item 时，看 [填充内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients.md)。
+模板中的字符称为**标志符**（identifier），通过 `addIngredient` 绑定内容。直接绑定 Item 时，同一标志符对应的槽位共用该实例。需要每格独立创建 Item 时，见 [填充内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients.md)。
 
 同一个标志符多次调用 `addIngredient` 时，只保留最后一次绑定。
 
@@ -1759,13 +1734,13 @@ Pane pane = Pane.builder("###RRR###")
         .build();
 ```
 
-`new VirtualInventory(ItemStack[])` 按数组内容创建容器，数组长度就是容器大小，这里正好对应 3 个 `R`。
+本例用物品数组创建奖励容器，三个元素对应模板中的三个 `R` 槽位。容器大小应与绑定的槽位数量一致。
 
 菜单打开期间也可以调用 Pane 的 `setFrozen(true)` 或 `setFrozen(false)` 切换，例如在处理一次购买时暂时冻结按钮，处理完再解冻。
 
 ## 嵌套与偏移
 
-把一块 Pane 绑定到另一块 Pane 的标志符上，就能在这片区域显示子 Pane 的内容。外层模板决定**显示在哪里、显示多大一片区域**，偏移决定**从子 Pane 的哪个位置开始显示**。
+把一块 Pane 绑定到另一块 Pane 的标志符上，就能在这片区域显示子 Pane 的内容。外层模板决定显示区域的位置和尺寸，偏移指定子 Pane 的起始坐标。
 
 ### 从子 Pane 中选取一片区域
 
@@ -1929,7 +1904,7 @@ private static Pane createBoard() {
 
 > **信息：优先使用字符模板**
 >
-> 形状固定的菜单，用 [字符布局](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/structure.md) 和 [填充内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients.md) 的写法更直观，模板本身就是菜单的样子。这页的方法用在两种情况：布局要在运行时才能算出来，或者菜单打开后要替换某些格子的内容。
+> 固定布局优先使用 [字符模板](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/structure.md)。程序化布局适合动态计算槽位或在运行时替换内容。
 
 ## 槽位填充
 
@@ -2393,8 +2368,6 @@ Window.builder(upper)
         .open(viewer);
 ```
 
-打开后，书和关闭按钮出现在上方，玩家背包显示在下方。图中以空背包为例：
-
 ```text title="帮助菜单"
 #########
 ####B####
@@ -2483,7 +2456,7 @@ Window.splitBuilder(upper, lower)
 
 `mergedBuilder(pane)` 让一块 Pane 同时提供上下两部分的内容。模板的最后 4 行放在玩家物品栏区域，前面的行放在箱子区域。
 
-下面用七行模板安排一个三行箱子和下方的玩家物品栏。所有 `#` 共用灰色玻璃板背景，两个 `X` 都是关闭按钮：
+下面用一份七行模板同时安排三行箱子和下方的玩家物品栏。两个区域共用背景，上下各放一个关闭按钮。
 
 ```java
 Pane pane = Pane.builder(
@@ -2507,8 +2480,6 @@ Window.mergedBuilder(pane)
         .setTitle("帮助菜单")
         .open(viewer);
 ```
-
-打开后仍是三行箱子，下方保留主背包与快捷栏的排布：
 
 ```text title="帮助菜单"
 #########
@@ -3132,7 +3103,7 @@ Supplier 会在玩家实体线程上求值，适合读取已经准备好的数�
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/data>
 
-可以用 `setData` 把商品信息、筛选条件等数据保存在 Window 中，点击时再取出来。本页也介绍窗口状态确认和容器外点击的处理方式。
+可以用 `setData` 把商品信息、筛选条件等数据保存在 Window 中，点击时再取出来。
 
 ## 保存菜单数据
 
@@ -3238,9 +3209,9 @@ Window.builder(pane)
 
 ## 打开子菜单
 
-从当前窗口调用 `navigate(...)`，就能打开下一扇窗口并继续当前会话。例如从商品目录进入详情，再从详情返回目录，这两个窗口属于同一次浏览。
+从商品目录进入详情后，通常还需要返回原目录。调用当前窗口的 `navigate(...)` 打开详情页，两个窗口会属于同一个会话。
 
-`navigate` 接受三种参数，按下一扇窗口的构建方式选择就行。
+`navigate` 支持以下参数。
 
 | 参数 | 用法 |
 | - | - |
@@ -5231,13 +5202,13 @@ public static void openExchange(Player viewer) {
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/visual/layers>
 
-视觉层决定格子显示成什么样，不改动格子里的真实物品。玩家看到的是视觉层给出的物品；点击、Shift 转移、代码读取和事件用到的，仍然是真实物品。
+视觉层只改变槽位显示，不修改真实物品。玩家看到的是视觉层给出的物品；点击、Shift 转移、代码读取和事件用到的，仍然是真实物品。
 
 ## 显示是怎样叠出来的
 
-视觉映射可以设在四个地方，谁能看到取决于设在哪里：
+视觉映射的作用范围如下。
 
-| 层 | 设在 | 谁看得到 |
+| 映射层级 | 作用对象 | 可见范围 |
 | - | - | - |
 | 窗口层 | Window | 只有这个窗口的查看者 |
 | Pane 层 | Pane | 所有显示这块 Pane 的窗口 |
@@ -5509,7 +5480,7 @@ Window.builder(pane)
 
 `visual().play(definition)` 播放一段动画。动画可以播在 Pane、容器或窗口上，显示范围取决于播放动画的对象：
 
-| 播在 | 写法 | 格子序号 | 谁看得到 |
+| 播放对象 | 写法 | 槽位编号 | 可见范围 |
 | - | - | - | - |
 | Pane | `pane.visual().play(...)` | Pane 的格子序号 | 所有显示这块 Pane 的窗口 |
 | 容器 | `inventory.visual().play(...)` | 容器的格子序号 | 所有显示这个容器的窗口 |
@@ -6332,9 +6303,9 @@ public static Subscription watchCountdown() {
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async>
 
-玩家打开商店时，菜单需要显示账户余额，但余额保存在数据库里，查询可能要花几百毫秒。我们希望菜单先显示「加载中」，查询完成后再显示余额；期间读取菜单状态的代码可以继续执行。
+打开商店时，余额需要从数据库查询。菜单可以先显示「加载中」，查询完成后再显示余额，避免等待查询阻塞玩家线程。
 
-`Signal.async` 可以处理这个加载过程。下面用控制台输出演示查询和刷新，显示到菜单中的用法见 [物品显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
+`Signal.async` 在指定执行器上加载数据。首次查询完成前返回占位值，完成后保存结果并通知订阅者。菜单绑定方式见 [物品显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
 
 ## 打开商店时查询余额
 
@@ -6362,7 +6333,7 @@ System.out.println(balanceText.get());
 
 查询还没完成时，`balance.get()` 返回 `null`，`balanceText.get()` 返回「加载中…」。查到余额后，Signal 保存 `100` 并通知依赖者，回调读取的文字变成「余额：100」。查询如果已经完成，首次读取就会直接得到余额；不能依赖程序一定先输出「加载中…」。
 
-`onDirty` 不会立即返回当前值，所以示例先调用 `get()`，再订阅后续变化。示例中的控制台订阅只用于观察变化，结束观察时应调用 `subscription.close()`；实际菜单的绑定方式看[绑定到 UI](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
+`onDirty` 注册时不会立即触发回调，所以示例在订阅后调用一次 `get()`，读取当前结果。示例中的控制台订阅只用于观察变化，结束观察时应调用 `subscription.close()`；实际菜单的绑定方式看[绑定到 UI](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
 
 用 `null` 作占位值，是为了区分「还没查到」和「余额为零」。如果业务允许先显示零，也可以传 `0L`。占位值和查询结果都允许为 `null`，含义由业务决定。
 
@@ -6370,7 +6341,7 @@ System.out.println(balanceText.get());
 
 ## 发放奖励后刷新余额
 
-玩家领取了一笔 `50` 金币的奖励，数据库中的余额从 `100` 变成 `150`。之前的 `balance` 仍保存着旧结果，我们需要让它再查一次。
+玩家领取 50 金币奖励后，数据库余额从 100 变为 150，但 `balance` 仍保存着上次查询的结果。写入成功后调用 `dirty()`，让菜单重新获取余额。
 
 下面接着使用上一节的 `playerId`、`balance` 和 `ioExecutor`。假设领取资格已经由业务层确认，`economy.deposit(playerId, 50L)` 会写入数据库，并在提交成功后返回。这段代码应放在奖励发放流程中。
 
@@ -6418,9 +6389,7 @@ ioExecutor.execute(() -> {
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/polling>
 
-商店显示的全服剩余库存保存在数据库里，其他子服也可能卖出商品。本服收不到每一次购买事件，所以无法只靠本地调用 `dirty()` 更新显示。
-
-这时可以定期查询库存。`Signal.polling` 在有人订阅期间重复执行查询，最后一个订阅者离开后停止自动轮询。首次加载、占位值和异常处理与[异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md)相同。
+全服商店的库存保存在数据库中，其他子服也可能售出商品。本服收不到这些购买事件时，可以定期查询库存，更新当前菜单。`Signal.polling` 在有人订阅期间重复执行查询，最后一个订阅者离开后停止自动轮询。首次加载、占位值和异常处理与[异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md)相同。
 
 ## 每隔一段时间查询库存
 
@@ -6439,7 +6408,9 @@ Signal<String> stockText = diamondStock.map(value ->
         value == null ? "库存加载中…" : "剩余 " + value + " 件");
 ```
 
-创建时会立即提交第一次查询。假设初始库存为 `20`，另一台服务器卖出两件后变成 `18`，下一次查询完成时，`stockText` 就能提供「剩余 18 件」。轮询之间读到的是最近一次完成的结果，无法保证它与数据库时刻一致；实际购买仍需业务层检查并扣减库存。
+创建时会立即提交第一次查询。假设初始库存为 20，其他子服售出两件后，下一次查询会将显示更新为「剩余 18 件」。
+
+轮询之间读到的是最近一次完成的结果，无法保证它与数据库时刻一致；实际购买仍需业务层检查并扣减库存。
 
 现在只是创建了来源和派生文字。**持续轮询还需要订阅**，单独调用 `get()` 或创建 `map` 都不会让它一直查询。
 
@@ -6488,15 +6459,15 @@ AsyncSignal<Integer> diamondStock = Signal.pollingMillis(
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collections>
 
-一个商店菜单最初出售苹果和面包。管理员上架钻石后，商品列表要多一项，「共几种商品」也要跟着变化；下架苹果时，两处又要一起更新。
+一个商店菜单最初出售苹果和面包。管理员上架钻石后，商品列表和商品种类数都要更新；下架苹果时，两处也要保持一致。
 
 集合 Signal 保留了 `List`、`Set`、`Map` 的操作方式，增删内容后会通知依赖者。下面分别用它们保存商品列表、选中项和价格表；显示到菜单中的用法见 [列表内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list.md)。
 
 ## 直接修改列表、集合和映射
 
-先处理上架与下架。`products` 保存当前出售的商品名称，`count` 是菜单需要显示的商品种类数。它由列表大小计算，后面只修改商品列表就行。
+下面用 `products` 保存商品列表，用 `count` 显示商品种类数。上架或下架时只修改列表，`count` 从列表派生，不需要另外维护。
 
-这段例子可以独立运行，按顺序模拟管理员的两次操作。`ListSignal` 同时是一个 `List` 和一个 `Signal<List<E>>`，所以既能增删，又能派生出 `count`。
+`ListSignal` 同时实现 `List<E>` 和 `Signal<List<E>>`，可以直接增删元素，也可以派生其他 Signal。
 
 ```java
 ListSignal<String> products = ListSignal.of();
@@ -6515,9 +6486,7 @@ System.out.println(products.get());
 System.out.println(count.get());
 ```
 
-依次输出 `2`、`3`、`[面包, 钻石]` 和 `2`。上架时商品数从两种变成三种，下架后又变成两种，全程没有单独设置 `count`。
-
-商店还允许玩家勾选要比较的商品。同一件商品只能选中一次，可以用 `SetSignal` 保存商品编号。下面模拟玩家连续选中两次苹果，再查看选中了几种商品。
+商店中勾选商品进行比较时，可以用 `SetSignal` 保存选中的商品编号，并派生选中数量。下面重复选择同一件商品，观察数量是否变化。
 
 ```java
 SetSignal<String> selected = SetSignal.of();
@@ -6528,9 +6497,9 @@ System.out.println(addedAgain);
 System.out.println(selectedCount.get());
 ```
 
-输出 `false` 和 `1`。第二次添加没有改变集合，也不会通知订阅者。
+重复添加已有元素不会触发通知。
 
-价格表则需要按商品编号查价。用 `MapSignal` 保存它，可以派生出当前苹果的价格文字。下面模拟管理员把苹果从 `20` 金币调到 `25` 金币。
+商品价格表可以用 `MapSignal` 保存。下面将苹果价格从 20 金币调整为 25 金币，价格文字随之更新。
 
 ```java
 MapSignal<String, Integer> prices = MapSignal.of();
@@ -6542,15 +6511,13 @@ prices.compute("apple", (id, price) -> price + 5);
 System.out.println(applePrice.get());
 ```
 
-输出从「苹果 20 金币」变成「苹果 25 金币」。`prices.get("apple")` 可以直接读取价格，无参数的 `prices.get()` 则返回整张映射。这里任意商品的价格变化都会让映射的依赖失效；需要按商品分别订阅时，看[分区状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions.md)。
+`prices.get("apple")` 可以直接读取价格，无参数的 `prices.get()` 则返回整张映射。这里任意商品的价格变化都会让映射的依赖失效；需要按商品分别订阅时，看[分区状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions.md)。
 
 这些集合的 `get()` 返回当前集合的**活视图**，后续增删也会反映在这份引用上。需要保存某一刻的内容，或者派生一个集合值时，应复制为独立结果，例如 `products.map(List::copyOf)`。不要用 `products.map(list -> list)` 保留同一份可变集合；直接修改元素对象内部的字段，也不会自动通知集合的订阅者。
 
 ## 包装已有集合
 
-如果配置加载器已经返回了一张 `LinkedHashMap` 价格表，里面的插入顺序就是菜单的展示顺序，可以用 `wrap` 接入现有数据。
-
-下面按苹果、面包的顺序创建价格表，包装后再加入钻石。
+如果配置加载器已经返回一份 `LinkedHashMap` 价格表，可以用 `wrap` 包装它，保留配置中的商品顺序。下面在苹果、面包之后加入钻石。
 
 ```java
 Map<String, Integer> initialPrices = new LinkedHashMap<>();
@@ -6564,7 +6531,7 @@ prices.put("diamond", 100);
 System.out.println(productIds.get());
 ```
 
-输出 `[apple, bread, diamond]`。`wrap` 不复制原集合，包装之后应统一通过 `prices` 修改它；绕过包装器调用 `initialPrices.put(...)`，数据虽然变了，却不会发送通知。
+`wrap` 不复制原集合，包装之后应统一通过 `prices` 修改它；绕过包装器调用 `initialPrices.put(...)`，数据虽然变了，却不会发送通知。
 
 `of()` 会创建一个空集合，其底层实现如下。
 
@@ -6578,9 +6545,7 @@ System.out.println(productIds.get());
 
 ## 用 batch 合并一批通知
 
-管理员执行重载命令后，配置里的商品变成了苹果、面包和钻石。我们要替换菜单使用的列表，希望订阅者一次收到完整的新内容，而不是先收到空列表、再收到新商品。
-
-下面的 `products` 最初只有「旧商品」。`onDirty` 模拟一个观察商品列表的消费者，重载时用 `batch` 包住清空与填入两步。
+重载商店配置时，需要先清空旧商品，再填入新列表。用 `batch` 包住这两步，订阅者只会在更新结束后收到一次通知，不会因中间的空列表刷新菜单。
 
 ```java
 ListSignal<String> products = ListSignal.of();
@@ -6605,9 +6570,7 @@ subscription.close();
 
 ## 在元素加入和移除时处理数据
 
-商品编辑菜单允许管理员输入标签。输入「  限时商品  」时，我们希望实际保存的是去掉两端空格的「限时商品」；删除标签时，还要记录被删内容。
-
-`beforeAdd` 处理准备存入的元素，`afterRemove` 处理已经移除的元素。下面创建一个独立的标签列表，模拟一次输入和删除。
+管理员输入商品标签时，可以自动去除首尾空格，并在删除标签时记录日志。下面通过 `beforeAdd` 处理输入，通过 `afterRemove` 记录被删除的标签。
 
 ```java
 ListSignal<String> tags = ListSignal.of();
@@ -6623,7 +6586,7 @@ normalize.close();
 removed.close();
 ```
 
-先输出 `限时商品`，再输出 `已移除 限时商品`。`beforeAdd` 返回的元素才会真正存入集合，它不是返回布尔值的拦截器。多个加入钩子按注册顺序处理，前一个的返回值会传给后一个。
+`beforeAdd` 返回的元素才会真正存入集合，它不是返回布尔值的拦截器。多个加入钩子按注册顺序处理，前一个的返回值会传给后一个。
 
 `SetSignal` 使用同名方法；`MapSignal` 的加入钩子叫 `beforePut((key, value) -> ...)`，移除钩子为 `afterRemove((key, value) -> ...)`。替换已有元素也会经过移除旧值、处理新值的钩子流程，并非只有显式 `remove` 才会触发。
 
@@ -6641,15 +6604,13 @@ removed.close();
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions>
 
-商店里的苹果和面包有各自的库存。查看苹果详情时，我们只关心苹果的变化，不需要因为面包卖出一件就重新读取苹果库存。
+商店中的苹果和面包各有库存。苹果详情页只需要订阅苹果库存，面包售出时不应触发它的刷新。
 
-`KeyedSignal` 按 key 保存独立的值，每个 key 对应一个分区。订阅苹果分区，就只接收苹果的更新。按玩家区分的数据则可以用 `PlayerKeyedSignal` 保存。
+`KeyedSignal` 按 key 保存状态，各分区独立发送变更通知。按玩家划分状态时，使用 `PlayerKeyedSignal`。
 
 ## 让不同 key 独立更新
 
-假设这是一间只在内存里记录库存的演示商店，苹果和面包都从 `10` 件开始。`stock` 由商店服务保存，`"apple"` 和 `"bread"` 是商品编号，详情页通过编号取到自己的库存 Signal。
-
-下面用控制台模拟苹果详情页。接着按顺序模拟售出两件面包、售出一件苹果，最后盘点后把苹果库存修正为六件。观察哪些操作会触发苹果的回调。
+下面按商品编号保存库存，初始值都是 10。通过 `at("apple")` 获取苹果分区并订阅，再分别修改面包和苹果库存，观察哪些修改触发回调。
 
 ```java
 MutableKeyedSignal<String, Integer> stock = KeyedSignal.of(id -> 10);
@@ -6668,7 +6629,7 @@ apples.set(6);
 subscription.close();
 ```
 
-先输出初始值 `10`，回调随后输出 `苹果库存 9` 和 `苹果库存 6`。修改面包库存不会触发苹果的回调。`apples.set(6)` 与 `stock.set("apple", 6)` 写入同一个分区。
+回调只输出苹果库存的两次变化：9 和 6。修改面包库存不会触发它。`apples.set(6)` 与 `stock.set("apple", 6)` 写入同一个分区。
 
 `KeyedSignal.of(initial)` 在分区首次读取时调用 `initial`，之后缓存结果。装载发生在读取线程，函数应当耗时短、无副作用，并允许重复执行；数据库查询应使用异步版本。`update` 的计算函数也可能因并发更新而重试，规则与普通 `MutableSignal.update` 一致。
 
@@ -6677,8 +6638,6 @@ subscription.close();
 ## 清理分区与保留句柄
 
 一个限时商品活动结束后，业务可能不再需要保留它的分区，可以用 `remove(key)` 清理缓存。其他代码之前取得的 `apples` 仍可使用，再次读取时会重建分区。
-
-下面先把苹果库存改为 `6`，移除分区后，再通过原来的 `apples` 读取。
 
 ```java
 MutableKeyedSignal<String, Integer> stock = KeyedSignal.of(id -> 10);
@@ -6692,7 +6651,7 @@ System.out.println(apples.get());
 System.out.println(stock.keys().get().contains("apple"));
 ```
 
-输出依次是 `true`、`10`、`true`。这里的 `apples` 始终指向苹果分区。清理后再次读取，它会重建分区并执行初始函数，所以读到 `10`，苹果也重新出现在 `keys()` 中。
+清理后通过原句柄读取，会重新执行初始化函数，恢复初始值 `10`，并将该 key 加回 `keys()`。
 
 `remove(key)` 不会删除数据库记录，也不会向该分区的订阅者发送通知。已有句柄的订阅与派生关系会保留，重建后继续跟随新分区。所以业务上的「商品下架」仍需要更新商品目录，不能只靠清理缓存表达。
 
@@ -6702,9 +6661,9 @@ System.out.println(stock.keys().get().contains("apple"));
 
 ## 按玩家保存状态
 
-两名玩家同时打开商店，都从购买一件开始。Alice 点了一次加号，她的数量变成两件，Bob 应继续保持一件；Alice 再打开确认菜单时，也要读到她刚才选的两件。
+Alice 和 Bob 同时打开商店，各自选择购买数量。Alice 加购一件时，Bob 的数量应保持不变；Alice 进入确认页时，则需要保留刚才的选择。
 
-把一个 `PlayerKeyedSignal` 保存在商店服务中，就可以让菜单按玩家取用各自的值。下面的 `alice` 和 `bob` 是两名当前在线的 `Player`，`quantities` 应在服务初始化时创建一次。
+下面在商店服务中保存一份 `PlayerKeyedSignal`，让多个菜单按玩家读取购买数量。`alice` 和 `bob` 是两名在线玩家。
 
 ```java
 MutablePlayerKeyedSignal<Integer> quantities = PlayerKeyedSignal.of(uuid -> 1);
@@ -6720,7 +6679,7 @@ System.out.println(bobQuantity.get());
 System.out.println(quantities.get(alice));
 ```
 
-输出依次是 `2`、`1`、`2`。最后一次 `quantities.get(alice)` 模拟确认菜单重新读取 Alice 的选择，它与 `aliceQuantity` 指向同一份数据。
+`quantities.get(alice)` 与 `aliceQuantity.get()` 读取同一分区，Bob 的分区不受影响。
 
 `at`、`get`、`set`、`update`、`dirty` 和 `remove` 都提供接收 `Player` 或 UUID 的入口。接收 `Player` 时会立即取出 UUID，内部不会因为传入了玩家对象就持有它。
 
@@ -6773,7 +6732,7 @@ PlayerKeyedSignal<Long> balances = PlayerKeyedSignal.polling(
 
 玩家在购买菜单中点击钻石，每次把购买数量加一。按钮名称初始为「购买数量：1」，点击后应变为「购买数量：2」。这个数量只属于本次打开的菜单，所以在创建菜单时新建一个普通 Signal。
 
-示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+示例共用的 `named` 辅助方法见页尾。
 
 ## 数量变了，按钮跟着变
 
@@ -6824,7 +6783,7 @@ private static ItemStack named(Material material, String name) {
 
 Alice 在商店选择购买两件，Bob 仍选择一件，两人可以共用同一个 Item。区别在于这次依赖的是玩家分区，Provider 要读取当前查看者的值，点击时也更新点击者的分区。
 
-示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+示例共用的 `named` 辅助方法见页尾。
 
 ## 共用按钮，各自显示玩家的数据
 
@@ -6891,7 +6850,7 @@ private static ItemStack named(Material material, String name) {
 
 管理员上架钻石时，已打开的目录应多出一个物品。此时变化的是一组格子的内容，用 `addIngredient` 绑定列表就行。
 
-示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+示例共用的 `named` 辅助方法见页尾。
 
 ## 商品增删后，重新填充格子
 
@@ -6951,7 +6910,7 @@ private static ItemStack named(Material material, String name) {
 
 [翻页 Page](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md)里的箭头始终显示为可用。这次让上一页在首页变灰，下一页在末页变灰，并在中间显示「1 / 2」这样的页码。
 
-示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+示例共用的 `named` 辅助方法见页尾。
 
 ## 翻页时更新箭头、页码和内容
 
@@ -7071,7 +7030,7 @@ private static ItemStack named(Material material, String name) {
 
 滚动菜单也能直接接收 `ListSignal`。下面十二组钻石按三列排列，一次显示两行。点击向下按钮后，显示范围从第 1～6 组移到第 4～9 组，按钮名称里的行号也会变化。
 
-示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+示例共用的 `named` 辅助方法见页尾。
 
 ## 滚动列表与位置显示
 
@@ -7128,7 +7087,7 @@ private static ItemStack named(Material material, String name) {
 
 分类菜单既要切换内容，也要标出当前选中的分类。`Tab.selected()` 提供选中 key 的 Signal，按钮依赖它就能改变名称。
 
-示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+示例共用的 `named` 辅助方法见页尾。
 
 ## 切换分类与更新按钮
 
@@ -7194,7 +7153,7 @@ private static ItemStack named(Material material, String name) {
 
 要在窗口标题中显示购买数量，可以用 `setTitleSupplier` 读取数量，再通过 `window.bind` 在数量变化时调用 `updateTitle()`。
 
-示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+示例共用的 `named` 辅助方法见页尾。
 
 ## 让标题跟随数量
 
@@ -7246,7 +7205,7 @@ private static ItemStack named(Material material, String name) {
 
 商品菜单的第五格原本是钻石。点击右下角的标记开关后，第五格应显示为绿宝石；再点击一次，则恢复钻石。这里只改变显示，点击第五格时仍执行原钻石按钮的处理器。
 
-示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+示例共用的 `named` 辅助方法见页尾。
 
 ## 切换商品标记
 

@@ -2,7 +2,7 @@
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/data>
 
-可以用 `setData` 把商品信息、筛选条件等数据保存在 Window 中，点击时再取出来。本页也介绍窗口状态确认和容器外点击的处理方式。
+可以用 `setData` 把商品信息、筛选条件等数据保存在 Window 中，点击时再取出来。
 
 ## 保存菜单数据
 

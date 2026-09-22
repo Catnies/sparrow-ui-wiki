@@ -2,15 +2,13 @@
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions>
 
-商店里的苹果和面包有各自的库存。查看苹果详情时，我们只关心苹果的变化，不需要因为面包卖出一件就重新读取苹果库存。
+商店中的苹果和面包各有库存。苹果详情页只需要订阅苹果库存，面包售出时不应触发它的刷新。
 
-`KeyedSignal` 按 key 保存独立的值，每个 key 对应一个分区。订阅苹果分区，就只接收苹果的更新。按玩家区分的数据则可以用 `PlayerKeyedSignal` 保存。
+`KeyedSignal` 按 key 保存状态，各分区独立发送变更通知。按玩家划分状态时，使用 `PlayerKeyedSignal`。
 
 ## 让不同 key 独立更新
 
-假设这是一间只在内存里记录库存的演示商店，苹果和面包都从 `10` 件开始。`stock` 由商店服务保存，`"apple"` 和 `"bread"` 是商品编号，详情页通过编号取到自己的库存 Signal。
-
-下面用控制台模拟苹果详情页。接着按顺序模拟售出两件面包、售出一件苹果，最后盘点后把苹果库存修正为六件。观察哪些操作会触发苹果的回调。
+下面按商品编号保存库存，初始值都是 10。通过 `at("apple")` 获取苹果分区并订阅，再分别修改面包和苹果库存，观察哪些修改触发回调。
 
 ```java
 MutableKeyedSignal<String, Integer> stock = KeyedSignal.of(id -> 10);
@@ -29,7 +27,7 @@ apples.set(6);
 subscription.close();
 ```
 
-先输出初始值 `10`，回调随后输出 `苹果库存 9` 和 `苹果库存 6`。修改面包库存不会触发苹果的回调。`apples.set(6)` 与 `stock.set("apple", 6)` 写入同一个分区。
+回调只输出苹果库存的两次变化：9 和 6。修改面包库存不会触发它。`apples.set(6)` 与 `stock.set("apple", 6)` 写入同一个分区。
 
 `KeyedSignal.of(initial)` 在分区首次读取时调用 `initial`，之后缓存结果。装载发生在读取线程，函数应当耗时短、无副作用，并允许重复执行；数据库查询应使用异步版本。`update` 的计算函数也可能因并发更新而重试，规则与普通 `MutableSignal.update` 一致。
 
@@ -38,8 +36,6 @@ subscription.close();
 ## 清理分区与保留句柄
 
 一个限时商品活动结束后，业务可能不再需要保留它的分区，可以用 `remove(key)` 清理缓存。其他代码之前取得的 `apples` 仍可使用，再次读取时会重建分区。
-
-下面先把苹果库存改为 `6`，移除分区后，再通过原来的 `apples` 读取。
 
 ```java
 MutableKeyedSignal<String, Integer> stock = KeyedSignal.of(id -> 10);
@@ -53,7 +49,7 @@ System.out.println(apples.get());
 System.out.println(stock.keys().get().contains("apple"));
 ```
 
-输出依次是 `true`、`10`、`true`。这里的 `apples` 始终指向苹果分区。清理后再次读取，它会重建分区并执行初始函数，所以读到 `10`，苹果也重新出现在 `keys()` 中。
+清理后通过原句柄读取，会重新执行初始化函数，恢复初始值 `10`，并将该 key 加回 `keys()`。
 
 `remove(key)` 不会删除数据库记录，也不会向该分区的订阅者发送通知。已有句柄的订阅与派生关系会保留，重建后继续跟随新分区。所以业务上的「商品下架」仍需要更新商品目录，不能只靠清理缓存表达。
 
@@ -63,9 +59,9 @@ System.out.println(stock.keys().get().contains("apple"));
 
 ## 按玩家保存状态
 
-两名玩家同时打开商店，都从购买一件开始。Alice 点了一次加号，她的数量变成两件，Bob 应继续保持一件；Alice 再打开确认菜单时，也要读到她刚才选的两件。
+Alice 和 Bob 同时打开商店，各自选择购买数量。Alice 加购一件时，Bob 的数量应保持不变；Alice 进入确认页时，则需要保留刚才的选择。
 
-把一个 `PlayerKeyedSignal` 保存在商店服务中，就可以让菜单按玩家取用各自的值。下面的 `alice` 和 `bob` 是两名当前在线的 `Player`，`quantities` 应在服务初始化时创建一次。
+下面在商店服务中保存一份 `PlayerKeyedSignal`，让多个菜单按玩家读取购买数量。`alice` 和 `bob` 是两名在线玩家。
 
 ```java
 MutablePlayerKeyedSignal<Integer> quantities = PlayerKeyedSignal.of(uuid -> 1);
@@ -81,7 +77,7 @@ System.out.println(bobQuantity.get());
 System.out.println(quantities.get(alice));
 ```
 
-输出依次是 `2`、`1`、`2`。最后一次 `quantities.get(alice)` 模拟确认菜单重新读取 Alice 的选择，它与 `aliceQuantity` 指向同一份数据。
+`quantities.get(alice)` 与 `aliceQuantity.get()` 读取同一分区，Bob 的分区不受影响。
 
 `at`、`get`、`set`、`update`、`dirty` 和 `remove` 都提供接收 `Player` 或 UUID 的入口。接收 `Player` 时会立即取出 UUID，内部不会因为传入了玩家对象就持有它。
 

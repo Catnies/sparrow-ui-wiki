@@ -17,9 +17,9 @@ English：[llms.txt](https://catnies.github.io/sparrow-ui-wiki/llms.txt)
 
 ## 物品 Item
 
-- [创建物品](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/create.md): 菜单里的一支箭头，可以用来展示信息，也可以在点击后翻页或返回。Sparrow UI 用 Item 描述这样的菜单物品：它负责显示什么，以及玩家操作它时做什么。
+- [创建物品](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/create.md): 菜单中的图标可以只展示信息，也可以作为翻页、返回等按钮。Sparrow UI 用 Item 配置物品显示和交互行为，用 Pane 安排它的位置。
 - [渲染与刷新](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md): 要在物品上显示玩家等级、当前时间或积分，可以让 ItemProvider 在渲染时生成物品。数据变化后，再刷新 Item，让它重新读取数据。
-- [点击与守卫](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/click.md): 按钮被点击后要做什么，写在点击处理器里。需要先检查权限、限制点击频率时，再添加条件守卫；检查通过后才执行处理器。
+- [点击与守卫](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/click.md): 通过点击处理器响应玩家操作，通过条件守卫检查权限、限制点击频率。守卫通过后才执行处理器。
 
 ## 面板 Pane
 
@@ -34,7 +34,7 @@ English：[llms.txt](https://catnies.github.io/sparrow-ui-wiki/llms.txt)
 - [窗口布局](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/layout.md): 窗口上方是容器，下方是玩家物品栏。下方固定有三行主背包和一行快捷栏，共 36 格。可以只安排上方的菜单，也可以把下方一起用来放菜单内容。
 - [窗口类型](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/types.md): Sparrow UI 提供 17 种原版容器窗口。普通箱子适合自由排版；需要文本输入、进度条或交易列表时，可以选用带这些控件的窗口。
 - [窗口标题](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/title.md): 菜单标题可以写成固定文本，也可以显示数量、筛选条件等数据。菜单已经打开时，调用 Window 的标题方法即可更新。
-- [窗口数据](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/data.md): 可以用 setData 把商品信息、筛选条件等数据保存在 Window 中，点击时再取出来。本页也介绍窗口状态确认和容器外点击的处理方式。
+- [窗口数据](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/data.md): 可以用 setData 把商品信息、筛选条件等数据保存在 Window 中，点击时再取出来。
 
 ## 会话与导航
 
@@ -56,7 +56,7 @@ English：[llms.txt](https://catnies.github.io/sparrow-ui-wiki/llms.txt)
 
 ## 视觉与动画
 
-- [视觉映射](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/visual/layers.md): 视觉层决定格子显示成什么样，不改动格子里的真实物品。玩家看到的是视觉层给出的物品；点击、Shift 转移、代码读取和事件用到的，仍然是真实物品。
+- [视觉映射](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/visual/layers.md): 视觉层只改变槽位显示，不修改真实物品。玩家看到的是视觉层给出的物品；点击、Shift 转移、代码读取和事件用到的，仍然是真实物品。
 - [动画](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/visual/animation.md): 动画在一段时间内按帧改变格子的显示，播完后恢复原来的样子。它和 视觉映射 一样只改变显示，不改动格子里的真实物品，也不影响点击。
 
 ## 响应式 Signal（可选）
@@ -64,10 +64,10 @@ English：[llms.txt](https://catnies.github.io/sparrow-ui-wiki/llms.txt)
 - [为什么需要 Signal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/why.md): Boss 受到伤害后，菜单里的血量要更新；商品卖出后，库存和购买按钮也要更新。用 Signal 保存这些数据，Item 声明依赖后，数据变化就会触发刷新。
 - [Signal 基础](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics.md): Signal 保存会变化的数据，也可以根据这些数据计算新的值。它可以独立用于业务代码，再由菜单读取和显示。
 - [Signal 派生](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive.md): 购买按钮可能同时依赖数量、单价和余额；切换分类后，菜单又要改为读取另一份数据。派生 Signal 可以组合这些来源，也可以控制变化通知的时机。
-- [异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md): 玩家打开商店时，菜单需要显示账户余额，但余额保存在数据库里，查询可能要花几百毫秒。我们希望菜单先显示「加载中」，查询完成后再显示余额；期间读取菜单状态的代码可以继续执行。
-- [定期轮询](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/polling.md): 商店显示的全服剩余库存保存在数据库里，其他子服也可能卖出商品。本服收不到每一次购买事件，所以无法只靠本地调用 dirty() 更新显示。
-- [集合状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collections.md): 一个商店菜单最初出售苹果和面包。管理员上架钻石后，商品列表要多一项，「共几种商品」也要跟着变化；下架苹果时，两处又要一起更新。
-- [分区状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions.md): 商店里的苹果和面包有各自的库存。查看苹果详情时，我们只关心苹果的变化，不需要因为面包卖出一件就重新读取苹果库存。
+- [异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md): 打开商店时，余额需要从数据库查询。菜单可以先显示「加载中」，查询完成后再显示余额，避免等待查询阻塞玩家线程。
+- [定期轮询](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/polling.md): 全服商店的库存保存在数据库中，其他子服也可能售出商品。本服收不到这些购买事件时，可以定期查询库存，更新当前菜单。Signal.polling 在有人订阅期间重复执行查询，最后一个订阅者离开后停止自动轮询。首次加载、占位值和异常处理与异步加载相同。
+- [集合状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collections.md): 一个商店菜单最初出售苹果和面包。管理员上架钻石后，商品列表和商品种类数都要更新；下架苹果时，两处也要保持一致。
+- [分区状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions.md): 商店中的苹果和面包各有库存。苹果详情页只需要订阅苹果库存，面包售出时不应触发它的刷新。
 
 ### Signal 在 UI 中的使用
 
