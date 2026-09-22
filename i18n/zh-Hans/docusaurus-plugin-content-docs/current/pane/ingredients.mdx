@@ -5,9 +5,9 @@ sidebar_label: 填充内容
 
 `addIngredient` 把内容绑定到模板中的标志符。除了 Item，它还可以绑定容器、另一块 Pane，或者为每一格分别生成内容。
 
-## 标志共享物品：Item、ItemStack、ItemProvider
+## 同一标志符共用物品 {/* #标志共享物品itemitemstackitemprovider */}
 
-绑定 `Item` 时，标志符占的每一格都显示这个 Item。`ItemStack` 和 `ItemProvider` 是简写，库会用 `Item.simple(...)` 替你包装成 Item：
+绑定 `Item` 时，标志符占的每一格都显示这个 Item。`ItemStack` 和 `ItemProvider` 是简写，Sparrow UI 会用 `Item.simple(...)` 替你包装成 Item：
 
 ```java
 Pane pane = Pane.builder("A#B#C####")
@@ -40,7 +40,7 @@ Pane pane = Pane.builder("A#B#C####")
 
 传入 `Supplier<Item>` 时，标志符的每一格各调用一次，得到各自的 Item。传入 `ItemBuilder` 时同理，每格各调用一次 `build()`。
 
-大多数时候，共用一个 Item 和每格一个 Item 看不出区别。Item 自己带有状态时就不一样了，比如下面这个记录点击次数的按钮：
+如果 Item 带有计数器等状态，就需要区分共用一个 Item 和每格创建一个 Item。下面用一个计数按钮演示。
 
 ```java
 private static Item counterButton() {
@@ -157,14 +157,14 @@ Pane pane = Pane.builder(
         .build();
 ```
 
-`VirtualInventory` 是库提供的内存容器。容器的规则、事件等用法看 [把容器放进菜单](/inventory/basics)。
+`VirtualInventory` 是 Sparrow UI 提供的内存容器。容器的规则、事件等用法看 [把容器放进菜单](/inventory/basics)。
 
 :::warning[格子数与容器大小保持一致]
 格子比容器多时会从头循环，同一个容器格出现在两个位置；格子比容器少时，多出来的容器格不显示。
 :::
 
-:::warning[新建的容器随菜单一起丢失]
-在打开菜单的方法里新建 `VirtualInventory` 时，菜单关闭后这个容器就不再被引用，玩家放进去的物品也随之丢失。
+:::warning[需要保留物品时，保存容器或序列化内容]
+如果只在打开菜单的方法里新建 `VirtualInventory`，没有在其他地方保存它，关闭菜单后就无法再取回玩家放入的物品。
 
 需要保存物品时，在关闭前序列化容器内容，看 [虚拟容器](/inventory/virtual)；需要多名玩家共用一个容器时，让菜单引用同一个实例。
 :::

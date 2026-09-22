@@ -86,7 +86,7 @@ Window.builder(controls)
 
 ## 保留窗口与保留状态
 
-返回时会重新打开原来的 Window，构建代码不会再执行。窗口还在，它的 `data`、Pane 内容和关联对象中的状态也都还在。
+返回时会重新打开原来的 Window，构建代码不会再执行。复用原窗口时，它的 `data`、Pane 内容和关联对象的状态都会保留。
 
 这个详情窗口用 `setData` 保存已选数量。点击钻石加一，`updateOnClick()` 刷新物品名称。返回目录再进入时，继续使用原来的详情窗口，数量不会清零。
 
@@ -130,7 +130,7 @@ Window.builder(home).setTitle("商品目录")
 
 上例的入口按钮也引用了 `detail`，所以换成 `STACK` 后，数量同样不会清零。栈弹出窗口只是移除会话的引用，窗口里的数据不变，其他代码还引用它时也不会被 GC。需要每次从零开始，就在点击时新建窗口和状态对象。
 
-`RETAINED_STACK` 弹出的窗口仍由会话保留，但已不在 `chain()` 中，窗口的 `session()` 也变回 `null`。再次进入时仍需传入原窗口，库没有按名称查找旧窗口的 API。
+`RETAINED_STACK` 弹出的窗口仍由会话保留，但已不在 `chain()` 中，窗口的 `session()` 也变回 `null`。再次进入时仍需传入原窗口，Sparrow UI 没有按名称查找旧窗口的 API。
 
 使用 [分页](/pagination/page) 或 [滚动](/pagination/scroll) 的菜单，复用原来的 Window、Pane 和 Page / Scroll 对象时，页码和滚动位置也会保留。
 

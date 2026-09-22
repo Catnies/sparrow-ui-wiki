@@ -70,7 +70,7 @@ arrows.setData(DataComponentTypes.MAX_STACK_SIZE, 99);
 
 ## 遍历顺序
 
-有些操作不指定格子，由容器自己决定放进哪几格、从哪几格取出，这里称为批量操作。例如玩家 Shift 点击把一组物品转入这个容器时，物品可能分到好几格；双击收集时，要从好几格取出同类物品；代码调用 `add` 放入物品时也一样。
+Shift 转移、双击收集和 `add` 等批量操作可能涉及多格，需要由容器决定先尝试哪一格。
 
 批量操作按遍历顺序逐格尝试，默认从第 0 格开始，依次到最后一格。点击某一格、调用 `setItem(slot, item)` 这类指定了格子的操作，不受遍历顺序影响。
 
@@ -92,7 +92,7 @@ VirtualInventory storage = new VirtualInventory(27);
 storage.reverseIterationOrder(OperationCategory.ADD);
 ```
 
-`reverseIterationOrder()` 不带参数时反转全部三类。它反转的是当前生效的顺序，设置过自定义顺序时，反转的是自定义的那一个。
+`reverseIterationOrder()` 不带参数时反转所有操作类别。它反转的是当前生效的顺序，设置过自定义顺序时，反转的是自定义的那一个。
 
 ### 自定义顺序
 
@@ -151,7 +151,7 @@ sockets.setMaxStackSizes(new int[]{1, 1, 1});
 
 保存时会一并记录服务端的 Minecraft 数据版本。服务端升级后读取旧数据，物品会自动转换到当前版本；较新版本保存的数据不能在旧版本的服务端读取。
 
-数据被截断、格式不对或者来自更新的版本时，`deserialize` 抛出 `InventoryDecodeException`。库不会还原出只有部分物品的容器。遇到这个异常时按数据损坏处理，记录日志并另存这份数据，不要重试，也不要用新建的空容器覆盖它。
+数据被截断、格式不对或者来自更新的版本时，`deserialize` 抛出 `InventoryDecodeException`。Sparrow UI 不会还原出只有部分物品的容器。遇到这个异常时，先保留原始数据并记录日志，再检查数据格式和版本。不要用新建的空容器覆盖原存档。
 
 :::tip[扩大容器]
 格子数会随数据保存，读取旧数据得到的仍是原来的大小。扩大容器时，按新的格子数复制内容，并沿用原来的 UUID：

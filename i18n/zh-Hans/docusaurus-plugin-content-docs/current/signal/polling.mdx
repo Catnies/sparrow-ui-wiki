@@ -30,7 +30,7 @@ Signal<String> stockText = diamondStock.map(value ->
 
 ## 开始观察与结束观察
 
-先用控制台模拟一个查看库存的人。下面接着使用上一节的 `stockText`，保存订阅后，库存来源便进入自动轮询。
+订阅上一节的 `stockText` 后，库存就会开始自动轮询。下面用控制台输出查询结果。
 
 ```java
 Subscription watching = stockText.onDirty(() ->
@@ -65,7 +65,7 @@ AsyncSignal<Integer> diamondStock = Signal.pollingMillis(
 
 `polling` 的周期必须为正数，`pollingMillis` 至少为 `50` 毫秒。两种写法的查询都交给传入的执行器，查询完成后的通知也从执行查询的线程发出。
 
-同周期的来源共享时钟，新订阅会接上已有节拍。所以周期表示触发查询的节奏，不是「每次查询完成后再等 5 秒」。数据库响应慢于周期时，同一个 Signal 不会并行执行多份查询，而会[合并一次补查](./async#发放奖励后刷新余额)。
+同周期的来源共享时钟，按时钟周期触发查询；新订阅也沿用已有计时，不会在每次查询完成后重新等待 5 秒。数据库响应慢于周期时，同一个 Signal 不会并行执行多份查询，而会[合并一次补查](./async#发放奖励后刷新余额)。
 
 <NextStep
   to="/signal/collections"

@@ -17,7 +17,7 @@ sidebar_label: 创建物品
 
 显示来源提供的是 Bukkit 的 **`ItemStack`**。箭头还是钻石、显示几个、名称是什么，都由这个 `ItemStack` 的数据决定。
 
-**`ItemProvider` 决定显示什么，`ItemGuard` 决定是否允许操作，点击处理器决定做什么。** 显示来源可以始终提供同一个固定物品，也可以在渲染时计算物品。后一种用法会在 [渲染与刷新](/item/render) 中展开。
+显示来源可以始终提供同一个固定物品，也可以在渲染时计算物品。后一种用法会在 [渲染与刷新](/item/render) 中展开。
 
 点击处理器接收的 `ItemClick` 包含玩家、点击类型和所在窗口等信息。配置了条件守卫时，先检查守卫，全部通过后才执行点击处理器；任一守卫返回 `false`，本次点击行为就不会执行。
 
@@ -88,7 +88,7 @@ ItemProvider provider = ItemProvider.constant(stack);
 Item item = Item.simple(provider);
 ```
 
-`ItemProvider.constant(stack)` 表示“始终提供这个固定物品”，并在创建 Provider 时复制 `stack`。这段代码把前一种入口自动完成的步骤显式写了出来，最终仍然显示一支箭头。
+`ItemProvider.constant(stack)` 表示“始终提供这个固定物品”，并在创建 Provider 时复制 `stack`。这与前面的 `Item.simple(stack)` 效果相同，只是单独创建了 Provider。
 
 这个入口也接受按需生成物品的 Provider。`simple` 表示这里没有额外配置交互行为，并不要求 Provider 每次都提供相同的物品。
 
@@ -118,7 +118,7 @@ Item closeButton = Item.builder()
 - `addClickHandler(...)` 添加点击动作。`click` 是本次点击的信息，`click.window()` 是玩家正在操作的窗口。
 - `build()` 把这些配置组合为一个 Item，之后可以放入布局。
 
-`setItemProviderConstant` 是 Builder 的配置方法。完成配置后，仍需调用 `build()` 才能得到 Item。本例没有配置条件守卫，点击后直接执行关闭动作。守卫与其他点击用法看 [点击与守卫](/item/click)。
+本例没有配置条件守卫，点击后直接执行关闭动作。守卫与其他点击用法看 [点击与守卫](/item/click)。
 
 :::warning[一个 Builder 只能配置一次显示来源]
 重复调用 `setItemProviderConstant`，或在配置后再调用其他显示来源方法，会抛出 `IllegalStateException`。它不会覆盖之前的配置。

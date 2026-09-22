@@ -163,7 +163,7 @@ public static Subscription watchSearch(Signal<String> input) {
 }
 ```
 
-将输入框的文本写入原始 Signal，就行让 `settled` 跟随。保存返回的订阅，并在搜索结束时关闭。空格由 `strip` 去掉，处理后的文本相同则不重复通知。
+将输入框的文本写入原始 Signal，`settled` 就会在输入停顿后更新。保存返回的订阅，并在搜索结束时关闭。空格由 `strip` 去掉，处理后的文本相同则不重复通知。
 
 有订阅期间，等待中的 `settled.get()` 仍返回上一次通知时的值。需要立即取得输入框内容时，读取原始 `input`。如果持续输入而没有停顿，防抖也会持续等待。
 
@@ -172,7 +172,7 @@ public static Subscription watchSearch(Signal<String> input) {
 :::warning[定时派生需要订阅]
 防抖和节流只有在存在订阅者时才安排定时任务。仅创建派生 Signal 再调用 `get()`，会直接读到上游当前值，不会等待。最后一个订阅关闭后，待执行的延时任务也会取消。
 
-使用定时 API 前应已完成 Sparrow UI 初始化。tick 版的延时回调在全局区域调度线程执行，毫秒版在 Paper 异步调度线程执行；不要在回调里直接操作玩家或方块。异步查询的接法看 [异步加载](/signal/async)。
+使用定时 API 前应已完成 Sparrow UI 初始化。tick 版的延时回调在全局区域调度线程执行，毫秒版在 Paper 异步调度线程执行；不要在回调里直接操作玩家或方块。异步查询的用法看 [异步加载](/signal/async)。
 :::
 
 ## 限制连续更新的频率
@@ -214,7 +214,7 @@ public static Subscription watchProgress(Signal<Integer> progress) {
 | `Signals.everyTicks(20)` | 每 20 tick | 累计经过的 20 tick 周期数 |
 | `Signals.everyMillis(1000)` | 每 1000 毫秒 | 该毫秒时钟累计经过的周期数 |
 
-下面在当前计数的基础上，倒数 10 个周期。初始剩余值为 `10`，每经过一拍减一：
+下面在当前计数的基础上，倒数 10 个周期。初始剩余值为 `10`，每经过一个周期减一：
 
 ```java
 public static Subscription watchCountdown() {
@@ -229,7 +229,7 @@ public static Subscription watchCountdown() {
 
 计数到 `0` 后，`mapDistinct` 会过滤重复的 `0`。结束使用时仍需关闭返回的订阅，时钟不会因为倒计时到零而自动退订。
 
-同周期的时钟由多个使用者共享。第一个订阅者到来时启动，最后一个离开时停止；重新订阅后从原计数继续。所以 `get()` 不是当前时间，也不是当前玩家打开菜单的时长。若时钟已经运行，新订阅会接上现有节拍，第一拍不一定要再等完整的 20 tick。
+同周期的时钟由多个使用者共享。第一个订阅者到来时启动，最后一个离开时停止；重新订阅后从原计数继续。所以 `get()` 不是当前时间，也不是当前玩家打开菜单的时长。若时钟已经运行，新订阅会使用现有计时，第一次通知可能不到 20 tick 就到达。
 
 :::warning[计时单位与线程]
 tick 时钟在服务器变慢时也会变慢。需要按现实时间判断是否到期时，应保存独立的截止时间，用时钟通知驱动显示刷新。

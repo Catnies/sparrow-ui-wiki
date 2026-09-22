@@ -9,7 +9,7 @@ sidebar_label: 安装
 |---|---|
 | 服务端 | Paper 或 Folia |
 | Minecraft | `1.21.4` ~ `26.3`，**同一个构件覆盖全部版本**，不需要按版本分别引入依赖 |
-| Java | 库以 Java 21 编译；运行时用对应 Paper 或 Folia 版本要求的 Java 环境就行 |
+| Java | Sparrow UI 以 Java 21 编译；运行时用对应 Paper 或 Folia 版本要求的 Java 环境就行 |
 
 ## 添加依赖
 
@@ -63,12 +63,12 @@ shadowJar {
 />
 
 :::warning[relocate 不是可选项]
-Sparrow UI 会把一份反射代理装进**服务端类加载器**，代理类的包名跟着库的运行时包名走。不 relocate 的话，任何两个带了 Sparrow UI 的插件都会在服务端类加载器里撞上同名类。
+Sparrow UI 会把一份反射代理装进**服务端类加载器**，代理类的包名跟着 Sparrow UI 的运行时包名走。不 relocate 的话，任何两个带了 Sparrow UI 的插件都会在服务端类加载器里撞上同名类。
 :::
 
 ## 初始化
 
-在 `onEnable` 里调用一次 `setUp`，把你的插件实例交给库：
+在 `onEnable` 里调用一次 `setUp`，把你的插件实例交给 Sparrow UI：
 
 ```java
 package com.example.myplugin;
@@ -85,16 +85,16 @@ public final class MyPlugin extends JavaPlugin {
 }
 ```
 
-这一步会安装反射代理、创建窗口管理器与网络管理器，并把库的调度器绑到你的插件上。
+这一步会安装反射代理、创建窗口管理器与网络管理器，并让 Sparrow UI 的调度器使用你的插件实例。
 
-**插件禁用时不需要做任何事。** Sparrow UI 自己监听插件的禁用事件，会关掉窗口管理器和网络管理器，并停掉自己的调度器。
+插件禁用时，Sparrow UI 会监听禁用事件，关闭窗口管理器、网络管理器和自己的调度器。你不需要额外调用 Sparrow UI 的关闭方法。
 
-:::danger[必须先 setUp，再碰 Sparrow UI 的任何类]
+:::danger[先完成 setUp，再使用其他 API]
 在 `setUp` 完成之前，不要访问 Sparrow UI 的任何类，也不要构建 Item、Pane 或 Window。
 :::
 
 <NextStep
   to="/getting-started/quick-start"
   title="快速开始"
-  description="从空插件到玩家眼前的第一个菜单"
+  description="编写并打开一个带按钮的欢迎菜单"
 />

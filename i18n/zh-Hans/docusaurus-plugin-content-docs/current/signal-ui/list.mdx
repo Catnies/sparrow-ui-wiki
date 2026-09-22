@@ -5,27 +5,11 @@ sidebar_label: 列表内容
 
 管理员上架钻石时，已打开的目录应多出一个物品。此时变化的是一组格子的内容，用 `addIngredient` 绑定列表就行。
 
-示例中的 `viewer` 是当前打开菜单的玩家，使用前应已完成 Sparrow UI 初始化。`named` 用来创建带名称的物品，将下面的方法放入菜单类就行。
-
-<Details summary="示例共用的物品命名方法" previewHeight={0}>
-
-```java
-private static ItemStack named(Material material, String name) {
-    ItemStack stack = new ItemStack(material);
-    stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
-    return stack;
-}
-```
-
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](/item/render)中的写法相同。
-
-</Details>
+示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
 
 ## 商品增删后，重新填充格子
 
-
-下面初始只有苹果和面包，九个 `M` 从左到右接收列表中的商品。为了提供可操作的演示，右下角的钻石按钮模拟上架操作，最多添加到九组。
+下面初始只有苹果和面包，九个 `M` 从左到右接收列表中的商品。点击右下角的钻石按钮可以模拟上架，最多添加到九组。
 
 <MinecraftWindow
   type="chest" rows={2} title="商品目录"
@@ -59,7 +43,22 @@ Window.builder(pane).setTitle("商品目录").open(viewer);
 
 `toElement` 把一条业务数据转换成放进格子的 `Element`，不能返回 `null`。默认首次转换在 `build()` 的调用线程执行，后续更新在 Paper 全局异步调度器执行；转换函数应只处理准备好的数据。列表超出九项时，只能显示前九项，更多内容应使用分页或滚动。
 
-若业务已提供合适的 `Executor`，也可以将它作为第四个参数传给 `addIngredient('M', products, toElement, executor)`。它控制后续求值，首次仍在构建线程完成。异步查询结果只要是 `Signal<List<T>>`，也能使用相同入口。
+若业务已提供合适的 `Executor`，也可以将它作为第四个参数传给 `addIngredient('M', products, toElement, executor)`。它决定后续转换在哪个执行器上运行，首次仍在构建线程完成。异步查询结果只要是 `Signal<List<T>>`，也能使用相同入口。
+
+<Details summary="示例共用的物品命名方法" previewHeight={0}>
+
+```java
+private static ItemStack named(Material material, String name) {
+    ItemStack stack = new ItemStack(material);
+    stack.setData(DataComponentTypes.CUSTOM_NAME,
+            Component.text(name).decoration(TextDecoration.ITALIC, false));
+    return stack;
+}
+```
+
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](/item/render)中的写法相同。
+
+</Details>
 
 <NextStep
   to="/signal-ui/page"

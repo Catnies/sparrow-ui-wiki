@@ -43,7 +43,7 @@ CompletableFuture<Window.OpenResult> opening = window.open();
 |---|---|
 | `OPENED` | 服务端已完成这次打开流程 |
 | `ALREADY_OPEN` | 同一个 Window 实例已经打开，本次没有再次打开 |
-| `VIEWER_UNAVAILABLE` | 玩家当前无法打开菜单，例如已断线、正在睡觉，或库正在关闭 |
+| `VIEWER_UNAVAILABLE` | 玩家当前无法打开菜单，例如已断线、正在睡觉，或 Sparrow UI 正在关闭 |
 
 Future 完成表示服务端流程已经结束；客户端收到数据并显示菜单还需要时间。`build(viewer)` 的构建异常直接在调用处抛出；`open()` 执行过程中发生的程序异常会使 Future 异常完成。
 
@@ -52,9 +52,9 @@ Future 完成表示服务端流程已经结束；客户端收到数据并显示�
 :::warning[使用默认玩家物品栏时的构建线程]
 没有显式设置下半部分 Pane 时，`build(viewer)` 会创建默认玩家物品栏映射，并在调用线程读取背包内容，Builder 的 `open(viewer)` 会先执行 `build(viewer)`，同样如此。
 
-大部分情况下不用特别在意异步访问问题，因为目前 Paper 和 Folia 仍然允许异步读取数据，而 `window.open()` 发起后，构建的映射容器会回到玩家线程上进行同步，不会造成实际影响。
+`window.open()` 会把后续打开和映射同步安排到玩家线程，但构建阶段的背包读取仍发生在调用线程。
 
-不过，一些 Fork 服务端可能会添加一些方法的访问检查，具体以实际运行时为准。
+如果在异步任务中构建，需要考虑服务端对背包读取的线程要求。下文的异步示例显式提供上下 Pane，避免构建默认背包映射。
 :::
 
 ## 关闭窗口
@@ -111,7 +111,7 @@ window.addCloseHandler(reason ->
 | 原因 | 触发场景 |
 |---|---|
 | `PLAYER` | 玩家主动关闭，例如按 Esc |
-| `PLUGIN` | 插件调用 `window.close()`，或库关闭时结束窗口 |
+| `PLUGIN` | 插件调用 `window.close()`，或 Sparrow UI 关闭时结束窗口 |
 | `OPEN_NEW` | 当前窗口被新窗口或其他容器替换 |
 | `DISCONNECT` | 玩家断开连接 |
 | `DEATH` | 玩家死亡导致容器关闭 |
@@ -187,7 +187,7 @@ public static CompletableFuture<Window.OpenResult> openAsync(Plugin plugin, Play
 }
 ```
 
-这里的 `open(viewer)` 在异步任务里调用，实际打开操作由库调度到查看者的实体线程。由于 `open(viewer)` 自己也返回 Future，`thenCompose(opening -> opening)` 将两层 Future 展平，让调用方直接取得 `CompletableFuture<Window.OpenResult>`，等待整段构建与打开流程完成。
+这里的 `open(viewer)` 在异步任务里调用，实际打开操作由 Sparrow UI 调度到查看者的实体线程。由于 `open(viewer)` 自己也返回 Future，`thenCompose(opening -> opening)` 将两层 Future 展平，让调用方直接取得 `CompletableFuture<Window.OpenResult>`，等待整段构建与打开流程完成。
 
 `Scheduling` 是示例里的辅助类，需要放进自己的项目，它不属于 Sparrow UI 的公共 API：
 

@@ -3,7 +3,7 @@ title: 渲染与刷新
 sidebar_label: 渲染与刷新
 ---
 
-Item 的显示来源可以在菜单显示时生成物品。玩家等级、当前时间或数据库中的积分发生变化后，通过刷新重新计算显示内容。
+要在物品上显示玩家等级、当前时间或积分，可以让 ItemProvider 在渲染时生成物品。数据变化后，再刷新 Item，让它重新读取数据。
 
 ## 同步渲染
 
@@ -86,7 +86,7 @@ Item levelItem = Item.builder()
 
 ## 异步加载与占位物
 
-数据库等外部来源需要等待结果时，用 `setItemProviderAsync`。它接收的 Provider 返回 `CompletableFuture<ItemStack>`：Future 完成后，库会安排显示结果。
+数据库等外部来源需要等待结果时，用 `setItemProviderAsync`。它接收的 Provider 返回 `CompletableFuture<ItemStack>`：Future 完成后，Sparrow UI 会安排显示结果。
 
 等待期间的显示由占位物和最近一次成功结果决定：
 
@@ -201,7 +201,7 @@ pointsItem.notifyWindows();
 
 需要手动刷新时，保留 `ObservableItem` 类型的引用。
 
-**共享同一个 Item 时，`notifyWindows()` 会通知所有正在显示它的窗口及槽位。** 每个位置仍使用自己的 RenderContext 重新生成物品，所以刷新范围相同，不代表所有玩家看到的内容相同。
+**共享同一个 Item 时，`notifyWindows()` 会通知所有正在显示它的窗口及槽位。** 每个位置会使用自己的 RenderContext 重新生成物品，各名玩家仍可看到不同的内容。
 
 ### 定时刷新
 
@@ -234,7 +234,7 @@ Item clock = Item.builder()
 
 `updateOnClick()` 在条件守卫全部通过、点击处理器正常返回后请求刷新。守卫拒绝或处理器抛出异常时，不会触发这次自动刷新。
 
-**点击刷新同样会通知所有正在显示这个 Item 的窗口。** 它在点击处理完成后调用的就是 `notifyWindows()`；共用 Item 时，不仅点击者会刷新。
+**点击刷新同样会通知所有正在显示这个 Item 的窗口。** 它会在点击处理完成后调用 `notifyWindows()`，因此共用 Item 的其他玩家也会收到刷新。
 
 下面把点击次数保存在 Item 的外部变量中，点击行为修改次数，Provider 读取次数生成名称：
 

@@ -5,25 +5,9 @@ sidebar_label: 视觉映射
 
 商品菜单的第五格原本是钻石。点击右下角的标记开关后，第五格应显示为绿宝石；再点击一次，则恢复钻石。这里只改变显示，点击第五格时仍执行原钻石按钮的处理器。
 
-示例中的 `viewer` 是当前打开菜单的玩家，使用前应已完成 Sparrow UI 初始化。`named` 用来创建带名称的物品，将下面的方法放入菜单类就行。
-
-<Details summary="示例共用的物品命名方法" previewHeight={0}>
-
-```java
-private static ItemStack named(Material material, String name) {
-    ItemStack stack = new ItemStack(material);
-    stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
-    return stack;
-}
-```
-
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](/item/render)中的写法相同。
-
-</Details>
+示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
 
 ## 切换商品标记
-
 
 下面创建一扇独立的菜单。`highlighted` 初始为 `false`，表示尚未标记商品。
 
@@ -58,11 +42,26 @@ window.visual().bind(highlighted);
 window.open();
 ```
 
-`visual().bind` 会在 Signal 变化时请求重画视觉层，映射函数再读取当前值。槽位从零开始，`4` 对应模板里的 `Q`。显示换成绿宝石后，点击它仍会收到「选择了钻石」的消息，视觉映射不改变实际内容或点击行为。
+`visual().bind` 会在 Signal 变化时请求刷新视觉层，映射函数再读取当前值。槽位从零开始，`4` 对应模板里的 `Q`。显示换成绿宝石后，点击它仍会收到「选择了钻石」的消息，视觉映射不改变实际内容或点击行为。
 
 绑定属于这一扇 Window，所以只影响它的查看者。若要让同一个 Pane 的多个查看者一起看到映射变化，可以在 Pane 的视觉层配置映射并绑定来源；各层范围看[视觉映射](/visual/layers)。
 
-窗口上的视觉绑定随打开期启停，返回的 `Subscription` 可用于提前解绑。共享 Pane 的列表绑定则可能在没有窗口查看时仍保持活动，关闭一扇窗口并不等于停止所有共享来源的查询。
+窗口上的视觉绑定在打开时启用，关闭时暂停，返回的 `Subscription` 可用于提前解绑。共享 Pane 的列表绑定则可能在没有窗口查看时仍保持活动，关闭一扇窗口并不等于停止所有共享来源的查询。
+
+<Details summary="示例共用的物品命名方法" previewHeight={0}>
+
+```java
+private static ItemStack named(Material material, String name) {
+    ItemStack stack = new ItemStack(material);
+    stack.setData(DataComponentTypes.CUSTOM_NAME,
+            Component.text(name).decoration(TextDecoration.ITALIC, false));
+    return stack;
+}
+```
+
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](/item/render)中的写法相同。
+
+</Details>
 
 <NextStep
   to="/network/listen"

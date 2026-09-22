@@ -5,7 +5,7 @@ sidebar_label: 快速开始
 
 ## 快速编写一个简单菜单
 
-这里我们尝试编写一个欢迎示例菜单，它是一个三行箱子容器，一圈装饰背景，中间两个按钮，一个向玩家问好，一个关掉菜单。
+我们来写一个三行的欢迎菜单。四周铺上装饰背景，中间放两个按钮，分别用来打招呼和关闭菜单。
 
 把鼠标放到物品上查看名称和说明：
 
@@ -52,7 +52,7 @@ Pane.builder(
 
 ## 一步步写出来
 
-菜单就是下面这一个类。点步骤条看每一段分别在做什么，没被选中的行会压暗，代码始终是同一份。
+完整菜单放在下面这个类里。点击步骤条，可以查看对应代码和说明。
 
 <CodeSteps
   language="java"
@@ -60,7 +60,7 @@ Pane.builder(
     {
       title: '画出布局',
       lines: '27-31',
-      note: '三行字符串就是菜单的形状：一个字符一格，三行九列就是一个 27 格的箱子。字符本身随便挑，它只是个代号，用来在下一步指认"这些格子放什么"。',
+      note: '三行字符串对应三行九列，共 27 格。每个字符代表一格，下一步用这些字符指定格子里的内容。',
       preview: (
         <MinecraftSlotGrid
           rows={["#########", "###G#C###", "#########"]}
@@ -83,7 +83,7 @@ Pane.builder(
     {
       title: '把按钮填进格子',
       lines: '33-34',
-      note: 'addIngredient 把一个字符和一个 Item 绑在一起。绑一次，这个字符出现在布局里的每一格都会用它。两个按钮各只出现一次，所以各占一格。',
+      note: 'addIngredient 为字符指定一个 Item，布局中相同字符的格子都会显示它。这里两个按钮的字符各出现一次，各占一格。',
       preview: (
         <MinecraftSlotGrid
           rows={["#########", "###G#C###", "#########"]}
@@ -95,7 +95,7 @@ Pane.builder(
     {
       title: '按钮长什么样',
       lines: '40-42',
-      note: '外观就是一个普通的 ItemStack。名称和描述用 Paper 的数据组件 API 设置，不要再用 ItemMeta。关掉默认斜体是个习惯，否则原版会把自定义名称显示成斜体。',
+      note: '按钮外观由 ItemStack 决定。这里用 Paper 的数据组件 API 设置名称，并关闭自定义名称默认的斜体。',
     },
     {
       title: '点下去做什么',
@@ -201,17 +201,17 @@ this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event 
 ```
 
 :::tip[build 和 open 都允许异步调用]
-`build(viewer)` 与 `open()` 都可以在异步线程上调用 <ThreadBadge type="any" />，菜单构建不需要挤在主线程上完成。
+`build(viewer)` 与 `open()` 都可以在异步线程上调用 <ThreadBadge type="any" />，Sparrow UI 会将实际打开操作调度到玩家线程。
 
-需要自己负责的是**从开始构建到菜单真正打开，中间这段时间状态可能已经变了**。例如玩家右键一个潜影盒物品，你异步读出里面的内容构建菜单，等菜单真正打开时，玩家手里拿的可能已经不是那个潜影盒了。
+异步构建期间，业务状态可能发生变化，需要在打开前检查。例如玩家右键一个潜影盒物品，你异步读出里面的内容构建菜单，等菜单真正打开时，玩家手里拿的可能已经不是那个潜影盒了。
 :::
 
 :::info[open 的返回值]
-`open()` 返回 `CompletableFuture<Window.OpenResult>`，结果有三种：`OPENED`、`ALREADY_OPEN`、`VIEWER_UNAVAILABLE`。上面的例子不关心结果所以直接丢掉了。
+`open()` 返回 `CompletableFuture<Window.OpenResult>`，结果有三种：`OPENED`、`ALREADY_OPEN`、`VIEWER_UNAVAILABLE`。上面的示例没有使用返回值；需要确认是否打开成功时，可以检查这个结果。
 :::
 
 <NextStep
   to="/getting-started/concepts"
   title="核心概念与层级"
-  description="Window、Pane、Item 之间到底是什么关系"
+  description="了解 Window、Pane 和 Item 如何组成菜单"
 />

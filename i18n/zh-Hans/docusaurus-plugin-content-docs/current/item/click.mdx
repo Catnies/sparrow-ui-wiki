@@ -3,7 +3,7 @@ title: 点击与守卫
 sidebar_label: 点击与守卫
 ---
 
-Item 的交互由条件守卫和处理器组成。守卫决定本次操作是否允许，处理器在通过后执行关闭窗口、发送消息等行为。
+按钮被点击后要做什么，写在点击处理器里。需要先检查权限、限制点击频率时，再添加条件守卫；检查通过后才执行处理器。
 
 ## 处理点击
 
@@ -137,7 +137,7 @@ Item button = Item.builder()
 | 拖拽 | `addDragGuard` | `addDragHandler` |
 | 收纳袋选择 | `addBundleSelectGuard` | `addBundleSelectHandler` |
 
-普通点击的 `addClickGuard` 不会限制这两类操作。权限和游戏模式守卫可以分别用在它们身上；`ItemGuards.throttle` 只适用于 `ItemClick`。
+普通点击的 `addClickGuard` 不会限制这两类操作。权限和游戏模式守卫可以分别用于这两类操作；`ItemGuards.throttle` 只适用于 `ItemClick`。
 
 ### 拖拽经过 Item
 

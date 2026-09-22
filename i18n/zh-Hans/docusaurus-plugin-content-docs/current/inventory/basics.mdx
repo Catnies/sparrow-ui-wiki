@@ -63,7 +63,7 @@ storage.clear();
 :::
 
 :::info[交给需要 Bukkit Inventory 的代码]
-`asBukkitInventory()` 返回一个包装好的 Bukkit `Inventory`，可以交给只接受 Bukkit 容器的代码，对它的读写会落到这个容器上。这是实验性 API：包装的类型固定为 `CHEST`，没有持有者和位置；从中读取的物品同样是副本，写入按程序修改处理，不经过访问规则。给玩家显示容器时，仍然使用 Pane 和 Window。
+`asBukkitInventory()` 返回一个包装好的 Bukkit `Inventory`，可以交给只接受 Bukkit 容器的代码，通过它读写的仍是原来的 Sparrow 容器。这是实验性 API：包装的类型固定为 `CHEST`，没有持有者和位置；从中读取的物品同样是副本，写入按程序修改处理，不经过访问规则。给玩家显示容器时，仍然使用 Pane 和 Window。
 :::
 
 ## 连接到 Pane
@@ -347,7 +347,7 @@ Window.builder(pane).setTitle("仓库").open(viewer);
 
 ### 没有显示的容器
 
-`linkInventory` 把一个容器声明到 Pane 上。即使窗口中没有显示这个容器的任何格子，它也参与 Shift 转移和双击收集。
+`linkInventory` 将容器关联到 Pane，让未显示在窗口中的容器也能参与 Shift 转移和双击收集。该容器还需要开启 `includeObscuredSlots(true)`。
 
 下面的仓库每页是一个独立的容器，用 [标签 Tab](/pagination/tab) 切换。显示第一页时，第二页的容器不在窗口中。把两页都声明在外层 Pane 上后，第一页放满时，Shift 点击的物品会继续放进第二页：
 
@@ -412,7 +412,7 @@ private static Item pageButton(String name, Runnable action) {
 声明的容器排在窗口中显示的容器之后。两页的优先级相同，所以当前显示的那一页先放，放满后再放另一页。
 
 :::warning[声明生效的前提]
-- 声明的容器必须打开 `includeObscuredSlots(true)`。它没有显示的格子，不打开这个开关就没有可以参与的格子。
+- 关联的容器必须开启 `includeObscuredSlots(true)`，否则未显示的格子不会参与操作。
 - 声明只在这块 Pane 显示在窗口中时生效。上例把声明写在始终显示的外层 Pane 上；如果写在某一页的子 Pane 上，切到其它页后声明就不再生效。
 :::
 

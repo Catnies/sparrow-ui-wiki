@@ -3,7 +3,7 @@ title: 映射容器
 sidebar_label: 映射容器
 ---
 
-`ReferencingInventory` 把箱子、玩家背包等已有的容器映射进菜单。它自己不保存物品，读取时读的是被映射容器的当前内容，写入时直接写进被映射的容器。
+`ReferencingInventory` 把箱子、玩家背包等已有的容器映射进菜单。菜单中的读取和写入都直接访问原容器，映射本身不另存一份物品。
 
 ## 映射 Bukkit 容器
 
@@ -36,7 +36,7 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 | `fromStorageContents(inventory)` | 只含存储格，与 `getStorageContents()` 相同。玩家背包为 36 格 |
 | `fromPlayerStorageContents(playerInventory)` | 玩家背包的 36 格，重新排成主背包 27 格在前、快捷栏 9 格在后 |
 
-库会按容器的种类选择读写方式，下列容器可以直接映射：
+Sparrow UI 会按容器的种类选择读写方式，下列容器可以直接映射：
 
 | 被映射的容器 | 映射对应的对象 | 自动退役的时机 |
 |---|---|---|
@@ -48,9 +48,9 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 
 其他插件自己实现的 `Inventory` 通过 Bukkit 的 `getItem`、`setItem` 读写，不会自动退役。退役的含义看 [退役](#退役)。
 
-同一个位置被映射多次时，例如大箱子和其中一半，库能认出它们是同一格。一个窗口同时显示这两份映射时，Shift 转移和双击收集不会把同一格处理两次。
+同一个位置被映射多次时，例如大箱子和其中一半，Sparrow UI 会识别出这些映射指向同一格。一个窗口同时显示这两份映射时，Shift 转移和双击收集不会把同一格处理两次。
 
-映射容器的每格上限来自被映射的容器，遍历顺序也由库决定，没有 `setMaxStackSize` 和 `setIterationOrder`。访问规则、背景、冻结、优先级和事件订阅的用法与虚拟容器相同。`referencedInventory()` 返回被映射的 Bukkit 容器，退役后返回 `null`。
+映射容器的每格上限来自被映射的容器，遍历顺序也由 Sparrow UI 决定，没有 `setMaxStackSize` 和 `setIterationOrder`。访问规则、背景、冻结、优先级和事件订阅的用法与虚拟容器相同。`referencedInventory()` 返回被映射的 Bukkit 容器，退役后返回 `null`。
 
 ### 玩家背包
 
@@ -219,8 +219,8 @@ public static void openArmorStand(Player viewer, ArmorStand stand) {
 | 方法 | 作用 |
 |---|---|
 | `size()` | 格子数，创建后不能变化 |
-| `read(slot)` | 读取一格，空格返回 `null`。可以直接返回内部的物品，库只读取，不会修改或保存它 |
-| `write(slot, item)` | 写入一格，`null` 表示清空。传入的物品交给存储，库之后不会再修改它 |
+| `read(slot)` | 读取一格，空格返回 `null`。可以直接返回内部的物品，Sparrow UI 只读取，不会修改或保存它 |
+| `write(slot, item)` | 写入一格，`null` 表示清空。传入的物品交给存储，Sparrow UI 之后不会再修改它 |
 | `maxStackSize(slot)` | 这一格的堆叠上限，与物品自身的上限取较小值 |
 | `alive()` | 内容所在的位置是否还在，返回 `false` 后映射退役。默认返回 `true` |
 | `keyOf(slot)` | 这一格的身份，两格返回相等的 `SlotKey` 表示同一个位置。默认按存储对象区分 |

@@ -7,7 +7,7 @@ sidebar_label: 动画
 
 ## 播放动画
 
-`visual().play(definition)` 播放一段动画。动画可以播在 Pane、容器或窗口上，谁能看到取决于播在哪里：
+`visual().play(definition)` 播放一段动画。动画可以播在 Pane、容器或窗口上，显示范围取决于播放动画的对象：
 
 | 播在 | 写法 | 格子序号 | 谁看得到 |
 |---|---|---|---|
@@ -73,7 +73,7 @@ private static ItemStack glass(Material material) {
   ]}
 />
 
-`pane.slots("R")` 按从左到右、从上到下的顺序取出模板中 `R` 的格子。时间以 tick 为单位，20 tick 为 1 秒。
+`pane.slots("R")` 按从左到右、从上到下的顺序取出模板中 `R` 的格子。时间以 tick 为单位，服务器保持 20 TPS 时，20 tick 约为 1 秒。
 
 动画开始后按服务器的 tick 推进，没有人看着也不会暂停。在窗口的打开处理器中播放，玩家能看到完整的过程；在打开之前就播放的话，前面一部分可能在窗口出现之前就播完了。
 
@@ -307,7 +307,7 @@ pane.visual().play(AnimationDefinition.reveal(order, 1, glass(Material.GRAY_STAI
   ]}
 />
 
-格子序号超出宿主的范围时，`play` 抛出 `IndexOutOfBoundsException`；同一格出现两次时抛出 `IllegalArgumentException`。格子列表为空的动画立即结束。
+格子序号超出播放对象的范围时，`play` 抛出 `IndexOutOfBoundsException`；同一格出现两次时抛出 `IllegalArgumentException`。格子列表为空的动画立即结束。
 
 ## 播放句柄
 
@@ -337,7 +337,7 @@ opening.whenFinished(reason -> {
 :::warning[播在 Pane 或容器上的动画不随窗口关闭而结束]
 只有播在窗口上的动画会在窗口关闭时结束。播在 Pane 或容器上的动画在窗口关闭后继续播放，`loop` 永远不会自己结束。
 
-每次打开都新建的 Pane 在窗口关闭后会被回收，动画随之消失，但不会调用 `whenFinished` 的回调。多名玩家共用的 Pane、长期存在的容器上播放的动画，在不需要时自己取消：
+每次打开时新建的 Pane，如果关闭窗口后没有其他引用，就可以被回收；动画也随之消失，但不会调用 `whenFinished` 的回调。多名玩家共用的 Pane、长期存在的容器上播放的动画，在不需要时自己取消：
 
 ```java
 AnimationHandle border = pane.visual().play(AnimationDefinition.loop(pane.slots("#"), 4, RAINBOW));
@@ -407,7 +407,7 @@ opening.whenFinished(reason -> title.cancel());
 播放期间，动画的帧盖住 `setTitle` 或 `setTitleSupplier` 设置的标题，播完后恢复。同一个窗口中播放多个标题动画时，后开始的在上面。窗口关闭时，标题动画以 `WINDOW_CLOSED` 结束。
 
 :::warning[标题每变一次都要重新发送整个窗口]
-客户端不能直接修改已经打开的窗口标题。标题每变化一次，库都要重新打开这个窗口，并把所有格子的内容重新发给客户端。窗口里的物品越多，开销越大。周期不要太短，也不要长时间循环播放。
+客户端不能直接修改已经打开的窗口标题。标题每变化一次，Sparrow UI 都要重新打开这个窗口，并把所有格子的内容重新发给客户端。窗口里的物品越多，开销越大。周期不要太短，也不要长时间循环播放。
 :::
 
 <NextStep

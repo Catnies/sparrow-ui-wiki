@@ -4,7 +4,7 @@ sidebar_label: 发送与模拟接收
 ---
 
 :::info[可选能力，API 仍可能调整]
-网络 API 源于 Sparrow UI 自身的需要，稍作完善后对外开放。它提供接近简化版 PacketEvents 的能力，实现上更注重处理效率，但不承诺绝对稳定。普通菜单功能优先使用 UI API。
+网络 API 支持发送数据包和模拟客户端请求，接口后续仍可能调整。普通菜单使用 UI API 即可。
 :::
 
 通过 `NetworkManager.user(viewer)` 获取玩家的 `NetworkUser`。未建立对应连接时可能返回 `null`，示例中的 `viewer` 是目标玩家。
@@ -28,7 +28,7 @@ user.sendPacket(experience, payload -> {
 });
 ```
 
-库自动写入当前版本的包 ID，回调只需追加 payload。回调在调用线程同步执行，不要保存其中的缓冲；实际转发交给连接的 Netty event loop，方法返回不代表客户端已处理完成。
+Sparrow UI 自动写入当前版本的包 ID，回调只需追加 payload。回调在调用线程同步执行，不要保存其中的缓冲；实际转发交给连接的 Netty event loop，方法返回不代表客户端已处理完成。
 
 模拟客户端请求时使用 `SERVERBOUND` 类型。例如，接着使用上面的 `user`，向服务端注入一次选择第三个快捷栏格子的请求。
 
@@ -48,7 +48,7 @@ user.receivePacket(heldSlot, payload -> payload.writeShort(2));
 | 包类型与 payload 写入函数 | `sendPacket(type, writer)` | `receivePacket(type, writer)` |
 | 已编码的 `ByteBuf` | `sendByteBuf(frame)` | `receiveByteBuf(frame)` |
 
-原始帧必须包含「VarInt 包 ID + payload」，不包含长度、压缩或加密头。被框架接管后，不要再使用或释放它。普通用途更适合使用类型化入口，由库分配缓冲并写入 ID。
+原始帧必须包含「VarInt 包 ID + payload」，不包含长度、压缩或加密头。被 Sparrow UI 接管后，不要再使用或释放它。一般使用 `sendPacket(type, writer)` 等方法即可，由 Sparrow UI 分配缓冲并写入包 ID。
 
 `PacketBuf` 包装 Netty `ByteBuf`，补充 `readVarInt` / `writeVarInt`、VarLong、UUID、UTF 字符串等读写方法。它与原缓冲共用数据、指针和引用计数，不是一份独立副本。
 

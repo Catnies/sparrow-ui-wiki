@@ -4,7 +4,7 @@ sidebar_label: 监听数据包
 ---
 
 :::info[可选能力，API 仍可能调整]
-这套网络 API 最初是为了满足 Sparrow UI 自身的需要而实现的，后来稍作完善，对外开放。功能接近简化版的 PacketEvents，实现上更注重处理效率，但我们不将它视为绝对稳定的 API。
+网络 API 原本供 Sparrow UI 内部使用，目前也对插件开放，支持监听、发送和模拟接收数据包。接口后续仍可能调整。
 
 只编写菜单时可以跳过本章，点击处理和窗口更新直接使用 UI API 就行。
 :::
@@ -28,7 +28,7 @@ Subscription listener = network.listenByteBuf(type, (user, event) -> {
 
 这里的字段格式按 Minecraft Java 1.21.11 核对，快捷栏下标为 `0～8`。`SERVERBOUND` 表示客户端发往服务端，`CLIENTBOUND` 表示服务端发往客户端；`PLAY` 是游戏阶段，也可以指定握手、状态查询、登录或配置阶段。
 
-包 ID 由库按当前服务端解析，当前版本没有该包时，注册会抛出 `IllegalArgumentException`。字段格式仍需调用方按目标版本适配。
+包 ID 由 Sparrow UI 按当前服务端解析，当前版本没有该包时，注册会抛出 `IllegalArgumentException`。字段格式仍需调用方按目标版本适配。
 
 `event.buffer()` 提供不含包 ID 的 payload，每个监听器从头读取。直接写入会标记修改，`clear()` 只清空 payload；`event.cancel()` 会取消当前帧并停止后续传播。缓冲只在回调期间借用，不要保存到外部，也不要对它调用 `retain()` 或 `release()`。
 
@@ -46,7 +46,7 @@ Subscription listener = network.listenNMS(type, (user, event, packet) -> {
 
 两类回调都在 Netty 线程同步执行，同一个监听器可能被不同连接并发调用。不要在里面做阻塞查询，或直接操作需要玩家/区域线程的世界与背包。尚未进入游戏的连接不一定有 `Player`，`user.player()`、`uuid()` 和 `name()` 都可能为 `null`。
 
-结束监听时调用返回凭证的 `listener.close()`。管理器会持有监听器，丢弃凭证不会自动注销；已经开始的派发仍可能完成。只需关闭自己注册的监听，不要关闭库的整个网络管理器。
+结束监听时调用返回的 `listener.close()`。管理器会持有监听器，丢弃返回值不会自动注销；已经开始的派发仍可能完成。只需关闭自己注册的监听，不要关闭 Sparrow UI 的整个网络管理器。
 
 <NextStep
   to="/network/send-receive"

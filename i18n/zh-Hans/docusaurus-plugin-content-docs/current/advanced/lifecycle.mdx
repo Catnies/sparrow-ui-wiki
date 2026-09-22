@@ -20,11 +20,11 @@ Window.builder(pane).setTitle("共享仓库").open(viewer);
 
 关掉这扇窗口只结束本次查看，不会清空共享仓库，也不应删除其他玩家仍在使用的容器。反过来，把每次创建的 Window 都放进一个长期存在的列表，也会让已经关闭的窗口一直被业务代码持有。
 
-不再使用的临时 UI 应能随业务引用的释放被回收。不要把垃圾回收当作「菜单已经关闭」的通知，也不要依赖它执行退还物品、保存数据等业务操作；这些动作应放在明确的关闭或业务结束流程中。
+临时 UI 不再使用后，应移除业务代码保存的引用，让它可以被回收。不要把垃圾回收当作「菜单已经关闭」的通知，也不要依赖它执行退还物品、保存数据等业务操作；这些动作应放在明确的关闭或业务结束流程中。
 
-## 手动 Signal 订阅要保存凭证
+## 手动订阅 Signal 时保存 Subscription {/* #手动-signal-订阅要保存凭证 */}
 
-假设后台服务提供一个 `Signal<Integer> onlineCount`，调试命令需要临时观察它。`onDirty` 返回的凭证要保存到观察结束，再主动关闭。
+假设后台服务提供一个 `Signal<Integer> onlineCount`，调试命令需要临时观察它。保存 `onDirty` 返回的 `Subscription`，观察结束后调用 `close()`。
 
 ```java
 Subscription watch = onlineCount.onDirty(() ->
@@ -32,13 +32,13 @@ Subscription watch = onlineCount.onDirty(() ->
 System.out.println("当前人数：" + onlineCount.get());
 ```
 
-结束观察时调用 `watch.close()`。Signal 弱持有订阅节点，凭证被回收后，订阅可能随之消失。所以不能只调用 `onDirty(...)` 就丢掉返回值，否则监听可能在运行一段时间后停止。
+结束观察时调用 `watch.close()`。Signal 弱持有订阅节点，返回的 `Subscription` 被回收后，订阅可能随之消失。所以不能只调用 `onDirty(...)` 就丢掉返回值，否则监听可能在运行一段时间后停止。
 
-集合的 `beforeAdd`、`beforePut`、`afterRemove` 钩子也需要保存返回凭证。手动订阅或钩子的生命周期，应该跟需要它的业务对象一致。
+集合的 `beforeAdd`、`beforePut`、`afterRemove` 钩子也需要保存返回的 `Subscription`。手动订阅或钩子的生命周期，应该跟需要它的业务对象一致。
 
-## UI 绑定由宿主管理
+## UI 对象管理自己的绑定 {/* #ui-绑定由宿主管理 */}
 
-窗口标题需要跟随人数变化时，可以交给窗口托管绑定。下面不需要另外保存 `window.bind` 返回的凭证。
+窗口标题需要跟随人数变化时，可以使用 `window.bind`。窗口会保存这条绑定，调用方不需要额外保留返回的 `Subscription`。
 
 ```java
 Window window = Window.builder(Pane.builder("#########").build())
@@ -50,7 +50,7 @@ window.open();
 
 这条绑定在窗口打开时订阅，关闭时暂停，再次打开时恢复。窗口持有重新订阅的声明；需要提前停止某一条绑定时，才保存并关闭返回的 `Subscription`。
 
-`Item.dependsOn`、Pane 的列表绑定和 `visual().bind` 也由对应 UI 对象管理，不用仅为保持有效而额外保存凭证。不过，Pane 的绑定可能在没有窗口查看时仍然活动。共享 Pane 绑定了轮询数据时，关闭其中一扇窗口不一定会停止查询。
+`Item.dependsOn`、Pane 的列表绑定和 `visual().bind` 也由对应 UI 对象管理，不需要额外保存返回的 `Subscription` 来维持绑定。不过，Pane 的绑定可能在没有窗口查看时仍然活动。共享 Pane 绑定了轮询数据时，关闭其中一扇窗口不一定会停止查询。
 
 重新订阅不会重放暂停期间的每一次变化。界面恢复显示时应读取当前值，窗口打开时的标题计算便属于这种读取。
 
@@ -73,12 +73,12 @@ window.open();
 
 | 注册方式 | 谁负责保留订阅 | 使用结束时 |
 |---|---|---|
-| `Signal.onDirty`、集合元素钩子 | 调用方保存凭证 | 主动 `close()` |
-| Window、Pane、Visual 的 `bind` | 对应 UI 宿主 | 按宿主规则管理，凭证可提前解绑 |
+| `Signal.onDirty`、集合元素钩子 | 调用方保存 `Subscription` | 主动 `close()` |
+| Window、Pane、Visual 的 `bind` | 对应 UI 对象 | 随 UI 对象管理，也可调用 `Subscription.close()` 提前解绑 |
 | 容器事件订阅 | 容器 | 临时监听主动 `close()` |
 | 网络监听 | NetworkManager | 功能结束时主动 `close()` |
 
-状态中优先保存 UUID、商品编号和业务数据。需要玩家时在合适的线程获取，不要让后台查询、共享状态或长期监听无意中保留整名玩家。
+状态中优先保存 UUID、商品编号和业务数据。需要玩家时在合适的线程获取，不要让后台查询、共享状态或长期监听无意中保留Player 对象。
 
 <NextStep
   to="/advanced/transaction"

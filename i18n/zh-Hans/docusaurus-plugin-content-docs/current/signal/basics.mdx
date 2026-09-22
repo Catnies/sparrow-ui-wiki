@@ -71,7 +71,7 @@ coins.set(200);
 
 通知只表示值可能变了，不保存触发通知时的那份值。并发写入时，回调里的 `get()` 可能已读到后一次写入的结果。若要逐笔记录金币收支，应在业务操作处记录。
 
-菜单通过 `dependsOn` 等方式绑定 Signal 时，库会管理订阅，不用自己保存 `Subscription`。具体用法看 [Signal 在 UI 中的使用](/signal-ui/item)，订阅的寿命约定看 [生命周期与清理](/advanced/lifecycle)。
+菜单通过 `dependsOn` 等方式绑定 Signal 时，Sparrow UI 会管理订阅，不用自己保存 `Subscription`。具体用法看 [Signal 在 UI 中的使用](/signal-ui/item)，订阅的保留和关闭方式看 [生命周期与清理](/advanced/lifecycle)。
 
 ## 用 map 派生值
 
@@ -162,9 +162,9 @@ try (Subscription subscription = keyword.onDirty(() ->
 这里的 `input` 会保留 `" BOOKS "`，也会通知自己的订阅者。`keyword` 去掉两端空格后再忽略大小写比较，结果相同就不继续通知；输入改为 `" tools "` 时，回调才输出 `搜索词：tools`。
 
 :::warning[比较函数的约定]
-`sameValue` 应满足等价关系，同一个值必须与自身相同，函数也应简短且无副作用。它只会收到两个非 `null` 值；两个 `null` 由库判为相同，只有一侧为 `null` 则判为不同。
+`sameValue` 应满足等价关系，同一个值必须与自身相同，函数也应简短且无副作用。它只会收到两个非 `null` 值；两个 `null` 由 Sparrow UI 判为相同，只有一侧为 `null` 则判为不同。
 
-Signal 会长期持有比较函数，不要在其中捕获 `Player`、`World` 或 `Window`。在数据源的比较规则中忽略一个字段，就意味着仅修改这个字段时，整次写入都会被跳过。
+Signal 会长期持有比较函数，不要在其中捕获 `Player`、`World` 或 `Window`。如果比较时忽略某个字段，仅修改这个字段的写入就会被跳过。
 :::
 
 <NextStep

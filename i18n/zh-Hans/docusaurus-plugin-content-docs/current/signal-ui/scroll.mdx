@@ -5,25 +5,9 @@ sidebar_label: 滚动内容
 
 滚动菜单也能直接接收 `ListSignal`。下面十二组钻石按三列排列，一次显示两行。点击向下按钮后，显示范围从第 1～6 组移到第 4～9 组，按钮名称里的行号也会变化。
 
-示例中的 `viewer` 是当前打开菜单的玩家，使用前应已完成 Sparrow UI 初始化。`named` 用来创建带名称的物品，将下面的方法放入菜单类就行。
-
-<Details summary="示例共用的物品命名方法" previewHeight={0}>
-
-```java
-private static ItemStack named(Material material, String name) {
-    ItemStack stack = new ItemStack(material);
-    stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
-    return stack;
-}
-```
-
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](/item/render)中的写法相同。
-
-</Details>
+示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
 
 ## 滚动列表与位置显示
-
 
 <MinecraftSlotGrid
   title="滚动目录"
@@ -56,6 +40,21 @@ Window.builder(pane).setTitle("滚动目录").open(viewer);
 ```
 
 向 `amounts` 增删数据，当前内容和可滚动范围也会更新。需要上下两个按钮时，按同样方式给向上按钮设置 `scroll.advance(-1)` 和 `line() > 0` 的守卫。
+
+<Details summary="示例共用的物品命名方法" previewHeight={0}>
+
+```java
+private static ItemStack named(Material material, String name) {
+    ItemStack stack = new ItemStack(material);
+    stack.setData(DataComponentTypes.CUSTOM_NAME,
+            Component.text(name).decoration(TextDecoration.ITALIC, false));
+    return stack;
+}
+```
+
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](/item/render)中的写法相同。
+
+</Details>
 
 <NextStep
   to="/signal-ui/tab"

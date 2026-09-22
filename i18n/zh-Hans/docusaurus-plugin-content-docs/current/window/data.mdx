@@ -3,9 +3,9 @@ title: 窗口数据
 sidebar_label: 窗口数据
 ---
 
-窗口可以带业务对象，给点击处理器读。这页还会讲客户端状态确认，还有容器外点击事件中的光标数据和取消操作。
+可以用 `setData` 把商品信息、筛选条件等数据保存在 Window 中，点击时再取出来。本页也介绍窗口状态确认和容器外点击的处理方式。
 
-## 带自定义上下文
+## 保存菜单数据 {/* #带自定义上下文 */}
 
 Builder 的 `setData` 可以给窗口附带一个对象。点击处理器拿到 Window 后，通过 `data(Class)` 取回，适合保存商品编号、筛选条件或当前菜单的上下文。
 
@@ -39,7 +39,7 @@ Window 保存的是传入对象的引用，不会复制、序列化或监听其�
 
 ## 等待客户端确认窗口状态
 
-`setWindowState(int)` 设置一个整数标记。窗口已打开时，库会发送 Ping，收到对应的 Pong 后更新客户端状态，并调用 `addWindowStateChangeHandler` 注册的处理器。
+`setWindowState(int)` 设置一个整数标记。窗口已打开时，Sparrow UI 会发送 Ping，收到对应的 Pong 后更新客户端状态，并调用 `addWindowStateChangeHandler` 注册的处理器。
 
 这组 API 用于区分服务端已设置的状态和客户端已确认的状态。商品、筛选条件等业务数据仍放在上一节的 `setData` 中。
 
@@ -93,7 +93,7 @@ Window.builder(pane)
 
 `WindowOutsideClick` 使用 `getPlayer()`、`getWindow()`、`getClickType()` 和 `getCursor()` 等 getter，写法与 Item 点击事件的 `player()`、`window()` 不同。
 
-`getCursor()` 是事件派发时光标物品的副本，修改它不会替换实际光标物品。处理器返回后，库会检查取消状态；已取消就停止后续容器外点击处理，否则继续执行这次点击的物品操作。取消容器外点击不会阻止玩家按 Esc 关闭窗口，关闭控制看 [打开与关闭](/window/lifecycle)。
+`getCursor()` 是事件派发时光标物品的副本，修改它不会替换实际光标物品。处理器返回后，Sparrow UI 会检查取消状态；已取消就停止后续容器外点击处理，否则继续执行这次点击的物品操作。取消容器外点击不会阻止玩家按 Esc 关闭窗口，关闭控制看 [打开与关闭](/window/lifecycle)。
 
 <NextStep
   to="/session/navigation"

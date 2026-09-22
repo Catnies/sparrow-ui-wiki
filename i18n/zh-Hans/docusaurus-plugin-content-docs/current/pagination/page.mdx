@@ -82,10 +82,10 @@ Window.builder(pane).setTitle("钻石目录").open(viewer);
 
 ## 从数据库懒加载数据
 
-如果你的菜单内的元素依赖数据库时，我们不可能为了开启菜单而全量加载数据库的所有数据，实际上我们只需要总页数和当前页的数据信息。
-你可以用 `Page.async(...)` 创建一份异步加载且按需查询的分页菜单。玩家翻到哪一页，才加载哪一页，不必在打开菜单前查出全部元素。
+商品保存在数据库中时，通常只需要查询总页数和当前页的商品。
+`Page.async(...)` 会按需异步查询，玩家翻到哪一页，就加载哪一页。
 
-我们以商品信息举例，下面每页查询 9 条来自数据库的商品。`repository` 是插件自己的数据库访问对象，`findPage(offset, limit)` 返回指定范围的商品，`count()` 返回商品总数。示例使用 Paper 的异步调度器执行这两种查询。
+下面每页查询 9 条商品。`repository` 是插件自己的数据库访问对象，`findPage(offset, limit)` 返回指定范围的商品，`count()` 返回商品总数。示例使用 Paper 的异步调度器执行这两种查询。
 
 ```java
 public void openCatalog(Player viewer, Plugin plugin, ProductRepository repository) {
@@ -150,7 +150,7 @@ interface ProductRepository {
 
 </Details>
 
-创建 Page 时就会提交总页数查询，各页的商品则在首次读取时才查询。结果返回前，这一页暂时为空；查询完成后，Pane 自动显示商品。加载过的页会缓存下来，再翻回去会使用缓存。`Page.async` 的第三个参数是总页数，即使返回 0，库也会按一页处理。
+创建 Page 时就会提交总页数查询，各页的商品则在首次读取时才查询。结果返回前，这一页暂时为空；查询完成后，Pane 自动显示商品。加载过的页会缓存下来，再翻回去会使用缓存。`Page.async` 的第三个参数是总页数，即使返回 0，Sparrow UI 也会按一页处理。
 
 :::warning[查询在异步线程执行]
 数据库访问对象需要支持异步调用，两种查询也可能同时执行。查询函数只返回商品数据，不要在里面读取玩家、世界或 Bukkit 容器状态。
@@ -168,7 +168,7 @@ interface ProductRepository {
 
 ## 把数据转换成物品
 
-在 Page 中提供的列表里是允许直接存业务数据，不必提前全部转成 Item 的，这样做的好处是只有在有玩家打开时才会创建 Item，减少不必要的对象内存消耗。给 `addIngredient` 再传一个转换函数，就能把当前页的数据转换成 `Element`。
+Page 的列表可以直接存商品等业务数据。给 `addIngredient` 传入转换函数后，Pane 会把当前页的数据转换成 `Element`，不需要提前为整个列表创建 Item。
 
 下面按每页三种材料显示。传入的是 `Page<Material>`，转换函数为每种材料创建展示物品。
 
