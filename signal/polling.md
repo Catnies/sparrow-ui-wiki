@@ -1,0 +1,69 @@
+# Polling
+
+Source: <https://catnies.github.io/sparrow-ui-wiki/signal/polling>
+
+The shop shows the server-wide remaining stock, which lives in a database that other subservers also sell from. This server never sees every purchase event, so relying on local `dirty()` calls alone cannot keep the display current.
+
+The answer is querying on a schedule. `Signal.polling` repeats the query while subscribers exist and stops once the last subscriber leaves. First loads, placeholders, and error handling match [Async loading](https://catnies.github.io/sparrow-ui-wiki/signal/async.md).
+
+## Querying stock on an interval
+
+Assume a product service `catalog` offers `loadStock("diamond")`, reading the diamond's remaining count from the database and returning an integer. That is your project's own business method; `ioExecutor` is the existing background I/O executor, and Sparrow UI initialization must have completed before use.
+
+Below, a stock source is created that queries every `100` ticks. Several shop menus can share this source, so create and keep it during shop service initialization and let menus use the same object.
+
+```java
+AsyncSignal<Integer> diamondStock = Signal.polling(
+        (Integer) null,
+        ioExecutor,
+        () -> catalog.loadStock("diamond"),
+        100L
+);
+Signal<String> stockText = diamondStock.map(value ->
+        value == null ? "Loading stock…" : value + " left");
+```
+
+Creation submits the first query immediately. Say the initial stock is `20` and another server sells two, making it `18`; when that next query completes, `stockText` reads "18 left". Between polls you read the most recently completed result, which is never guaranteed to match the database at that instant; actual purchases still need the business layer to check and deduct stock.
+
+So far this is only a source and a derived text. **Continuous polling still needs a subscription**: calling `get()` alone or creating a `map` never keeps it querying.
+
+## Starting and stopping the watch
+
+Use the console to stand in for someone watching the stock. Continuing with `stockText` from the previous section, keeping the subscription puts the source into automatic polling.
+
+```java
+Subscription watching = stockText.onDirty(() ->
+        System.out.println(stockText.get()));
+System.out.println(stockText.get());
+```
+
+The first output depends on whether the query has finished: "Loading stock…" or "20 left". When `18` arrives, the callback prints "18 left". If the stock keeps reading `20`, no notification repeats every `100` ticks, because the default equality filters unchanged results.
+
+Close the saved subscription to end this console watch:
+
+```java
+watching.close();
+```
+
+Real menus hold their subscriptions through binding, see [Binding to the UI](https://catnies.github.io/sparrow-ui-wiki/signal-ui/item.md). While another menu still subscribes to the same source, polling continues; **only when the last subscription closes does automatic polling stop.** The next subscriber resumes it, and if more than one period has passed since the last query finished with none running, an immediate catch-up query fires first.
+
+Stopping the poll does not cancel queries already submitted or follow-ups already booked; they may still complete and update the value. The first query at creation and an explicit `diamondStock.dirty()` are likewise indifferent to subscriptions.
+
+## Choosing tick or millisecond periods
+
+The `100` ticks above are about 5 seconds at a steady 20 TPS, and the wall-clock interval stretches when the server slows down. To trigger every 5 real seconds instead, swap the source's creation for the millisecond version:
+
+```java
+AsyncSignal<Integer> diamondStock = Signal.pollingMillis(
+        (Integer) null,
+        ioExecutor,
+        () -> catalog.loadStock("diamond"),
+        5000L
+);
+```
+
+`polling`'s period must be positive, and `pollingMillis`'s at least `50` ms. Both hand queries to the executor you pass, and the notifications after each query also fire from the querying thread.
+
+Sources sharing a period share a clock, and a new subscriber joins the existing beat. So the period describes the query rhythm, not "wait 5 seconds after each query completes". When the database responds slower than the period, the same Signal never runs parallel queries; it [merges one follow-up](https://catnies.github.io/sparrow-ui-wiki/signal/async.md#refreshing-the-balance-after-granting-a-reward) instead.
+
+**Next**: [Collection state](https://catnies.github.io/sparrow-ui-wiki/signal/collections.md) — List, restock, and reload products; learn how to update collection contents.

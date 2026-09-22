@@ -1,0 +1,58 @@
+# 发送与模拟接收
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/network/send-receive>
+
+> **信息：可选能力，API 仍可能调整**
+>
+> 网络 API 支持发送数据包和模拟客户端请求，接口后续仍可能调整。普通菜单使用 UI API 即可。
+
+通过 `NetworkManager.user(viewer)` 获取玩家的 `NetworkUser`。未建立对应连接时可能返回 `null`，示例中的 `viewer` 是目标玩家。
+
+## 发送与接收方向
+
+`sendPacket` 向客户端发送数据，`receivePacket` 则把请求注入服务端的接收流程。两者都支持 NMS 对象，也支持传入 `PacketType` 后填写 payload。
+
+下面临时将客户端的经验条显示为半条、等级显示为十级。字段顺序按 Minecraft Java 1.21.11 核对，这不会修改服务器保存的真实经验。
+
+```java
+NetworkUser user = SparrowUI.getInstance().networkManager().user(viewer);
+if (user == null) return;
+
+PacketType experience = new PacketType(
+        "minecraft:set_experience", ConnectionState.PLAY, PacketFlow.CLIENTBOUND);
+user.sendPacket(experience, payload -> {
+    payload.writeFloat(0.5F);
+    payload.writeVarInt(10);
+    payload.writeVarInt(175);
+});
+```
+
+Sparrow UI 自动写入当前版本的包 ID，回调只需追加 payload。回调在调用线程同步执行，不要保存其中的缓冲；实际转发交给连接的 Netty event loop，方法返回不代表客户端已处理完成。
+
+模拟客户端请求时使用 `SERVERBOUND` 类型。例如，接着使用上面的 `user`，向服务端注入一次选择第三个快捷栏格子的请求。
+
+```java
+PacketType heldSlot = new PacketType(
+        "minecraft:set_carried_item", ConnectionState.PLAY, PacketFlow.SERVERBOUND);
+user.receivePacket(heldSlot, payload -> payload.writeShort(2));
+```
+
+这会经过相应的入站监听与原版处理流程，不等于玩家实际操作了客户端。调用方需要保证包适用于当前连接阶段，并自行适配字段格式。
+
+## 其他入口
+
+| 数据形式 | 发往客户端 | 注入服务端 |
+| - | - | - |
+| NMS 包对象 | `sendPacket(packet)` | `receivePacket(packet)` |
+| 包类型与 payload 写入函数 | `sendPacket(type, writer)` | `receivePacket(type, writer)` |
+| 已编码的 `ByteBuf` | `sendByteBuf(frame)` | `receiveByteBuf(frame)` |
+
+原始帧必须包含「VarInt 包 ID + payload」，不包含长度、压缩或加密头。被 Sparrow UI 接管后，不要再使用或释放它。一般使用 `sendPacket(type, writer)` 等方法即可，由 Sparrow UI 分配缓冲并写入包 ID。
+
+`PacketBuf` 包装 Netty `ByteBuf`，补充 `readVarInt` / `writeVarInt`、VarLong、UUID、UTF 字符串等读写方法。它与原缓冲共用数据、指针和引用计数，不是一份独立副本。
+
+所有收发入口都有对应的 `Silently` 方法，如 `sendPacketSilently`、`receiveByteBufSilently`。它们只在同步传播期间跳过 Sparrow 相应方向的监听器，包括内置状态监听器；不会跳过第三方插件，也不会跨延迟转发保留静默状态。不要借此绕过协议阶段切换流程。
+
+与其他数据包库共存、或更换 Minecraft 版本时，应在实际环境中验证。逻辑包名相同，并不保证字段布局和第三方处理器行为相同。
+
+**下一步**：[对象生命周期与订阅（可选）](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/advanced/lifecycle.md) — 了解对象、观察者和订阅在使用结束后如何释放。

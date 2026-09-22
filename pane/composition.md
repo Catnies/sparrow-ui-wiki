@@ -1,0 +1,228 @@
+# Backgrounds, freezing, and nesting
+
+Source: <https://catnies.github.io/sparrow-ui-wiki/pane/composition>
+
+A Pane's background fills the slots that hold no content, and freezing stops a Pane from reacting to player interaction for a while. A Pane can also be nested inside another Pane, or shown in several players' Windows at once.
+
+## Backgrounds
+
+`setBackground` sets the background item, shown in every template slot with no bound content:
+
+```java
+ItemStack background = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+background.setData(DataComponentTypes.CUSTOM_NAME, Component.empty());
+
+Pane pane = Pane.builder(
+                "#########",
+                "###A#B###",
+                "#########"
+        )
+        .setBackground(background)
+        .addIngredient('A', Item.simple(new ItemStack(Material.BOOK)))
+        .addIngredient('B', Item.simple(new ItemStack(Material.PAPER)))
+        .build();
+```
+
+The `#` in the template has no bound content; switch to the player view to see them as gray glass panes:
+
+```text title="Background"
+#########
+###A#B###
+#########
+```
+
+- `#`: background (`gray_stained_glass_pane`)
+- `A`: book (`book`)
+- `B`: paper (`paper`)
+
+The background only fills space and has no click behavior of its own. Two kinds of slots show it:
+
+- Identifiers in the template with no bound content
+- Slots bound to `Element.empty()`
+
+Slots bound to [`Item.empty()`](https://catnies.github.io/sparrow-ui-wiki/item/create.md#creating-an-empty-item) do not show the background and stay blank.
+
+`setBackground` also accepts an `ItemProvider`, so the background can be generated per viewer at render time; see [Rendering and refresh](https://catnies.github.io/sparrow-ui-wiki/item/render.md).
+
+While the menu is open, call the Pane's `setBackgroundItem(stack)` or `setBackground(provider)` to swap the background, or pass `null` to clear it. Windows currently showing this Pane update right away.
+
+## Freezing
+
+`setFrozen(true)` freezes the whole Pane. A frozen Pane's slots stop reacting to players: Item click handlers do not run, slots linked to inventories refuse put and take, and they no longer participate in shift-click transfers or double-click collection. Display and refresh are unaffected.
+
+Slots linked to inventories allow players to take items out by default. To present inventory contents only, freeze the Pane. Below, a reward preview shows the items and counts, but players cannot take anything:
+
+```java
+VirtualInventory rewards = new VirtualInventory(new ItemStack[]{
+        new ItemStack(Material.DIAMOND, 3),
+        new ItemStack(Material.EMERALD, 16),
+        new ItemStack(Material.GOLDEN_APPLE)
+});
+
+Pane pane = Pane.builder("###RRR###")
+        .addIngredient('R', rewards)
+        .setFrozen(true)
+        .build();
+```
+
+`new VirtualInventory(ItemStack[])` creates the inventory from the array; the array length is its size, which here matches the three `R` slots.
+
+You can also toggle `setFrozen(true)` and `setFrozen(false)` while the menu is open, for instance freezing a button while a purchase is being processed and unfreezing it afterwards.
+
+## Nesting and offsets
+
+Binding one Pane to another Pane's identifier shows the child Pane's content in that area. The outer template decides **where it shows and how large the area is**; the offset decides **where in the child Pane the display starts**.
+
+### Picking a region of the child Pane
+
+First, a child Pane of 5 columns and 3 rows. Each slot holds a stack of paper whose count marks its position, 1 through 15 from left to right, top to bottom:
+
+```java
+Pane content = Pane.builder(
+                "NNNNN",
+                "NNNNN",
+                "NNNNN"
+        )
+        .addIngredient('N', (slots, occurrence) ->
+                Element.item(Item.simple(new ItemStack(Material.PAPER, occurrence + 1))))
+        .build();
+```
+
+The numbers below stand in for the slot contents. Coordinates start at the top-left `(0, 0)`, with `x` growing rightward and `y` downward:
+
+```text
+          x=0  x=1  x=2  x=3  x=4
+    y=0    1    2    3    4    5
+    y=1    6    7    8    9   10
+    y=2   11   12   13   14   15
+```
+
+In the outer menu, reserve a `C` area of 3 columns and 2 rows and bind the child Pane to it:
+
+```java
+Pane pane = Pane.builder(
+                "#########",
+                "###CCC###",
+                "###CCC###",
+                "#########"
+        )
+        .addIngredient('C', content)
+        .build();
+```
+
+With no offset, the `C` area displays starting from the child Pane's `(0, 0)`. The area is 3 columns by 2 rows, so it takes the top-left six slots: the first row shows **1, 2, 3**, the second **6, 7, 8**. The child Pane's original row-and-column arrangement is preserved.
+
+```text title="No offset: starting at (0, 0)"
+#########
+###CCC###
+###CCC###
+#########
+```
+
+- `C`: top-left 3×2 of the child Pane (`paper`)
+- `#`: empty
+
+### Changing what is shown with an offset
+
+Change the binding to:
+
+```java
+.addIngredient('C', content, 1, 1)
+```
+
+The last two arguments are `offsetX` and `offsetY`. Both are `1` here, so content is taken starting at `(1, 1)` in the child Pane, one column right and one row down, and the same 3×2 area is displayed:
+
+```text
+          x=0  x=1  x=2  x=3  x=4
+    y=0    1    2    3    4    5
+              ┌─────────────┐
+    y=1    6  │ 7    8    9 │10
+    y=2   11  │12   13   14 │15
+              └─────────────┘
+```
+
+The `C` area in the outer menu stays where it was, but it now shows **7, 8, 9 / 12, 13, 14**. Switch to the template view to check that both previews use the exact same outer template:
+
+```text title="Offset (1, 1): starting at the second column, second row"
+#########
+###CCC###
+###CCC###
+#########
+```
+
+- `C`: 3×2 of the child Pane starting at (1, 1) (`paper`)
+- `#`: empty
+
+Holding the `C` area fixed and changing only the offset gives:
+
+| `offsetX` | `offsetY` | First row shown | Second row shown |
+| - | - | - | - |
+| 0 | 0 | 1, 2, 3 | 6, 7, 8 |
+| 1 | 0 | 2, 3, 4 | 7, 8, 9 |
+| 0 | 1 | 6, 7, 8 | 11, 12, 13 |
+| 1 | 1 | 7, 8, 9 | 12, 13, 14 |
+
+To move the child Pane within the outer menu, move the `C` area in the template. A calendar, for instance, needs leading blanks depending on which weekday the first of the month falls on; that is outer layout work. Offsets here pick which part of the child Pane is shown.
+
+> **Warning: Every displayed slot must stay inside the child Pane**
+>
+> The child Pane in this example is 5 wide and 3 tall, the display area 3 wide and 2 tall, so `offsetX` can be 0 to 2 and `offsetY` 0 to 1. Going beyond that maps some slots outside the child Pane, and `build()` throws an `IllegalStateException`; blanks are not filled in automatically.
+
+Offsets are fixed at build time. To scroll content after the menu opens, use [Scroll](https://catnies.github.io/sparrow-ui-wiki/pagination/scroll.md).
+
+### Backgrounds, freezing, and clicks after nesting
+
+The embedded slots stay linked to their counterparts in the child Pane. When the child Pane's content updates, the outer menu updates too. Background and interaction rules:
+
+| | Rule |
+| - | - |
+| Background | The child Pane's empty slots use the child Pane's own background first; if it has none, the outer Pane's background applies |
+| Freezing | If either the outer Pane or the child Pane is frozen, the slot stops reacting |
+| Clicks | When not frozen, Items in the child Pane respond to clicks as usual |
+
+## Sharing a Pane between players
+
+Panes can be shared just like Items: keep the Pane in a field and hand it to a fresh Window on every open. Windows are per player and cannot be shared. After that, modifying the Pane updates every Window currently showing it at the same time.
+
+The announcement board below is shared by all players. During maintenance it switches to a red background and freezes:
+
+```java
+private static final Pane BOARD = createBoard();
+
+public static void open(Player viewer) {
+    Window.builder(BOARD).open(viewer);
+}
+
+public static void startMaintenance() {
+    BOARD.setFrozen(true);
+    BOARD.setBackgroundItem(new ItemStack(Material.RED_STAINED_GLASS_PANE));
+}
+
+public static void endMaintenance() {
+    BOARD.setFrozen(false);
+    BOARD.setBackgroundItem(new ItemStack(Material.GRAY_STAINED_GLASS_PANE));
+}
+```
+
+**The createBoard() implementation**
+
+```java
+private static Pane createBoard() {
+    return Pane.builder(
+                    "#########",
+                    "###N#S###",
+                    "#########"
+            )
+            .setBackground(new ItemStack(Material.GRAY_STAINED_GLASS_PANE))
+            .addIngredient('N', new ItemStack(Material.PAPER))
+            .addIngredient('S', Item.builder()
+                    .setItemProviderConstant(new ItemStack(Material.LIME_DYE))
+                    .addClickHandler(click -> click.player().sendMessage(Component.text("Checked in!")))
+                    .build())
+            .build();
+}
+```
+
+Two players have the board open. Press the buttons below to call the methods and watch both Windows change together:
+
+**Next**: [Programmatic layouts](https://catnies.github.io/sparrow-ui-wiki/pane/programmatic.md) — Skip the character template and place content by slot index or coordinate.

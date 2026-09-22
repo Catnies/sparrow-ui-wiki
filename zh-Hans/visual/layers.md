@@ -1,0 +1,271 @@
+# 视觉映射
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/visual/layers>
+
+视觉层决定格子显示成什么样，不改动格子里的真实物品。玩家看到的是视觉层给出的物品；点击、Shift 转移、代码读取和事件用到的，仍然是真实物品。
+
+## 显示是怎样叠出来的
+
+视觉映射可以设在四个地方，谁能看到取决于设在哪里：
+
+| 层 | 设在 | 谁看得到 |
+| - | - | - |
+| 窗口层 | Window | 只有这个窗口的查看者 |
+| Pane 层 | Pane | 所有显示这块 Pane 的窗口 |
+| 容器层 | SparrowInventory | 所有显示这个容器的窗口 |
+| 光标层 | Window | 只有这个窗口的查看者，只作用于光标 |
+
+```java
+// 容器层: 所有显示这个容器的窗口都看得到
+storage.setVisualizerItem(actual -> actual == null ? null : mark);
+// Pane 层: 所有显示这块 Pane 的窗口都看得到
+pane.setVisualizerItem(3, actual -> mark);
+// 窗口层: 只有这个窗口的查看者看得到
+window.setVisualizerItem(5, actual -> mark);
+// 光标层: 只影响这个窗口查看者的光标
+window.setCursorVisualizerItem(actual -> actual == null ? null : mark);
+```
+
+一格显示什么，按下面的顺序从上往下决定。某一层给出了物品，下面的层就不再参与：
+
+1. 窗口层
+2. Pane 层。Pane 嵌套时，外层的 Pane 先于里层
+3. 格子自己的内容：连接容器的格子依次是容器层、真实物品、[容器背景](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/basics.md#容器背景)；绑定 Item 的格子显示 Item；空格显示 [Pane 背景](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/composition.md#背景)
+
+光标不经过这三步，只看光标层，光标层没有给出物品时显示真实光标。
+
+演示用不同颜色的玻璃板表示各层给出的物品，三层盖住的格子互相重叠。关掉某一层，下面一层就会露出来。窗口层和光标层只改变玩家 A 看到的内容；无论怎样开关，容器中的真实内容都不变。
+
+在 Pane、容器或窗口上播放的动画，会盖住同一处设置的映射，看 [动画](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/visual/animation.md)。
+
+## 只改变显示
+
+视觉层只在显示时生效。下面的容器对所有玩家都显示为屏障，代码读到的仍是真实物品：
+
+```java
+shop.setVisualizerItem(actual -> actual == null ? null : new ItemStack(Material.BARRIER));
+// 玩家看到的是屏障, 代码读到的仍是真实物品
+ItemStack real = shop.itemAt(0);
+```
+
+同样地：
+
+- 玩家点击被盖住的格子，拿起的是真实物品，光标上显示的也是真实物品
+- Shift 转移、双击收集、拖拽按真实物品计算
+- 访问规则、点击事件和提交前后事件看到的都是真实物品
+- 按钮格被盖住后，点击仍会执行 Item 的点击处理器
+
+> **注意：视觉效果不会阻止玩家操作**
+>
+> 格子显示成别的物品后，玩家仍然可以取出里面的真实物品，按钮也仍然可以点击。需要禁止操作时，配合 [访问规则](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/rules-events.md#访问规则) 或 [冻结](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/basics.md#冻结容器)。
+
+## 设置映射
+
+每一层都有两种映射：`setVisualizerItem(mapping)` 作用于所有格子，`setVisualizerItem(slot, mapping)` 只作用于一格。同一层中先看这一格的映射，它没有给出物品时再看作用于所有格子的映射：
+
+```java
+// 作用于所有格子的映射
+storage.setVisualizerItem(actual -> actual == null ? null : mark);
+// 只作用于第 0 格, 优先于上面的映射. 返回空物品表示把这一格显示为空
+storage.setVisualizerItem(0, actual -> ItemStack.empty());
+// 传入 null 移除映射
+storage.setVisualizerItem(0, null);
+storage.setVisualizerItem(null);
+```
+
+映射收到这一格当前的物品，返回要显示的物品；返回 `null` 表示不处理，交给下一层。格子序号相对于设置映射的对象：容器层用容器的格子序号，Pane 层用 Pane 的，窗口层用窗口的。
+
+各层映射收到的物品不同：
+
+| 层 | 映射收到的物品 |
+| - | - |
+| 容器层 | 这一格的真实物品，空格为 `null` |
+| Pane 层、窗口层 | 格子连接容器时是真实物品；绑定 Item 的格子和空格为 `null` |
+| 光标层 | 光标上的真实物品，空光标为 `null` |
+
+格子的内容变化后，映射会重新计算。映射还依赖别的状态时，状态变化后调用 `visual().dirty()`，让显示这一层的窗口重新计算：
+
+```java
+// 映射依赖的外部状态变了, 让显示这个容器的窗口重新计算
+storage.visual().dirty();
+```
+
+> **注意：映射只做换算**
+>
+> 映射收到的物品只能读取，要改动时先 `clone()`，也不要把它保存下来。映射在渲染时调用，可能被多个窗口的线程同时调用，要尽快返回，不要修改容器或发送消息。耗时的计算放进下文的 `ItemProvider`。
+
+## 容器层
+
+`SparrowInventory` 上的映射作用于这个容器的格子，所有显示这个容器的窗口都会看到。下面的寄售箱打开期间，玩家背包中能出售的物品会多一行售价：
+
+```java
+Window window = Window.builder(sellPane).setTitle("寄售箱").build(viewer);
+// 窗口下方映射玩家背包的容器, 使用默认下部 Pane 时不为 null
+ReferencingInventory backpack = window.defaultLowerInventory();
+// 寄售箱打开期间, 背包中能出售的物品多一行售价, 背包里的物品本身不变
+backpack.setVisualizerItem(actual -> {
+    // 空格和不能出售的物品放行, 照常显示
+    if (actual == null || !prices.containsKey(actual.getType())) {
+        return null;
+    }
+    // 映射收到的物品只能读取, 先复制再修改
+    ItemStack shown = actual.clone();
+    List<Component> lines = new ArrayList<>();
+    ItemLore lore = actual.getData(DataComponentTypes.LORE);
+    if (lore != null) {
+        // 保留物品原有的说明, 在后面追加售价
+        lines.addAll(lore.lines());
+    }
+    int total = prices.get(actual.getType()) * actual.getAmount();
+    lines.add(Component.text("售价：" + total + " 金币", NamedTextColor.GOLD)
+            .decoration(TextDecoration.ITALIC, false));
+    shown.setData(DataComponentTypes.LORE, ItemLore.lore(lines));
+    return shown;
+});
+window.open();
+```
+
+`sellPane` 是寄售箱上方的 Pane，`prices` 记录每种物品的单价，下面的预览按钻石 100、绿宝石 10、铁锭 5、青金石 20、煤炭 1 金币计算。
+
+`window.defaultLowerInventory()` 取得窗口下方映射玩家背包的容器，看 [窗口布局](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/layout.md#修改默认玩家物品栏)。这个映射容器在每次构建窗口时新建，只显示在这个窗口中，所以售价只出现在寄售箱里。
+
+左边是打开其他容器时的背包，右边是打开寄售箱后的背包。把鼠标移到背包中的物品上比较：寄售箱中能出售的物品追加了售价，青金石原有的说明保留在售价上方，剑和书不能出售，保持原样。
+
+```text title="箱子"
+#########
+#########
+#########
+
+D##E#####
+#I######L
+####C####
+WB#######
+```
+
+空行下面的 4 行是玩家物品栏。
+
+- `D`：钻石（`diamond`） ×3
+- `E`：绿宝石（`emerald`） ×16
+- `I`：铁锭（`iron_ingot`） ×12
+- `L`：幸运青金石（`lapis_lazuli`） ×4，说明：据说能带来好运。
+- `C`：煤炭（`coal`） ×32
+- `W`：钻石剑（`diamond_sword`）
+- `B`：书（`book`）
+
+```text title="寄售箱"
+#########
+#########
+########X
+
+D##E#####
+#I######L
+####C####
+WB#######
+```
+
+空行下面的 4 行是玩家物品栏。
+
+- `X`：确认出售（`lime_dye`）
+- `D`：钻石（`diamond`） ×3，说明：售价：300 金币
+- `E`：绿宝石（`emerald`） ×16，说明：售价：160 金币
+- `I`：铁锭（`iron_ingot`） ×12，说明：售价：60 金币
+- `L`：幸运青金石（`lapis_lazuli`） ×4，说明：据说能带来好运。 / 售价：80 金币
+- `C`：煤炭（`coal`） ×32，说明：售价：32 金币
+- `W`：钻石剑（`diamond_sword`）
+- `B`：书（`book`）
+
+背包里的物品本身没有变化。玩家把物品拿到光标上、放进寄售箱或者关闭菜单后，看到的都是没有售价的真实物品。
+
+映射对空格返回物品时，会盖住容器背景。
+
+### 按查看者生成
+
+容器层对所有显示这个容器的窗口生效。多名玩家共用一个容器，又需要同一格对不同玩家显示不同内容时，用 `setVisualizerProvider` 返回 `ItemProvider`，渲染时可以取得当前的查看者：
+
+```java
+// shop 是多名玩家共用的商品容器
+shop.setVisualizerProvider(actual -> {
+    if (actual == null) {
+        return null;
+    }
+    ItemStack item = actual.clone();
+    // 渲染时能拿到查看者, 同一格对不同玩家显示不同的价格
+    return ItemProvider.sync(context -> withPrice(item, priceFor(context.player(), item)));
+});
+```
+
+`withPrice`、`priceFor` 是自己编写的方法，分别给物品加上售价说明、按玩家计算价格。
+
+返回的 `ItemProvider` 也可以异步计算，写法看 [渲染与刷新](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)。结果算出之前显示真实物品；`setVisualizerProvider` 的第二个参数可以指定这段时间显示的占位物品。格子的内容在算出结果前变了，这次结果会被丢弃。
+
+Pane 和窗口的 `setVisualizerProvider`、光标的 `setCursorVisualizerProvider` 用法相同。Pane 层和窗口层的格子没有连接容器时，结果算出之前显示为空。
+
+## Pane 层
+
+Pane 上的映射作用于 Pane 的格子，所有显示这块 Pane 的窗口都会看到。下面的公告板进入维护时，所有格子都显示为红色玻璃板，并冻结 Pane：
+
+```java
+ItemStack maintenance = new ItemStack(Material.RED_STAINED_GLASS_PANE);
+maintenance.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("维护中", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+
+// 进入维护: 整块 Pane 的每一格都显示为提示物品, 并冻结 Pane 禁止操作
+pane.setVisualizerItem(actual -> maintenance);
+pane.setFrozen(true);
+
+// 结束维护: 移除映射, 格子恢复原来的显示
+pane.setVisualizerItem(null);
+pane.setFrozen(false);
+```
+
+绑定 Item 的格子和空格收到的是 `null`。上例的映射不看输入，所以按钮、背景和容器的格子全部被盖住。只想处理连接容器的格子时，对 `null` 返回 `null`。
+
+多名玩家共用这块 Pane 时，他们的窗口一起显示维护状态，看 [背景、冻结与嵌套](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/composition.md)。
+
+## 窗口层
+
+Window 上的映射只影响这一个窗口，其他玩家看不到。下面只对新玩家高亮签到按钮：
+
+```java
+// 按钮格传给映射的是 null, 高亮后的样子由这里自己准备
+ItemStack highlighted = signInIcon.clone();
+highlighted.setData(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+
+Window window = Window.builder(pane).setTitle("每日签到").build(viewer);
+if (newPlayer) {
+    // 只在新玩家的窗口中, 让签到按钮带上附魔光效
+    window.setVisualizerItem(SIGN_IN_SLOT, actual -> highlighted);
+}
+window.open();
+```
+
+`SIGN_IN_SLOT` 是窗口的格子序号。窗口先给上方的格子编号，再给下方的玩家物品栏编号，上方 Pane 的格子序号与窗口的相同，看 [窗口布局](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/layout.md)。
+
+窗口层是最上面的一层，会盖住 Pane 层和容器层。只对某名玩家生效的效果放在这里，例如新手引导、这名玩家自己的选中状态。
+
+Builder 的 `setVisualizerItem(mapping)` 可以在打开之前设置作用于所有格子的映射；只作用于一格的映射在 `build` 之后设置。
+
+## 光标层
+
+`setCursorVisualizerItem` 改变光标显示的物品，只有这个窗口的查看者看得到。下面的出售菜单中，光标上的物品可以出售时带附魔光效：
+
+```java
+Window.builder(pane)
+        .setTitle("出售")
+        .setCursorVisualizerItem(actual -> {
+            // 空光标或不能出售的物品放行, 照常显示真实光标
+            if (actual == null || !prices.containsKey(actual.getType())) {
+                return null;
+            }
+            ItemStack shown = actual.clone();
+            shown.setData(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+            return shown;
+        })
+        .open(viewer);
+```
+
+打开后也可以调用 `window.setCursorVisualizerItem` 更换。光标上的物品变化后，映射会重新计算；玩家放下物品时，格子里是真实物品，不带附魔光效。
+
+客户端不显示光标物品的说明文字，光标层适合改变图标、数量或附魔光效。
+
+**下一步**：[动画](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/visual/animation.md) — 在格子和标题上播放逐帧动画，播放期间盖住原来的显示。

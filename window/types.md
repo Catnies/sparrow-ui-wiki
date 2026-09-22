@@ -1,0 +1,462 @@
+# Window types
+
+Source: <https://catnies.github.io/sparrow-ui-wiki/window/types>
+
+Sparrow UI covers 17 vanilla container windows. A regular chest suits free-form layouts; when you need text input, a progress bar, or a trade list, pick a window that ships with those widgets.
+
+This page walks through the types by layout and purpose. Pane sizes are given as "width × height" and exclude the fixed 9×4 player inventory at the bottom. The interactive previews respond to input, so try the widgets to watch selections and progress change.
+
+Every window shares the general APIs covered earlier, such as `setTitle`, `open(viewer)`, and `close()`. Except for the merged layout, the lower Pane can be set through the builder's `setLowerPane`; left unset it links to the player inventory, see [Window layouts](https://catnies.github.io/sparrow-ui-wiki/window/layout.md).
+
+> **Info: Vanilla widgets versus business logic**
+>
+> These windows provide the vanilla interface, widget state, and player input events. The actual smelting, crafting, enchanting, and trade payments are your plugin's job. The `Item` in the examples exists for display or clicks; when players should put real items in and take them out, link an [Inventory](https://catnies.github.io/sparrow-ui-wiki/inventory/basics.md).
+
+## Chest
+
+The chest takes 1 to 6 rows on top, nine slots each. Use `Window.builder(pane)` as before; the row count follows the upper Pane.
+
+```text title="Chest menu"
+
+#########
+####B####
+#########
+```
+
+The last 4 rows, after the blank line, are the player inventory.
+
+- `B`: Book (`book`)
+
+```java
+Pane pane = Pane.builder("#########", "####B####", "#########")
+        .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+        .build();
+
+Window.builder(pane)
+        .setTitle("Chest menu")
+        .open(viewer);
+```
+
+## Hopper
+
+The hopper's upper Pane is fixed at **5×1**, which fits menus with few options:
+
+```java
+Pane pane = Pane.builder("##B##")
+        .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+        .build();
+
+HopperWindow.builder()
+        .setUpperPane(pane)
+        .setTitle("Pick a category")
+        .open(viewer);
+```
+
+```text title="Pick a category"
+
+##B##
+```
+
+The last 4 rows, after the blank line, are the player inventory.
+
+- `B`: Book (`book`)
+
+## Dispenser and dropper
+
+Both use a **3×3** upper Pane with the nine slots centered in the window. The entry points are `DispenserWindow` and `DropperWindow`, configured identically.
+
+```java
+DispenserWindow.builder()
+        .setUpperPane(Pane.builder("###", "#B#", "###")
+                .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+                .build())
+        .setTitle("Pick a category")
+        .open(viewer);
+```
+
+Swap the entry point for `DropperWindow.builder()` to use a dropper window instead.
+
+## Grindstone
+
+```text title="Grindstone menu"
+
+BBX
+```
+
+The last 4 rows, after the blank line, are the player inventory.
+
+- `B`: Book (`book`)
+- `X`: Barrier (`barrier`)
+
+The grindstone's two input slots on the left share one **1×2** Pane, and the result slot on the right gets its own **1×1** Pane. Below, two books are displayed and clicking the barrier closes the menu:
+
+```java
+GrindstoneWindow.builder()
+        .setInputPane(Pane.builder("B", "B")
+                .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+                .build())
+        .setResultPane(Pane.builder("X")
+                .addIngredient('X', Item.builder()
+                        .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                        .addClickHandler(click -> click.window().close())
+                        .build())
+                .build())
+        .setTitle("Grindstone menu")
+        .open(viewer);
+```
+
+## Smithing table
+
+```text title="Upgrade preview"
+
+TERO
+```
+
+The last 4 rows, after the blank line, are the player inventory.
+
+- `T`: Netherite upgrade (`netherite_upgrade_smithing_template`)
+- `E`: Diamond sword (`diamond_sword`)
+- `R`: Netherite ingot (`netherite_ingot`)
+- `O`: Netherite sword (`netherite_sword`)
+
+The smithing table uses one **4×1** Pane mapping to the template, equipment, material, and result slots in order. The four slots form a single row in the template; the gaps on screen come from the vanilla interface:
+
+```java
+SmithingWindow.builder()
+        .setUpperPane(Pane.builder("TERO")
+                .addIngredient('T', Item.simple(new ItemStack(Material.NETHERITE_UPGRADE_SMITHING_TEMPLATE)))
+                .addIngredient('E', Item.simple(new ItemStack(Material.DIAMOND_SWORD)))
+                .addIngredient('R', Item.simple(new ItemStack(Material.NETHERITE_INGOT)))
+                .addIngredient('O', Item.simple(new ItemStack(Material.NETHERITE_SWORD)))
+                .build())
+        .setTitle("Upgrade preview")
+        .open(viewer);
+```
+
+## Furnace, blast furnace, and smoker
+
+Drag the sliders to watch the smelting arrow and remaining fuel change.
+
+The three furnace variants use one **1×1** Pane each for input, fuel, and result. The entry points are `FurnaceWindow`, `BlastFurnaceWindow`, and `SmokerWindow`, which share the same layout and progress APIs. The example uses `FurnaceWindow`; for the others, swap the variable type and the builder entry. `setCookProgress` drives the smelting arrow and `setFuelProgress` the fuel icon:
+
+```java
+FurnaceWindow window = FurnaceWindow.builder()
+        .setInputPane(Pane.builder("I")
+                .addIngredient('I', Item.simple(new ItemStack(Material.RAW_IRON)))
+                .build())
+        .setFuelPane(Pane.builder("F")
+                .addIngredient('F', Item.simple(new ItemStack(Material.COAL)))
+                .build())
+        .setResultPane(Pane.builder("R")
+                .addIngredient('R', Item.simple(new ItemStack(Material.IRON_INGOT)))
+                .build())
+        .setCookProgress(0.5)
+        .setFuelProgress(0.75)
+        .setTitle("Smelting preview")
+        .build(viewer);
+
+window.open();
+```
+
+All three support the [recipe book](https://catnies.github.io/sparrow-ui-wiki/window/types.md#recipe-book). Cook and fuel progress both accept 0.0 to 1.0; values out of range, `NaN`, or infinities throw an `IllegalArgumentException`. A set only changes the current display; progress does not advance by itself.
+
+After the menu opens, update the progress directly:
+
+```java
+window.setCookProgress(1.0);
+window.setFuelProgress(0.25);
+```
+
+## Brewing stand
+
+Drag the sliders to adjust the brewing arrow, the bubbles, and the fuel bar.
+
+On the brewing stand, the ingredient and fuel each take a 1×1 Pane, and the three potion slots at the bottom share a 3×1 Pane. `setBrewProgress` sets the brewing progress and `setFuelProgress` the fuel:
+
+```java
+BrewingWindow.builder()
+        .setInputPane(Pane.builder("I")
+                .addIngredient('I', Item.simple(new ItemStack(Material.NETHER_WART)))
+                .build())
+        .setFuelPane(Pane.builder("F")
+                .addIngredient('F', Item.simple(new ItemStack(Material.BLAZE_POWDER)))
+                .build())
+        .setResultPane(Pane.builder("PPP")
+                .addIngredient('P', Item.simple(new ItemStack(Material.POTION)))
+                .build())
+        .setBrewProgress(0.5)
+        .setFuelProgress(0.75)
+        .setTitle("Brewing preview")
+        .open(viewer);
+```
+
+> **Warning: Progress values and updates**
+>
+> Brew and fuel progress both accept 0.0 to 1.0; values out of range, `NaN`, or infinities throw an `IllegalArgumentException`. A set only changes the current display and progress does not advance on its own, so call the matching setter as the work actually proceeds.
+
+## Anvil
+
+The text field starts at "My notes", and the result book's hover name follows the input. The code below reproduces the same behavior.
+
+The anvil's top uses a 3×1 Pane for the first input, second input, and result slots. `addRenameHandler` receives the text the player submits, which suits search boxes and naming menus.
+
+The client fills the text field from the first input item's name, so the book gets a `CUSTOM_NAME` first. The rename callback updates the result book's name and tells it to re-render:
+
+```java
+ItemStack input = new ItemStack(Material.BOOK);
+input.setData(DataComponentTypes.CUSTOM_NAME, Component.text("My notes"));
+
+AtomicReference<String> currentName = new AtomicReference<>("My notes");
+ObservableItem result = Item.builder()
+        .setItemProvider(context -> {
+            ItemStack stack = new ItemStack(Material.BOOK);
+            String name = currentName.get();
+            if (!name.isEmpty()) {
+                stack.setData(DataComponentTypes.CUSTOM_NAME, Component.text(name));
+            }
+            return stack;
+        })
+        .build();
+
+AnvilWindow.builder()
+        .setUpperPane(Pane.builder("B#R")
+                .addIngredient('B', Item.simple(input))
+                .addIngredient('R', result)
+                .build())
+        .setEnchantmentCost(0)
+        .addRenameHandler(text -> {
+            currentName.set(text);
+            result.notifyWindows();
+        })
+        .setTitle("Enter text")
+        .open(viewer);
+```
+
+| Method | Purpose |
+| - | - |
+| `addRenameHandler(text -> ...)` | Receives text changes; the current text is also readable via `getRenameText()` |
+| `setTextFieldAlwaysEnabled(true)` | Keeps the text field editable even when the first input slot is empty |
+| `setResultAlwaysValid(true)` | Keeps the client's result button valid even when the result slot is empty |
+| `setEnchantmentCost(levels)` | Sets the level cost shown on the client |
+
+The level cost is display-only; actual experience handling stays with your plugin. Clicks on the result slot still go to the Item in it, and the rename callback can update nothing but a search filter without closing the window.
+
+## Stonecutter
+
+The stonecutter has two content pieces: input and result use a **2×1** Pane, and the recipe buttons in the middle use a Pane whose width is fixed at **4**. The Items in the buttons decide icons and click behavior.
+
+```java
+Material[] materials = {Material.DIAMOND, Material.IRON_INGOT, Material.EMERALD, Material.LAPIS_LAZULI};
+String[] names = {"diamond", "iron ingot", "emerald", "lapis lazuli"};
+char[] symbols = {'D', 'I', 'E', 'L'};
+var buttonsBuilder = Pane.builder("DIEL");
+for (int i = 0; i < materials.length; i++) {
+    String name = names[i];
+    buttonsBuilder.addIngredient(symbols[i], Item.builder()
+                .setItemProviderConstant(new ItemStack(materials[i]))
+                .addClickHandler(click ->
+                        click.player().sendMessage(Component.text("Picked " + name)))
+                .build());
+}
+Pane buttons = buttonsBuilder.build();
+
+StonecutterWindow window = StonecutterWindow.builder()
+        .setUpperPane(Pane.builder("##").build())
+        .setButtonsPane(buttons)
+        .setSelectedRecipeIndex(0)
+        .setTitle("Pick an item")
+        .build(viewer);
+
+window.open();
+```
+
+Clicking a button triggers its Item's left-click handler. `getSelectedRecipeIndex()` returns the current selection and `setSelectedRecipeIndex(-1)` clears it; other indexes start at 0, ordered through the button Pane left to right, top to bottom.
+
+> **Warning: Button count and the selection range**
+>
+> The button list drops trailing empty slots and its length runs to the last non-empty button. At build time indexes are checked against the Pane's capacity; after opening, against the actually displayed range. If the preselected index turns out to be outside the displayed range on first render, the selection is cleared.
+>
+> The button Pane cannot be swapped for another after building; to update buttons, modify the original Pane's content.
+
+## Enchanting table
+
+Preview and code both offer three options with level costs of 1, 8, and 30. Click an option in the preview to see the selection.
+
+The enchanting table's upper Pane is 2×1, showing the item to enchant and lapis. The three options on the right are set separately through `setOption` with indexes 0, 1, and 2:
+
+```java
+EnchantmentWindow.builder()
+        .setUpperPane(Pane.builder("IL")
+                .addIngredient('I', Item.simple(new ItemStack(Material.BOOK)))
+                .addIngredient('L', Item.simple(new ItemStack(Material.LAPIS_LAZULI, 3)))
+                .build())
+        .setOption(0, new EnchantmentWindow.EnchantOption(1, Enchantment.SHARPNESS, 1))
+        .setOption(1, new EnchantmentWindow.EnchantOption(8, Enchantment.UNBREAKING, 2))
+        .setOption(2, new EnchantmentWindow.EnchantOption(30, Enchantment.EFFICIENCY, 3))
+        .setEnchantmentSeed(12345)
+        .addEnchantSelectHandler(click ->
+                click.player().sendMessage(Component.text("Picked option " + (click.index() + 1))))
+        .setTitle("Enchanting preview")
+        .open(viewer);
+```
+
+In `EnchantOption(cost, clue, clueLevel)`, `cost` is the level shown on the client and used for the button's enabled check, at least 1; `clue` and `clueLevel` set the enchantment name and level in the hint. `clue` may be `null`, and passing `null` for the whole option disables that button. `setEnchantmentSeed` only changes the client's rune glyphs.
+
+The selection event carries `player()`, `window()`, `index()`, and a snapshot of this `option()`. After receiving it, your code checks conditions, consumes materials and experience, and then modifies the equipment.
+
+> **Warning: The client still validates enchant buttons**
+>
+> Showing an option does not guarantee the player can click it. The player's level, the lapis count, and more still decide whether the client sends the selection request. The example only presents options and reports the pick; it never enchants the book for real.
+
+## Villager trades
+
+Click the entries on the left to switch the selection. Preview and code use the same three trades.
+
+The trade list is set through `setTrades`, each entry a `MerchantWindow.Trade` holding a first input, an optional second input, and a result Item. Below, 3, 1, and 5 emeralds buy a book, paper, and a book and quill:
+
+```java
+MerchantWindow.Trade bookTrade = MerchantWindow.Trade.builder()
+        .setFirstInput(Item.simple(new ItemStack(Material.EMERALD, 3)))
+        .setSecondInput(Item.empty())
+        .setResult(Item.simple(new ItemStack(Material.BOOK)))
+        .setAvailable(true)
+        .build();
+
+MerchantWindow.Trade paperTrade = MerchantWindow.Trade.builder()
+        .setFirstInput(Item.simple(new ItemStack(Material.EMERALD)))
+        .setSecondInput(Item.empty())
+        .setResult(Item.simple(new ItemStack(Material.PAPER)))
+        .setAvailable(true)
+        .build();
+
+MerchantWindow.Trade writableBookTrade = MerchantWindow.Trade.builder()
+        .setFirstInput(Item.simple(new ItemStack(Material.EMERALD, 5)))
+        .setSecondInput(Item.empty())
+        .setResult(Item.simple(new ItemStack(Material.WRITABLE_BOOK)))
+        .setAvailable(true)
+        .build();
+
+MerchantWindow window = MerchantWindow.builder()
+        .setUpperPane(Pane.builder("###").build())
+        .setTrades(List.of(bookTrade, paperTrade, writableBookTrade))
+        .setLevel(0)
+        .setProgress(-1.0)
+        .setRestockMessageEnabled(false)
+        .addTradeSelectHandler(click ->
+                click.player().sendMessage(Component.text("Picked trade " + click.selectedIndex())))
+        .setTitle("Bookseller")
+        .build(viewer);
+
+window.open();
+```
+
+The trade list and the three container slots on the right are configured separately. `Trade` supplies what the list shows, while `setUpperPane` controls the two payment slots and the result slot. The example leaves those three slots empty, so it presents the list and accepts selections without consuming emeralds or handing out books.
+
+| Method | Value or behavior |
+| - | - |
+| `setTrades(list)` | Replaces the whole ordered trade list |
+| `setLevel(level)` | 0 to 5 |
+| `setProgress(progress)` | 0.0 to 1.0; `-1.0` hides the experience bar |
+| `setRestockMessageEnabled(enabled)` | Controls the restock notice |
+| `trade.setDiscount(amount)` | Display discount on the first input; positive lowers the price, negative raises it |
+| `trade.setAvailable(available)` | Controls whether the trade shows as available |
+
+The selection event carries `previousIndex()`, `selectedIndex()`, and the trades before and after. On the first selection `previousIndex()` is `-1` and `previousTrade()` is `null`. A trade selection callback only means the player highlighted a list entry; charging and delivery should be driven by the actual transaction on the result slot.
+
+> **Warning: Trade display state is not business validation**
+>
+> `setDiscount` and `setAvailable` shape the display. Even when a trade shows as unavailable, a selection request with a valid index can still reach your callback. Check stock, prices, and purchase conditions before completing a trade.
+
+## Crafting table
+
+The crafting table's grid is a 3×3 Pane with the result slot in its own 1×1 Pane. `CraftingWindow`, `FurnaceWindow`, `BlastFurnaceWindow`, and `SmokerWindow` all implement `RecipeBookWindow` and share the recipe selection and hint APIs.
+
+```java
+CraftingWindow window = CraftingWindow.builder()
+        .setCraftingPane(Pane.builder("###", "###", "###").build())
+        .setResultPane(Pane.builder("#").build())
+        .addRecipeSelectHandler(click ->
+                click.player().sendMessage(Component.text("Picked recipe: " + click.recipeId().asString())))
+        .setTitle("Recipe preview")
+        .build(viewer);
+
+window.open().thenRun(() ->
+        window.sendGhostRecipe(Key.key("minecraft:crafting_table")));
+```
+
+The preview above shows the empty slot layout. The code calls `sendGhostRecipe` after the Window opens, and the client then displays the recipe's ingredients as hints in the slots, without placing real items or crafting anything.
+
+It returns a `CompletableFuture<GhostRecipeResult>`, which may be `SENT`, `WINDOW_CLOSED`, `RECIPE_NOT_FOUND`, or `VIEWER_UNAVAILABLE`. `SENT` means the send was handed off, not that the client confirmed showing it.
+
+The recipe selection event carries `recipeId()` and `makeAll()`, the latter meaning the client asked to craft as many as possible. Selection events only arrive for recipes the player has unlocked; ghost recipes you push proactively carry no such requirement.
+
+## Crafter
+
+Click an input slot to toggle it pressed or released; the redstone button exists to show the middle arrow powered and unpowered. The redstone switch here is a web-demo control, not the slot-disabling API below.
+
+The crafter also has a 3×3 input area and a 1×1 result slot, but no recipe book. It exposes the disabled state of the nine input slots, indexed 0 through 8 following the three-row template:
+
+```java
+CrafterWindow.builder()
+        .setCraftingPane(Pane.builder("###", "###", "###").build())
+        .setResultPane(Pane.builder("#").build())
+        .setSlotDisabled(4, true)
+        .addSlotToggleHandler((slot, disabled) ->
+                viewer.sendMessage(Component.text("Slot " + slot + ", disabled: " + disabled)))
+        .setTitle("Configure crafting slots")
+        .open(viewer);
+```
+
+The example disables the dead-center slot first. After the menu opens, `setSlotDisabled(slot, disabled)` changes the state and `isSlotDisabled(slot)` reads it; the builder's `setDisabledSlots(boolean...)` sets all nine at once.
+
+> **Warning: Pane slots versus Window slots**
+>
+> The input Pane's indexes are always 0 through 8. In Window slot order the crafter's result slot comes after the player inventory, at slot 45; when you use `setResultPane` you never need to compute that position yourself.
+
+## Cartography table
+
+The buttons switch between four map preview modes; watch the map border, the copy overlay, and the lock icon change.
+
+The cartography table's input on the left is a 1×2 Pane and the result slot on the right a 1×1 Pane. The map preview adds a **128×128** canvas that can display a `BufferedImage` directly.
+
+The method below takes a 128×128 image and shows it in the cartography preview. The input Pane gets no manual items; the library supplies the map and mode display items the preview needs:
+
+```java
+public static void openMap(Player viewer, BufferedImage image) {
+    CartographyWindow.builder()
+            .setInputPane(Pane.builder("#", "#").build())
+            .setResultPane(Pane.builder("#").build())
+            .setMap(image)
+            .setView(CartographyWindow.View.NORMAL)
+            .setTitle("Map preview")
+            .open(viewer);
+}
+```
+
+`setMap(image)` converts the image into map palette colors; you can also pass a map-color `byte[]` of length 16384. Map colors can differ from an ordinary RGB image.
+
+Keeping the `CartographyWindow` reference lets you patch the canvas, replace icons, or switch the preview mode:
+
+```java
+window.applyPatch(16, 16, image.getSubimage(0, 0, 16, 16));
+window.setIcons(Set.of(new CartographyWindow.MapIcon(
+        MapCursor.Type.PLAYER, 128, 128, 0, Component.text("Center")
+)));
+window.setView(CartographyWindow.View.LOCK);
+```
+
+| Method | Purpose |
+| - | - |
+| `applyPatch(x, y, image)` | Overwrites a patch of the canvas starting at `(x, y)` |
+| `applyPatch(MapPatch)` | Writes a rectangular patch already converted to map colors, colors ordered row by row |
+| `setIcons(set)` | Replaces the whole icon set; pass an empty set to clear icons |
+| `setView(view)` | Switches between `NORMAL`, `SMALL`, `DUPLICATE`, and `LOCK` previews |
+| `resetMap()` | Clears the canvas and icons and picks a new virtual map id |
+
+Patch coordinates anchor at the canvas top-left `(0, 0)`, and a patch must lie fully within the 128×128 canvas. Icons use a different coordinate system where `(128, 128)` is the center, with rotations 0 through 15.
+
+> **Warning: Preview modes change the display only**
+>
+> Duplicate, lock, and the other modes steer the client's preview; they never perform map crafting on the player's behalf. When reading image files or downloading images, put the I/O in an async task and build the Window or update the canvas once the image is ready.
+
+**Next**: [Window titles](https://catnies.github.io/sparrow-ui-wiki/window/title.md) — Set a fixed title, or generate one from business data and refresh it on demand.

@@ -1,0 +1,82 @@
+# 对象生命周期与订阅
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/advanced/lifecycle>
+
+菜单关闭后，窗口不再显示，但它引用的 Pane、Item 和容器可能还被其他菜单使用。哪些对象应该继续保留，取决于业务有没有继续持有它们；订阅是否需要手动结束，则取决于注册入口。
+
+## 临时菜单与共享数据
+
+确认框通常每次打开都新建，数量、勾选项等临时状态也跟着这次菜单创建。共享仓库则相反，容器由业务服务保存，每名玩家打开自己的 Window，查看同一份内容。
+
+下面的 `sharedStorage` 是业务服务持有的九格 `VirtualInventory`，`viewer` 是本次打开仓库的玩家。
+
+```java
+Pane pane = Pane.builder("SSSSSSSSS")
+        .addIngredient('S', sharedStorage)
+        .build();
+Window.builder(pane).setTitle("共享仓库").open(viewer);
+```
+
+关掉这扇窗口只结束本次查看，不会清空共享仓库，也不应删除其他玩家仍在使用的容器。反过来，把每次创建的 Window 都放进一个长期存在的列表，也会让已经关闭的窗口一直被业务代码持有。
+
+临时 UI 不再使用后，应移除业务代码保存的引用，让它可以被回收。不要把垃圾回收当作「菜单已经关闭」的通知，也不要依赖它执行退还物品、保存数据等业务操作；这些动作应放在明确的关闭或业务结束流程中。
+
+## 手动订阅 Signal 时保存 Subscription
+
+假设后台服务提供一个 `Signal<Integer> onlineCount`，调试命令需要临时观察它。保存 `onDirty` 返回的 `Subscription`，观察结束后调用 `close()`。
+
+```java
+Subscription watch = onlineCount.onDirty(() ->
+        System.out.println("当前人数：" + onlineCount.get()));
+System.out.println("当前人数：" + onlineCount.get());
+```
+
+结束观察时调用 `watch.close()`。Signal 弱持有订阅节点，返回的 `Subscription` 被回收后，订阅可能随之消失。所以不能只调用 `onDirty(...)` 就丢掉返回值，否则监听可能在运行一段时间后停止。
+
+集合的 `beforeAdd`、`beforePut`、`afterRemove` 钩子也需要保存返回的 `Subscription`。手动订阅或钩子的生命周期，应该跟需要它的业务对象一致。
+
+## UI 对象管理自己的绑定
+
+窗口标题需要跟随人数变化时，可以使用 `window.bind`。窗口会保存这条绑定，调用方不需要额外保留返回的 `Subscription`。
+
+```java
+Window window = Window.builder(Pane.builder("#########").build())
+        .setTitleSupplier(() -> Component.text("在线人数：" + onlineCount.get()))
+        .build(viewer);
+window.bind(onlineCount, Window::updateTitle);
+window.open();
+```
+
+这条绑定在窗口打开时订阅，关闭时暂停，再次打开时恢复。窗口持有重新订阅的声明；需要提前停止某一条绑定时，才保存并关闭返回的 `Subscription`。
+
+`Item.dependsOn`、Pane 的列表绑定和 `visual().bind` 也由对应 UI 对象管理，不需要额外保存返回的 `Subscription` 来维持绑定。不过，Pane 的绑定可能在没有窗口查看时仍然活动。共享 Pane 绑定了轮询数据时，关闭其中一扇窗口不一定会停止查询。
+
+重新订阅不会重放暂停期间的每一次变化。界面恢复显示时应读取当前值，窗口打开时的标题计算便属于这种读取。
+
+## 容器事件需要主动结束临时监听
+
+`subscribeClick`、`subscribePreUpdate`、`subscribePostUpdate` 由容器持有，丢弃返回值不会自动注销。如果给共享仓库注册一个只用于本次查看的诊断回调，就需要明确安排解绑。
+
+下面的 `window` 是尚未打开的仓库窗口，`sharedStorage` 是长期存在的容器。监听会收到该容器的所有更新，包括其他玩家造成的更新。
+
+```java
+Subscription log = sharedStorage.subscribePostUpdate(event ->
+        System.out.println("仓库本次变化格数：" + event.slotChanges().size()));
+window.addCloseHandler(reason -> log.close());
+window.open();
+```
+
+关闭后，这条监听结束。若业务会重新打开同一个 Window，这段一次性的关闭处理不会替你重新注册容器监听，需要按业务的打开流程重新安排。
+
+对于每次新建、用完后整体释放的容器，容器与它持有的处理器可以一起被回收。对于长期共享的容器，应关闭已经不再需要的临时监听，尤其不要让回调一直捕获某次打开菜单的 Player 或 Window。
+
+| 注册方式 | 谁负责保留订阅 | 使用结束时 |
+| - | - | - |
+| `Signal.onDirty`、集合元素钩子 | 调用方保存 `Subscription` | 主动 `close()` |
+| Window、Pane、Visual 的 `bind` | 对应 UI 对象 | 随 UI 对象管理，也可调用 `Subscription.close()` 提前解绑 |
+| 容器事件订阅 | 容器 | 临时监听主动 `close()` |
+| 网络监听 | NetworkManager | 功能结束时主动 `close()` |
+
+状态中优先保存 UUID、商品编号和业务数据。需要玩家时在合适的线程获取，不要让后台查询、共享状态或长期监听无意中保留Player 对象。
+
+**下一步**：[事务与并发](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/advanced/transaction.md) — 理解跨容器修改何时一起生效，以及取消和冲突时如何处理。

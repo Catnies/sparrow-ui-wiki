@@ -1,0 +1,101 @@
+# Transactions and concurrency
+
+Source: <https://catnies.github.io/sparrow-ui-wiki/advanced/transaction>
+
+A player shift-transfers an item from the shared storage into their inventory: the storage must lose it and the inventory must gain it. The library puts the changes across the involved inventories into one transaction, written together on a successful commit; a cancellation or conflict writes none of it.
+
+These transactions cover only the state the library includes in the operation. Messages, database writes, and an economy plugin's charges are not made rollback-able automatically.
+
+## Reading commit results
+
+Code calling `trySetItem`, `tryAdd`, and friends must check the transaction result too. Below, eight diamonds are attempted into a nine-slot virtual inventory, logging what did not fit.
+
+```java
+VirtualInventory storage = new VirtualInventory(9);
+AddResult result = storage.tryAdd(new ItemStack(Material.DIAMOND, 8));
+
+switch (result.result()) {
+    case TransactionResult.Committed committed ->
+            System.out.println("Committed, " + result.remaining() + " left over");
+    case TransactionResult.Cancelled ignored ->
+            System.out.println("This put was rejected");
+    case TransactionResult.Conflicted ignored ->
+            System.out.println("Inventory state changed; try again");
+}
+```
+
+An empty inventory accepts the eight diamonds normally: the result is `Committed` with zero remaining. `Committed` means this plan was written, not that every requested item fit; `tryAdd` allows partial placement, so keep checking `remaining()`.
+
+| Result | Meaning |
+| - | - |
+| `Committed` | The participating inventories' changes were written; `rootChanges()` reads each inventory's change group |
+| `Cancelled` | Rejected by rules, the player-side freeze check, or a pre-commit cancellation; nothing was written |
+| `Conflicted` | The plan's basis or its commit conditions no longer hold; nothing was written |
+
+Ordinary write entry points such as `setItem` and `add` pass different checks from the `try` methods; choosing between them is covered in [Access rules and events](https://catnies.github.io/sparrow-ui-wiki/inventory/rules-events.md). When rules reject some slots, best-effort calls like `tryAdd` may skip them rather than returning `Cancelled` for the whole operation.
+
+## Making two inventories change together
+
+Say one diamond in the input slot trades for two emeralds in the output slot. The input clearing and the output filling must belong to one change, or one side can succeed while the other fails.
+
+Only the exchange logic appears below. `input` and `output` are one-slot `VirtualInventory`s placed into the same menu by the [exchange stand example](https://catnies.github.io/sparrow-ui-wiki/inventory/rules-events.md#example-an-exchange-stand). The input rule allows one diamond at a time, and an occupied output rejects the exchange.
+
+```java
+input.setAccessRule(context -> !context.isAdd()
+        || (context.addedItem().getType() == Material.DIAMOND
+            && context.addedAmount() == 1));
+output.setAccessRule(context -> !context.isAdd());
+
+input.subscribePreUpdate(event -> {
+    ItemStack placed = event.after(0);
+    if (placed == null) return;
+
+    event.include(output);
+    if (event.after(output, 0) != null) {
+        event.setCancelled(true);
+        return;
+    }
+    event.setAfter(0, null);
+    event.setAfter(output, 0, new ItemStack(Material.EMERALD, 2));
+});
+```
+
+`include(output)` pulls the output into this change. On commit, the input is empty and the output holds two emeralds; if a later handler cancels, or one inventory's state has moved by commit time, nothing is written.
+
+Pre-commit handlers should edit the plan through `event.setAfter`. Calling `output.setItem(...)` directly opens a separate independent write that never cancels with the outer transaction. Rewrites through `setAfter` skip access rules, which is why the exchange result can land in an output slot players cannot add to.
+
+## When shared inventories conflict
+
+Two players grab the last stack of diamonds at nearly the same moment, and both may first see stock remaining. At commit, the library checks the state this plan was built on; once one player's write lands, the other's stale-plan transaction may return `Conflicted`. The library never overwrites the new state with the old inventory.
+
+Player actions have the Window handle commits and syncing. For business code issuing `try` requests, treat a conflict as this attempt not happening. To retry, re-read the current state and re-judge the business conditions; never re-grant rewards unconditionally or retry forever.
+
+For example, `storage` below is a business-shared inventory, clearing slot zero. Only a successful result proceeds:
+
+```java
+TransactionResult result = storage.trySetItem(0, null);
+if (!(result instanceof TransactionResult.Committed)) {
+    return;
+}
+System.out.println("This clear committed");
+```
+
+This only judges whether the clear committed. It neither proves an item was there nor replaces conditional purchase or exchange logic; shared-data business conditions belong inside the operation's own checks.
+
+## External work after commit
+
+Use the post-commit event to record inventory changes; by the time it fires, the change is in effect.
+
+```java
+storage.subscribePostUpdate(event -> {
+    System.out.println("Committed slot changes: " + event.slotChanges().size());
+});
+```
+
+Never charge players, write databases, or send messages in the pre-commit event and hope a failed transaction undoes them. The commit can still be cancelled or hit a conflict, and the external work has already happened.
+
+Running external work after commit does not fuse the database and the inventories into one transaction either. Failed external writes, network timeouts, and restarts are the business's problem; a committed inventory change cannot be treated as if it never happened.
+
+Post-commit callbacks under concurrent modification arrive in no guaranteed order. To compare ordering, read the event's `version()`; to dispatch in order, virtual inventories offer `serialPostDispatch(true)`, detailed in [Threads and ordering](https://catnies.github.io/sparrow-ui-wiki/inventory/rules-events.md#threads-and-ordering). Handlers run on the thread making the change, and shared handlers must mind concurrent access.
+
+**Next**: [FAQ](https://catnies.github.io/sparrow-ui-wiki/faq.md) — Common questions about menu refreshes, async data, player inventories, and subscription management.

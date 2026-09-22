@@ -1,0 +1,50 @@
+# 物品显示
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item>
+
+玩家在购买菜单中点击钻石，每次把购买数量加一。按钮名称初始为「购买数量：1」，点击后应变为「购买数量：2」。这个数量只属于本次打开的菜单，所以在创建菜单时新建一个普通 Signal。
+
+示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+
+## 数量变了，按钮跟着变
+
+```text title="选择数量"
+####Q####
+```
+
+- `Q`：数量按钮（`diamond`）
+
+初始数量为 1。点击后改变的是名称中的数量，钻石堆叠数保持为 1。
+
+```java
+MutableSignal<Integer> quantity = Signal.of(1);
+Item amountButton = Item.builder()
+        .dependsOn(quantity)
+        .setItemProvider(context -> named(Material.DIAMOND, "购买数量：" + quantity.get()))
+        .addClickHandler(click -> quantity.update(value -> value + 1))
+        .build();
+
+Pane pane = Pane.builder("####Q####")
+        .addIngredient('Q', amountButton)
+        .build();
+Window.builder(pane).setTitle("选择数量").open(viewer);
+```
+
+`dependsOn(quantity)` 声明这个 Item 的显示依赖数量。点击只更新数据，Sparrow UI 会刷新显示这个 Item 的格子，再次执行 Provider 取得新名称，不用调用 `updateOnClick()`。
+
+只在 Provider 中读取 `quantity.get()` 不会自动建立依赖。外观同时取决于多个独立状态时，可以传入 `dependsOn(quantity, price)`；如果已用 `combine` 派生出总价，也可以直接依赖总价 Signal。
+
+**示例共用的物品命名方法**
+
+```java
+private static ItemStack named(Material material, String name) {
+    ItemStack stack = new ItemStack(material);
+    stack.setData(DataComponentTypes.CUSTOM_NAME,
+            Component.text(name).decoration(TextDecoration.ITALIC, false));
+    return stack;
+}
+```
+
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+
+**下一步**：[玩家与分区显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/player.md) — 让多个窗口共用按钮，同时显示各自玩家的数据。

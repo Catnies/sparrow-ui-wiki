@@ -1,0 +1,222 @@
+# 打开与关闭
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/lifecycle>
+
+Window 把 Pane 显示给一名玩家，负责打开、关闭以及这段期间的玩家操作。每次打开菜单时通常创建一扇新的 Window，Pane 可以按需要共用。
+
+## 创建并打开窗口
+
+`Window.builder(pane)` 把 Pane 放在窗口上半部分，下半部分默认显示玩家自己的物品栏。下面打开一个带关闭按钮的三行箱子菜单：
+
+```java
+Pane pane = Pane.builder(
+                "#########",
+                "####B####",
+                "########X"
+        )
+        .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+        .addIngredient('X', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                .addClickHandler(click -> click.window().close())
+                .build())
+        .build();
+
+Window.builder(pane)
+        .setTitle("帮助菜单")
+        .open(viewer);
+```
+
+需要保存 Window 引用时，把构建与打开分开：
+
+```java
+Window window = Window.builder(pane)
+        .setTitle("帮助菜单")
+        .build(viewer);
+
+CompletableFuture<Window.OpenResult> opening = window.open();
+```
+
+`build(viewer)` 创建一扇尚未打开的窗口，`open()` 才请求显示。Builder 的 `open(viewer)` 就是把这两步连起来，返回打开结果的 Future。Window 的查看者在构建时确定，可以通过 `window.viewer()` 取得。
+
+| `OpenResult` | 含义 |
+| - | - |
+| `OPENED` | 服务端已完成这次打开流程 |
+| `ALREADY_OPEN` | 同一个 Window 实例已经打开，本次没有再次打开 |
+| `VIEWER_UNAVAILABLE` | 玩家当前无法打开菜单，例如已断线、正在睡觉，或 Sparrow UI 正在关闭 |
+
+Future 完成表示服务端流程已经结束；客户端收到数据并显示菜单还需要时间。`build(viewer)` 的构建异常直接在调用处抛出；`open()` 执行过程中发生的程序异常会使 Future 异常完成。
+
+给同一名玩家打开另一扇 Window，会替换他当前的窗口。需要保留上一扇并提供返回功能时，使用 [会话与导航](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/session/navigation.md)。
+
+> **注意：使用默认玩家物品栏时的构建线程**
+>
+> 没有显式设置下半部分 Pane 时，`build(viewer)` 会创建默认玩家物品栏映射，并在调用线程读取背包内容，Builder 的 `open(viewer)` 会先执行 `build(viewer)`，同样如此。
+>
+> `window.open()` 会把后续打开和映射同步安排到玩家线程，但构建阶段的背包读取仍发生在调用线程。
+>
+> 如果在异步任务中构建，需要考虑服务端对背包读取的线程要求。下文的异步示例显式提供上下 Pane，避免构建默认背包映射。
+
+## 关闭窗口
+
+保留了 Window 引用时直接调用 `close()`。按钮处理器里可以通过 `click.window()` 取得当前窗口：
+
+```java
+CompletableFuture<Window.CloseResult> closing = window.close();
+```
+
+| `CloseResult` | 含义 |
+| - | - |
+| `CLOSED` | 已完成关闭 |
+| `ALREADY_CLOSED` | 窗口已经关闭，或还没有打开 |
+
+`window.isOpen()` 返回当前是否打开。关闭后仍可对同一实例调用 `open()`，再次打开时会使用 Pane 当前的内容。
+
+> **注意：不要阻塞等待打开或关闭**
+>
+> 不要在主线程或玩家实体线程上对这些 Future 调用 `join()`、`get()` 等待。操作可能还在等待该线程执行。需要在打开后操作玩家时，使用下面的打开处理器；需要组合多个异步步骤时，使用 `thenCompose`。
+
+## 打开与关闭处理器
+
+Builder 的 `addOpenHandler` 接收打开的 Window，`addCloseHandler` 接收 Window 和关闭原因。下面在窗口打开后向玩家发送提示，主动关闭时再发送离开提示：
+
+```java
+Window window = Window.builder(pane)
+        .setTitle("帮助菜单")
+        .addOpenHandler(opened ->
+                opened.viewer().sendMessage(Component.text("帮助菜单已打开")))
+        .addCloseHandler((closed, reason) -> {
+            if (reason == WindowCloseReason.PLAYER) {
+                closed.viewer().sendMessage(Component.text("已关闭帮助菜单"));
+            }
+        })
+        .build(viewer);
+
+window.open();
+```
+
+处理器在窗口实际打开、关闭时执行。重复对已打开的实例调用 `open()`，或对已关闭的实例调用 `close()`，不会再次触发对应处理器；关闭后重新打开则会再次触发。
+
+窗口构建完成后也可以追加处理器，此时打开处理器不接收参数，关闭处理器只接收原因：
+
+```java
+window.addOpenHandler(() ->
+        window.viewer().sendMessage(Component.text("帮助菜单已打开")));
+window.addCloseHandler(reason ->
+        plugin.getLogger().info("帮助菜单关闭，原因：" + reason));
+```
+
+关闭原因使用 Sparrow UI 的 `WindowCloseReason`：
+
+| 原因 | 触发场景 |
+| - | - |
+| `PLAYER` | 玩家主动关闭，例如按 Esc |
+| `PLUGIN` | 插件调用 `window.close()`，或 Sparrow UI 关闭时结束窗口 |
+| `OPEN_NEW` | 当前窗口被新窗口或其他容器替换 |
+| `DISCONNECT` | 玩家断开连接 |
+| `DEATH` | 玩家死亡导致容器关闭 |
+| `TELEPORT` | 传送导致容器关闭 |
+| `CANT_USE` | 玩家已不能使用当前容器 |
+| `UNLOADED` | 容器所在区域卸载 |
+| `UNKNOWN` | 平台没有提供可识别的关闭原因 |
+
+具体原因取决于服务端提供的信息。例如，`TELEPORT` 表示这次关闭由传送引起，不代表每次传送都会关闭窗口。
+
+> **注意：处理器中的线程与耗时操作**
+>
+> 正常的打开、关闭处理器跟随玩家实体线程执行，里面不要直接查询数据库或读写文件。玩家断线、实体退出调度等清理路径中的关闭处理器，不应再依赖玩家仍然在线或继续访问世界状态。
+>
+> Future 的 `thenAccept`、`whenComplete` 等回调也没有固定的玩家线程保证。需要操作玩家时使用打开处理器，或自行调度到玩家实体线程。
+
+单个窗口的关闭处理器也会在窗口切换时触发。需要等玩家结束整段菜单交互后再执行的逻辑，放到 [会话结束处理器](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/session/navigation.md)。
+
+## 限制玩家主动关闭
+
+窗口默认允许玩家主动关闭。`setCloseable(false)` 会在玩家按 Esc 等方式关闭时重新显示当前窗口。下面的提示菜单需要点击右下角按钮关闭：
+
+```java
+Pane notice = Pane.builder(
+                "#########",
+                "####B####",
+                "########X"
+        )
+        .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+        .addIngredient('X', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                .addClickHandler(click -> click.window().close())
+                .build())
+        .build();
+
+Window.builder(notice)
+        .setTitle("阅读提示后点击右下角关闭")
+        .setCloseable(false)
+        .open(viewer);
+```
+
+菜单打开期间也可以调用 `window.setCloseable(true)` 恢复玩家主动关闭，`window.isCloseable()` 查询当前设置。被拒绝的玩家关闭不会触发关闭处理器。
+
+> **注意：只限制玩家主动关闭**
+>
+> 插件调用 `window.close()` 仍然有效，玩家断线、被其他容器替换以及服务端引起的关闭也不受这个设置限制。
+
+## 在异步任务中构建并打开
+
+可以在异步任务中构建 Window 并直接调用 `open()`，也可以使用 Builder 的 `open(viewer)`。下面显式提供上下两块 Pane，上半部分显示一本书，下半部分是空白展示区域：
+
+```java
+public static CompletableFuture<Window.OpenResult> openAsync(Plugin plugin, Player viewer) {
+    return Scheduling.async(plugin, () -> {
+        Pane upper = Pane.builder(
+                        "#########",
+                        "####B####",
+                        "#########"
+                )
+                .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+                .build();
+        Pane lower = Pane.builder(
+                        "#########",
+                        "#########",
+                        "#########",
+                        "#########"
+                ).build();
+
+        return Window.splitBuilder(upper, lower)
+                .setTitle("书籍展示")
+                .open(viewer);
+    }).thenCompose(opening -> opening);
+}
+```
+
+这里的 `open(viewer)` 在异步任务里调用，实际打开操作由 Sparrow UI 调度到查看者的实体线程。由于 `open(viewer)` 自己也返回 Future，`thenCompose(opening -> opening)` 将两层 Future 展平，让调用方直接取得 `CompletableFuture<Window.OpenResult>`，等待整段构建与打开流程完成。
+
+`Scheduling` 是示例里的辅助类，需要放进自己的项目，它不属于 Sparrow UI 的公共 API：
+
+**Scheduling 的实现与 import**
+
+```java
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.Plugin;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
+public final class Scheduling {
+    private Scheduling() {
+    }
+
+    public static <T> CompletableFuture<T> async(Plugin plugin, Supplier<? extends T> work) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        Bukkit.getAsyncScheduler().runNow(plugin, task -> {
+            try {
+                future.complete(work.get());
+            } catch (Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
+        return future;
+    }
+}
+```
+
+上下 Pane 的尺寸与玩家物品栏映射规则，看 [窗口布局](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/layout.md)。
+
+**下一步**：[窗口布局](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/layout.md) — 选择普通、上下分离或合并布局，安排容器与玩家物品栏区域。

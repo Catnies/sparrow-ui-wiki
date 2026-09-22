@@ -1,0 +1,271 @@
+# Visual layers
+
+Source: <https://catnies.github.io/sparrow-ui-wiki/visual/layers>
+
+Visual layers decide how a slot looks, without touching the real item in it. What the player sees comes from the visual layer; clicks, shift transfers, code reads, and events all keep using the real item.
+
+## How the display stacks up
+
+Visual mappings can be set in four places, and who sees them depends on where they are set:
+
+| Layer | Set on | Who sees it |
+| - | - | - |
+| Window layer | Window | Only this Window's viewer |
+| Pane layer | Pane | Every Window displaying the Pane |
+| Inventory layer | SparrowInventory | Every Window displaying the inventory |
+| Cursor layer | Window | Only this Window's viewer, affecting only the cursor |
+
+```java
+// Inventory layer: every Window showing this inventory sees it
+storage.setVisualizerItem(actual -> actual == null ? null : mark);
+// Pane layer: every Window showing this Pane sees it
+pane.setVisualizerItem(3, actual -> mark);
+// Window layer: only this Window's viewer sees it
+window.setVisualizerItem(5, actual -> mark);
+// Cursor layer: affects only this viewer's cursor
+window.setCursorVisualizerItem(actual -> actual == null ? null : mark);
+```
+
+What a slot displays is decided top down through this order. Once a layer produces an item, the layers below drop out:
+
+1. The Window layer
+2. The Pane layer. With nested Panes, outer Panes come before inner ones
+3. The slot's own content: for inventory-linked slots, the inventory layer, then the real item, then the [inventory background](https://catnies.github.io/sparrow-ui-wiki/inventory/basics.md#inventory-backgrounds); for Item-bound slots the Item; for empty slots the [Pane background](https://catnies.github.io/sparrow-ui-wiki/pane/composition.md#backgrounds)
+
+The cursor skips these three steps and consults only the cursor layer; when that yields nothing, the real cursor shows.
+
+The demo represents each layer's item with a differently colored glass pane, and the three layers overlap on several slots. Toggle a layer off and the one below it shows through. The Window and cursor layers change only what Player A sees; the real contents of the inventory never change, whatever you toggle.
+
+Animations playing on a Pane, an inventory, or a Window cover mappings set at the same place; see [Animations](https://catnies.github.io/sparrow-ui-wiki/visual/animation.md).
+
+## Display only
+
+Visual layers act at display time only. The inventory below shows every player a barrier, while code still reads the real item:
+
+```java
+shop.setVisualizerItem(actual -> actual == null ? null : new ItemStack(Material.BARRIER));
+// The player sees a barrier; the code still reads the real item
+ItemStack real = shop.itemAt(0);
+```
+
+Likewise:
+
+- Clicking a covered slot picks up the real item, and the cursor displays the real item
+- Shift transfers, double-click collection, and drags compute against the real items
+- Access rules, click events, and the commit events all see the real items
+- A covered button slot still runs the Item's click handler when clicked
+
+> **Warning: Covering is not protecting**
+>
+> Once a slot displays something else, players can still take the real item out, and buttons stay clickable. To block interaction, combine with [access rules](https://catnies.github.io/sparrow-ui-wiki/inventory/rules-events.md#access-rules) or [freezing](https://catnies.github.io/sparrow-ui-wiki/inventory/basics.md#freezing-inventories).
+
+## Setting mappings
+
+Every layer has two mapping forms: `setVisualizerItem(mapping)` applies to all slots, and `setVisualizerItem(slot, mapping)` to one slot. Within a layer, the per-slot mapping is consulted first, and the all-slots mapping takes over when it returns nothing:
+
+```java
+// Applies to every slot
+storage.setVisualizerItem(actual -> actual == null ? null : mark);
+// Only slot 0, taking precedence over the mapping above; an empty item displays the slot as empty
+storage.setVisualizerItem(0, actual -> ItemStack.empty());
+// Passing null removes a mapping
+storage.setVisualizerItem(0, null);
+storage.setVisualizerItem(null);
+```
+
+The mapping receives the slot's current item and returns what to display; returning `null` means "not my business" and passes to the next layer. Slot numbers are the setter's own numbering: the inventory layer uses inventory slots, the Pane layer Pane slots, and the Window layer Window slots.
+
+Each layer feeds the mapping a different item:
+
+| Layer | What the mapping receives |
+| - | - |
+| Inventory layer | The slot's real item, `null` when empty |
+| Pane layer, Window layer | The real item when the slot links to an inventory; `null` for Item-bound and empty slots |
+| Cursor layer | The real item on the cursor, `null` for an empty cursor |
+
+When a slot's content changes, the mapping recomputes. When a mapping also depends on other state, call `visual().dirty()` after that state changes so the Windows showing this layer recompute:
+
+```java
+// The state this mapping depends on changed; recompute on displaying Windows
+storage.visual().dirty();
+```
+
+> **Warning: Mappings only convert**
+>
+> Read the item the mapping receives; `clone()` before changing anything, and do not keep it around. Mappings run at render time, possibly from several Windows' threads at once, so return quickly and never modify inventories or send messages. Expensive computation belongs in the `ItemProvider` below.
+
+## The inventory layer
+
+A mapping on a `SparrowInventory` applies to its slots and reaches every Window displaying it. While the consignment shop below is open, sellable items in the player's inventory gain a price line:
+
+```java
+Window window = Window.builder(sellPane).setTitle("Consignment").build(viewer);
+// The inventory mapping the player's inventory below the Window; non-null with the default lower Pane
+ReferencingInventory backpack = window.defaultLowerInventory();
+// While the shop is open, sellable items gain a price line; the items themselves do not change
+backpack.setVisualizerItem(actual -> {
+    // Empty slots and unsellable items pass through untouched
+    if (actual == null || !prices.containsKey(actual.getType())) {
+        return null;
+    }
+    // The mapping's item is read-only; copy before editing
+    ItemStack shown = actual.clone();
+    List<Component> lines = new ArrayList<>();
+    ItemLore lore = actual.getData(DataComponentTypes.LORE);
+    if (lore != null) {
+        // Keep the item's own lore and append the price after it
+        lines.addAll(lore.lines());
+    }
+    int total = prices.get(actual.getType()) * actual.getAmount();
+    lines.add(Component.text("Price: " + total + " coins", NamedTextColor.GOLD)
+            .decoration(TextDecoration.ITALIC, false));
+    shown.setData(DataComponentTypes.LORE, ItemLore.lore(lines));
+    return shown;
+});
+window.open();
+```
+
+`sellPane` is the Pane on top of the consignment shop, and `prices` holds each item's unit price. The preview prices diamonds at 100, emeralds 10, iron ingots 5, lapis 20, and coal 1 coin.
+
+`window.defaultLowerInventory()` fetches the inventory mapping the player's own inventory below the Window, see [Window layouts](https://catnies.github.io/sparrow-ui-wiki/window/layout.md#modifying-the-default-player-inventory). This mapping is created fresh per Window build and displayed only in this Window, so the prices appear only in the consignment shop.
+
+On the left, the inventory while another container is open; on the right, while the consignment shop is open. Hover over the items to compare: sellable items in the shop gain a price line, the lapis keeps its original lore above the price, and the sword and book, unsellable, stay as they were.
+
+```text title="Chest"
+#########
+#########
+#########
+
+D##E#####
+#I######L
+####C####
+WB#######
+```
+
+The last 4 rows, after the blank line, are the player inventory.
+
+- `D`: Diamond (`diamond`) ×3
+- `E`: Emerald (`emerald`) ×16
+- `I`: Iron ingot (`iron_ingot`) ×12
+- `L`: Lucky lapis (`lapis_lazuli`) ×4, lore: They say it brings good luck.
+- `C`: Coal (`coal`) ×32
+- `W`: Diamond sword (`diamond_sword`)
+- `B`: Book (`book`)
+
+```text title="Consignment"
+#########
+#########
+########X
+
+D##E#####
+#I######L
+####C####
+WB#######
+```
+
+The last 4 rows, after the blank line, are the player inventory.
+
+- `X`: Confirm sale (`lime_dye`)
+- `D`: Diamond (`diamond`) ×3, lore: Price: 300 coins
+- `E`: Emerald (`emerald`) ×16, lore: Price: 160 coins
+- `I`: Iron ingot (`iron_ingot`) ×12, lore: Price: 60 coins
+- `L`: Lucky lapis (`lapis_lazuli`) ×4, lore: They say it brings good luck. / Price: 80 coins
+- `C`: Coal (`coal`) ×32, lore: Price: 32 coins
+- `W`: Diamond sword (`diamond_sword`)
+- `B`: Book (`book`)
+
+The actual items in the inventory have not changed. Once the player picks an item up, puts it into the shop, or closes the menu, they see the real item without the price.
+
+When a mapping returns an item for an empty slot, it covers the inventory background too.
+
+### Generating per viewer
+
+The inventory layer reaches every Window showing the inventory. When several players share one inventory but a slot should display differently per player, use `setVisualizerProvider` to return an `ItemProvider` that can access the current viewer at render time:
+
+```java
+// shop is a product inventory shared by several players
+shop.setVisualizerProvider(actual -> {
+    if (actual == null) {
+        return null;
+    }
+    ItemStack item = actual.clone();
+    // The viewer is available at render time, so the same slot can show different prices
+    return ItemProvider.sync(context -> withPrice(item, priceFor(context.player(), item)));
+});
+```
+
+`withPrice` and `priceFor` are your own helpers: one adds the price lore, the other computes the price for a player.
+
+The returned `ItemProvider` can also compute asynchronously; see [Rendering and refresh](https://catnies.github.io/sparrow-ui-wiki/item/render.md). Until the result arrives, the real item displays, and the second argument of `setVisualizerProvider` can set a placeholder for that window of time. If the slot's content changes before the result lands, the result is discarded.
+
+The Panes' and Windows' `setVisualizerProvider`, and the cursor's `setCursorVisualizerProvider`, work the same way. On the Pane and Window layers, when the slot has no linked inventory it displays empty until the result lands.
+
+## The Pane layer
+
+A mapping on a Pane applies to its slots and reaches every Window displaying it. When the announcement board below enters maintenance, every slot shows a red glass pane and the Pane freezes:
+
+```java
+ItemStack maintenance = new ItemStack(Material.RED_STAINED_GLASS_PANE);
+maintenance.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("Under maintenance", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+
+// Entering maintenance: every slot displays the notice item, and the Pane freezes
+pane.setVisualizerItem(actual -> maintenance);
+pane.setFrozen(true);
+
+// Leaving maintenance: remove the mapping and the slots return to normal
+pane.setVisualizerItem(null);
+pane.setFrozen(false);
+```
+
+Item-bound and empty slots receive `null`. The mapping above ignores its input, so buttons, background, and inventory slots all get covered. To handle only inventory-linked slots, return `null` for `null`.
+
+When several players share the Pane, their Windows all show the maintenance state together; see [Backgrounds, freezing, and nesting](https://catnies.github.io/sparrow-ui-wiki/pane/composition.md).
+
+## The Window layer
+
+A mapping on a Window affects only that Window; other players see nothing. Below, only new players get the sign-in button highlighted:
+
+```java
+// The button slot arrives as null, so prepare the highlighted look here
+ItemStack highlighted = signInIcon.clone();
+highlighted.setData(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+
+Window window = Window.builder(pane).setTitle("Daily sign-in").build(viewer);
+if (newPlayer) {
+    // Only in the new player's Window, add the enchant glint to the sign-in button
+    window.setVisualizerItem(SIGN_IN_SLOT, actual -> highlighted);
+}
+window.open();
+```
+
+`SIGN_IN_SLOT` is a Window slot index. The Window numbers the top slots first and the player inventory below afterwards; a top Pane's slot indexes match the Window's, see [Window layouts](https://catnies.github.io/sparrow-ui-wiki/window/layout.md).
+
+The Window layer sits at the top and covers the Pane and inventory layers. Effects meant for one player live here: tutorials, that player's own selection state, and the like.
+
+The builder's `setVisualizerItem(mapping)` can set an all-slots mapping before opening; per-slot mappings are set after `build`.
+
+## The cursor layer
+
+`setCursorVisualizerItem` changes what the cursor displays, visible only to this Window's viewer. In the sell menu below, a sellable item on the cursor gains an enchant glint:
+
+```java
+Window.builder(pane)
+        .setTitle("Sell")
+        .setCursorVisualizerItem(actual -> {
+            // An empty cursor or unsellable item passes through as the real cursor
+            if (actual == null || !prices.containsKey(actual.getType())) {
+                return null;
+            }
+            ItemStack shown = actual.clone();
+            shown.setData(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+            return shown;
+        })
+        .open(viewer);
+```
+
+After opening, `window.setCursorVisualizerItem` swaps it. When the item on the cursor changes, the mapping recomputes; once the player drops the item into a slot, the real item sits there without the glint.
+
+The client renders no tooltip for the cursor item, so the cursor layer suits changing icons, counts, or glints.
+
+**Next**: [Animations](https://catnies.github.io/sparrow-ui-wiki/visual/animation.md) — Play frame animations on slots and titles, covering the display while they run.

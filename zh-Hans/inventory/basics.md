@@ -1,0 +1,416 @@
+# 把容器放进菜单
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/basics>
+
+Pane 的格子可以连接容器，玩家在这些格子里放入、取出的物品保存在容器中。放入、取出、拖拽、Shift 转移、双击收集和数字键交换都按原版箱子的规则处理，不需要自己编写点击逻辑。
+
+## SparrowInventory 与 Bukkit 容器
+
+Sparrow UI 的容器类型是 `SparrowInventory`，与 Bukkit 的 `Inventory` 是两套 API。它有两种实现：
+
+- `VirtualInventory`：物品保存在内存中，看 [虚拟容器](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/virtual.md)
+- `ReferencingInventory`：把箱子、玩家背包等已有的容器映射进菜单，看 [映射容器](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/referencing.md)
+
+`SparrowInventory` 不能用 `player.openInventory` 打开。把它绑定到 Pane 的标志符上，再用 Window 打开，玩家就能在菜单中操作它。容器不属于某一个菜单，同一个容器可以同时显示在多个菜单中，也可以在菜单之外单独读写。
+
+### 读写容器
+
+在代码中读写容器时，使用 `SparrowInventory` 自己的方法：
+
+```java
+VirtualInventory storage = new VirtualInventory(27);
+
+// 放入 16 个钻石, 先与已有的钻石合并, 再占用空格, 返回放不下的数量
+int overflow = storage.add(new ItemStack(Material.DIAMOND, 16));
+
+// 读取第 0 格, 得到的是副本, 空格返回 null
+ItemStack first = storage.itemAt(0);
+
+// 第 0 格减少 1 个, 返回实际的变化量
+int changed = storage.changeAmount(0, -1);
+
+// 清空所有格子
+storage.clear();
+```
+
+常用的方法如下。表中的「同类」指类型和数据组件都相同的物品，不比较数量：
+
+| 方法 | 作用 |
+| - | - |
+| `itemAt(slot)` | 读取一格，空格返回 `null` |
+| `snapshot()` | 读取所有格子，得到按格子顺序排列的数组，空格为 `null` |
+| `setItem(slot, item)` | 覆盖一格，传入 `null` 清空 |
+| `modifyItem(slot, modifier)` | 根据这一格当前的物品算出新物品并写回 |
+| `changeAmount(slot, change)` | 增减一格的数量，返回实际的变化量 |
+| `add(item)` | 先与同类物品合并，再占用空格，返回放不下的数量 |
+| `collect(template, upTo)` | 移除最多 `upTo` 个与 `template` 同类的物品，返回实际移除的数量 |
+| `remove(matcher, upTo)` | 移除最多 `upTo` 个符合条件的物品，返回实际移除的数量 |
+| `clear()` | 清空所有格子 |
+| `simulateAdd(item)` | 试算放入后放不下的数量，不修改容器 |
+| `isEmpty()` / `isFull()` | 判断容器是否全空、是否已满 |
+| `containsSimilar(item)` | 判断容器中有没有同类物品 |
+| `countSimilar(item)` | 统计有几格放着同类物品，不累加格内的数量 |
+
+通过这些方法修改容器后，显示这个容器的窗口会自动更新。它们直接写入容器，不经过访问规则，也不受下文的冻结限制。以 `try` 开头的同名方法（如 `tryAdd`、`trySetItem`）会先检查访问规则，结果可能被拒绝，看 [访问规则与事件](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/rules-events.md)。
+
+`VirtualInventory` 的方法可以在任意线程调用 （任意线程）。`ReferencingInventory` 会直接读写被映射的容器，必须在能访问那个容器的线程调用，看 [线程要求](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/referencing.md#线程要求)。
+
+> **注意：读取和写入都会复制物品**
+>
+> `itemAt` 和 `snapshot` 返回的是副本，修改它们不会改变容器。`setItem`、`add` 等方法会复制传入的物品，之后再修改原来的物品也不会影响容器。
+>
+> 操作 Bukkit 容器时，常见的写法是先 `getItem` 再调用 `setAmount`，这对 `SparrowInventory` 不起作用。修改某一格时，使用 `changeAmount`、`modifyItem` 或 `setItem`。
+
+> **信息：交给需要 Bukkit Inventory 的代码**
+>
+> `asBukkitInventory()` 返回一个包装好的 Bukkit `Inventory`，可以交给只接受 Bukkit 容器的代码，通过它读写的仍是原来的 Sparrow 容器。这是实验性 API：包装的类型固定为 `CHEST`，没有持有者和位置；从中读取的物品同样是副本，写入按程序修改处理，不经过访问规则。给玩家显示容器时，仍然使用 Pane 和 Window。
+
+## 连接到 Pane
+
+`addIngredient` 把容器绑定到标志符。标志符第 1 次出现的格子连接容器的第 0 格，第 2 次出现的格子连接第 1 格，依此类推，顺序与字符模板一致，从左到右、从上到下。格子数与容器大小不一致时的表现看 [填充内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients.md)。
+
+### 多名玩家共用一个容器
+
+需要保留的容器放在菜单之外，例如作为公会对象的字段。下面每名成员打开仓库时都创建新的 Pane，连接的是同一个容器：
+
+```java
+public final class GuildStorage {
+    // 所有成员共用这一个容器, 关闭菜单后物品仍然保留
+    private final VirtualInventory storage = new VirtualInventory(27);
+
+    public void open(Player viewer) {
+        // 每次打开都创建新的 Pane, 连接的是同一个容器
+        Pane pane = Pane.builder(
+                        "SSSSSSSSS",
+                        "SSSSSSSSS",
+                        "SSSSSSSSS"
+                )
+                .addIngredient('S', this.storage)
+                .build();
+
+        Window.builder(pane).setTitle("公会仓库").open(viewer);
+    }
+}
+```
+
+多名成员同时打开仓库时，任何人放入或取出物品，其他人的窗口都会同步更新；两人同时拿同一组物品，只有一人能拿到。在代码中调用 `storage.add(...)` 等方法写入时，所有打开的窗口同样会更新。
+
+容器不需要注册，也不需要关闭，不再被引用时会被回收。
+
+### 自定义对应关系
+
+需要从容器的某一格开始连接，或者按自己的规则对应时，绑定 `ElementSupplier`，为每一格返回 `Element.inventory(容器, 格子序号)`：
+
+```java
+Pane pane = Pane.builder("SSSSSSSSS")
+        // 第 n 个 S 连接容器的第 9 + n 格, 这一行显示容器的第 9～17 格
+        .addIngredient('S', (slots, occurrence) -> Element.inventory(storage, 9 + occurrence))
+        .build();
+```
+
+`occurrence` 是这一格在标志符中的出现次序，从 0 开始，参数的完整含义看 [填充内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients.md)。格子序号超出容器范围时，`build()` 抛出 `IllegalStateException`。
+
+## 容器背景
+
+`setBackgroundItem` 设置容器的背景。某一格为空时显示背景，放入物品后显示真实物品，物品被取走后背景重新出现。下面的鉴定菜单只有一格输入，空着时显示放入提示：
+
+```java
+VirtualInventory input = new VirtualInventory(1);
+// 格子为空时显示提示, 放入物品后显示真实物品
+input.setBackgroundItem(hintItem());
+
+ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+filler.setData(DataComponentTypes.CUSTOM_NAME, Component.empty());
+
+Pane pane = Pane.builder(
+                "#########",
+                "####X####",
+                "#########"
+        )
+        // Pane 的背景只填充 # 这些没有绑定内容的格子
+        .setBackground(filler)
+        .addIngredient('X', input)
+        .build();
+
+Window.builder(pane).setTitle("物品鉴定").open(viewer);
+```
+
+**hintItem() 的实现**
+
+```java
+private static ItemStack hintItem() {
+    ItemStack stack = new ItemStack(Material.LIGHT);
+    stack.setData(
+            DataComponentTypes.CUSTOM_NAME,
+            Component.text("放入要鉴定的物品", NamedTextColor.YELLOW)
+                    .decoration(TextDecoration.ITALIC, false)
+    );
+    stack.setData(DataComponentTypes.LORE, ItemLore.lore(List.of(
+            Component.text("把物品放进这一格开始鉴定。", NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false)
+    )));
+    return stack;
+}
+```
+
+```text title="物品鉴定"
+#########
+####X####
+#########
+```
+
+- `#`：Pane 背景（`black_stained_glass_pane`）
+- `X`：容器的格子（`light`）
+
+背景只负责显示，它不在容器中：读取这一格得到的仍然是 `null`，玩家也拿不走它。
+
+Pane 的背景只填充没有绑定内容的格子，不会显示在容器的空格上。上例四周的黑色玻璃板是 Pane 的背景，中间一格空着时显示的是容器自己的背景；容器没有设置背景时，这一格保持空白。
+
+背景设置在容器上，这个容器显示在哪个菜单，空格都显示同一个背景。`setBackground` 还接受 `ItemProvider`，可以在渲染时按查看者生成背景，写法看 [渲染与刷新](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)。传入 `null` 清除背景，正在显示的窗口会随之更新。
+
+## 冻结容器
+
+`frozen(true)` 冻结容器。冻结后，玩家不能在任何窗口中放入、取出这个容器的物品，它也不参与 Shift 转移和双击收集。显示不受影响，程序仍然可以用上文的方法读写它。
+
+下面给公会仓库加一个锁定按钮，会长点击后锁定或解锁仓库：
+
+```java
+public final class GuildStorage {
+    private final VirtualInventory storage = new VirtualInventory(27);
+    private final UUID leader;
+
+    public GuildStorage(UUID leader) {
+        this.leader = leader;
+    }
+
+    public void open(Player viewer) {
+        Pane pane = Pane.builder(
+                        "SSSSSSSSS",
+                        "SSSSSSSSS",
+                        "SSSSSSSSS",
+                        "########L"
+                )
+                .addIngredient('S', this.storage)
+                .addIngredient('L', Item.builder()
+                        .setItemProviderConstant(lockIcon())
+                        .addClickHandler(click -> this.toggleLock(click.player()))
+                        .build())
+                .build();
+
+        Window.builder(pane).setTitle("公会仓库").open(viewer);
+    }
+
+    private void toggleLock(Player player) {
+        if (!player.getUniqueId().equals(this.leader)) {
+            return;
+        }
+        // 所有显示这个容器的窗口同时生效, 包括其他成员已经打开的仓库
+        boolean locked = !this.storage.frozen();
+        this.storage.frozen(locked);
+        player.sendMessage(Component.text(locked ? "仓库已锁定。" : "仓库已解锁。", NamedTextColor.GREEN));
+    }
+
+    // 冻结只限制玩家, 锁定期间仍然可以发放奖励
+    public int deliver(ItemStack reward) {
+        return this.storage.add(reward);
+    }
+}
+```
+
+**lockIcon() 的实现**
+
+```java
+private static ItemStack lockIcon() {
+    ItemStack stack = new ItemStack(Material.TRIPWIRE_HOOK);
+    stack.setData(
+            DataComponentTypes.CUSTOM_NAME,
+            Component.text("锁定 / 解锁仓库", NamedTextColor.YELLOW)
+                    .decoration(TextDecoration.ITALIC, false)
+    );
+    stack.setData(DataComponentTypes.LORE, ItemLore.lore(List.of(
+            Component.text("锁定后成员不能存取物品。", NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false),
+            Component.empty(),
+            Component.text("仅会长可以点击", NamedTextColor.YELLOW)
+                    .decoration(TextDecoration.ITALIC, false)
+    )));
+    return stack;
+}
+```
+
+冻结设置在容器上，会长锁定后，其他成员已经打开的仓库也一起锁定。锁定期间 `deliver` 仍然可以放入奖励，成员能看到奖励出现，解锁后才能取走。
+
+[Pane 的冻结](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/composition.md) 与容器的冻结作用在不同的对象上：
+
+| | `pane.setFrozen(true)` | `inventory.frozen(true)` |
+| - | - | - |
+| 作用范围 | 这块 Pane 的所有格子，包括其中的按钮 | 这个容器，无论它显示在哪块 Pane、哪个窗口中 |
+| Shift 转移与双击收集 | 经这块 Pane 显示的容器格子不参与 | 整个容器不参与 |
+| 程序读写 | 不受影响 | 不受影响 |
+
+只想让某个菜单只读时，冻结 Pane；需要锁住容器本身时，冻结容器。
+
+## Shift 转移与双击收集
+
+玩家 Shift 点击容器格子中的物品时，物品转移到窗口中的其它容器；双击时，光标从窗口中的容器收集同类物品。默认窗口下方的玩家背包也是一个容器，所以不做任何设置时，这两个操作与原版箱子一致。
+
+参与的是窗口中显示出来、可以操作的容器格子。冻结的 Pane 显示的格子和冻结的容器都不参与，Shift 点击时物品也不会转移到它原来所在的容器。有多个容器可选时，按优先级依次尝试，前一个放满后再放下一个。
+
+### 优先级
+
+`operationPriority` 设置容器的优先级，数值大的先尝试。优先级相同时，按容器在窗口中第一次出现的位置，从左到右、从上到下。
+
+下面的菜单上方是一行常用格，下方是三行仓库。常用格排在前面，默认情况下，Shift 点击背包中的物品会先放进常用格。提高仓库的 `ADD` 优先级后，物品先进仓库：
+
+```text title="仓库"
+CCCCCCCCC
+SSSSSSSSS
+SSSSSSSSS
+SSSSSSSSS
+```
+
+- `C`：常用格
+- `S`：仓库
+
+```java
+VirtualInventory common = new VirtualInventory(9);
+VirtualInventory storage = new VirtualInventory(27);
+// Shift 点击背包中的物品时, 先放进仓库, 仓库放满后再放进常用格
+storage.operationPriority(OperationCategory.ADD, 10);
+
+Pane pane = Pane.builder(
+                "CCCCCCCCC",
+                "SSSSSSSSS",
+                "SSSSSSSSS",
+                "SSSSSSSSS"
+        )
+        .addIngredient('C', common)
+        .addIngredient('S', storage)
+        .build();
+
+Window.builder(pane).setTitle("仓库").open(viewer);
+```
+
+优先级按操作类别 `OperationCategory` 分成两类：
+
+| 类别 | 影响的操作 |
+| - | - |
+| `OperationCategory.ADD` | Shift 点击时，物品先转移到哪个容器 |
+| `OperationCategory.COLLECT` | 双击时，先从哪个容器收集 |
+
+两类的默认值都是 0。`operationPriority(10)` 一次设置所有类别，`clearOperationPriority()` 全部恢复为 0。优先级设置在容器上，这个容器显示在哪个菜单，都按同一个值处理。
+
+> **信息：玩家背包的默认优先级**
+>
+> 默认下部 Pane 连接的玩家背包，`ADD` 优先级为 `Integer.MAX_VALUE`，`COLLECT` 优先级为 `Integer.MIN_VALUE`。所以在上例中 Shift 点击常用格或仓库里的物品，物品会先回到玩家背包；双击收集时，最后才从玩家背包收集。自己连接玩家背包时（例如合并布局），这两个值是默认的 0。
+
+### 没有显示的格子
+
+默认只有窗口中显示出来的格子参与。容器比显示区域大时，例如分页显示一个大容器，Shift 点击只会放进当前页，当前页放满后，剩下的物品留在背包里。
+
+`includeObscuredSlots(true)` 让没有显示的格子也参与。下面用 [翻页 Page](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md) 分两页显示 54 格的仓库。Page 分页的是格子序号，转换函数把每个序号连接到容器的对应格子。当前页放满后，Shift 点击的物品会继续放进另一页：
+
+```java
+VirtualInventory storage = new VirtualInventory(54);
+// 当前页以外的格子也参与 Shift 转移和双击收集
+storage.includeObscuredSlots(true);
+
+// 分页的是容器的格子序号, 每页 27 格
+List<Integer> slots = IntStream.range(0, storage.size()).boxed().toList();
+Page<Integer> page = Page.of(slots, 27);
+
+Pane pane = Pane.builder(
+                "SSSSSSSSS",
+                "SSSSSSSSS",
+                "SSSSSSSSS",
+                "P#######N"
+        )
+        // 当前页的每个序号连接容器的对应格子
+        .addIngredient('S', page, slot -> Element.inventory(storage, slot))
+        .addIngredient('P', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.ARROW))
+                .addClickHandler(click -> page.advance(-1))
+                .build())
+        .addIngredient('N', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.ARROW))
+                .addClickHandler(click -> page.advance(1))
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("仓库").open(viewer);
+```
+
+打开这个开关后，双击收集同样会从另一页收集物品。经冻结的 Pane 显示的格子仍然不参与。开关设置在容器上，对显示这个容器的所有菜单生效。
+
+### 没有显示的容器
+
+`linkInventory` 将容器关联到 Pane，让未显示在窗口中的容器也能参与 Shift 转移和双击收集。该容器还需要开启 `includeObscuredSlots(true)`。
+
+下面的仓库每页是一个独立的容器，用 [标签 Tab](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/tab.md) 切换。显示第一页时，第二页的容器不在窗口中。把两页都声明在外层 Pane 上后，第一页放满时，Shift 点击的物品会继续放进第二页：
+
+```java
+// 仓库的每一页是一个独立的容器
+VirtualInventory firstPage = new VirtualInventory(27);
+VirtualInventory secondPage = new VirtualInventory(27);
+// 声明的容器可能没有显示任何格子, 需要打开这个开关才会参与
+firstPage.includeObscuredSlots(true);
+secondPage.includeObscuredSlots(true);
+
+Tab<Integer> pages = Tab.of(Map.of(0, storagePane(firstPage), 1, storagePane(secondPage)), 0);
+
+Pane pane = Pane.builder(
+                "VVVVVVVVV",
+                "VVVVVVVVV",
+                "VVVVVVVVV",
+                "###A#B###"
+        )
+        .addIngredient('V', pages)
+        .addIngredient('A', pageButton("第一页", () -> pages.select(0)))
+        .addIngredient('B', pageButton("第二页", () -> pages.select(1)))
+        // 两页都声明在外层 Pane 上, 无论切到哪一页都参与 Shift 转移和双击收集
+        .linkInventory(firstPage)
+        .linkInventory(secondPage)
+        .build();
+
+Window.builder(pane).setTitle("仓库").open(viewer);
+```
+
+```java
+private static Pane storagePane(VirtualInventory inventory) {
+    return Pane.builder(
+                    "SSSSSSSSS",
+                    "SSSSSSSSS",
+                    "SSSSSSSSS"
+            )
+            .addIngredient('S', inventory)
+            .build();
+}
+```
+
+**pageButton() 的实现**
+
+```java
+private static Item pageButton(String name, Runnable action) {
+    ItemStack stack = new ItemStack(Material.PAPER);
+    stack.setData(
+            DataComponentTypes.CUSTOM_NAME,
+            Component.text(name, NamedTextColor.YELLOW)
+                    .decoration(TextDecoration.ITALIC, false)
+    );
+    return Item.builder()
+            .setItemProviderConstant(stack)
+            .addClickHandler(click -> action.run())
+            .build();
+}
+```
+
+声明的容器排在窗口中显示的容器之后。两页的优先级相同，所以当前显示的那一页先放，放满后再放另一页。
+
+> **注意：声明生效的前提**
+>
+> - 关联的容器必须开启 `includeObscuredSlots(true)`，否则未显示的格子不会参与操作。
+> - 声明只在这块 Pane 显示在窗口中时生效。上例把声明写在始终显示的外层 Pane 上；如果写在某一页的子 Pane 上，切到其它页后声明就不再生效。
+
+构建之后，也可以调用 Pane 的 `linkInventory` 和 `unlinkInventory` 增加或撤销声明。
+
+**下一步**：[虚拟容器](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/virtual.md) — 设置每格的堆叠上限和遍历顺序，并把容器内容保存下来。

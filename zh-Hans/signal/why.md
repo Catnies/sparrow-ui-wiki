@@ -1,0 +1,173 @@
+# 为什么需要 Signal
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/why>
+
+Boss 受到伤害后，菜单里的血量要更新；商品卖出后，库存和购买按钮也要更新。用 Signal 保存这些数据，Item 声明依赖后，数据变化就会触发刷新。
+
+## 三个常见场景
+
+下面三个场景分别用两种方式实现。切换标签，比较不用 Signal 和使用 Signal 的写法，三个场景的标签会一起切换。
+
+### 多名玩家看着同一份数据
+
+世界 Boss 的血量显示在每名玩家打开的菜单里，Boss 受到攻击时，所有打开的菜单都要更新。
+
+**不用 Signal**
+
+```java
+public final class Boss {
+    private volatile int health = 1000;
+    // Boss 必须知道哪些物品在显示它的血量
+    private final Set<ObservableItem> healthItems = ConcurrentHashMap.newKeySet();
+
+    public void damage(int amount) {
+        this.health = Math.max(0, this.health - amount);
+        // 每次改动都要逐个通知
+        for (ObservableItem item : this.healthItems) {
+            item.notifyWindows();
+        }
+    }
+}
+
+// 菜单: 打开时登记, 关闭时移除. 忘了移除, 物品会一直留在集合里
+ObservableItem healthItem = Item.builder()
+        .setItemProvider(context -> healthIcon(boss.health()))
+        .build();
+boss.healthItems().add(healthItem);
+window.addCloseHandler(reason -> boss.healthItems().remove(healthItem));
+```
+
+**使用 Signal**
+
+```java
+public final class Boss {
+    private final MutableSignal<Integer> health = Signal.of(1000);
+
+    public Signal<Integer> health() {
+        return this.health;
+    }
+
+    // 任意线程都可以调用, Boss 不需要知道谁在显示血量
+    public void damage(int amount) {
+        this.health.update(value -> Math.max(0, value - amount));
+    }
+}
+
+// 菜单: 声明渲染时读取了 health, 血量变化后自动重新显示
+Item healthItem = Item.builder()
+        .setItemProvider(context -> healthIcon(boss.health().get()))
+        .dependsOn(boss.health())
+        .build();
+```
+
+不用 Signal 时，Boss 要维护一张「谁在显示我」的表，菜单关闭时还要记得从表里移除，多个线程同时扣血时也要自己处理。使用 Signal 后，Boss 只修改自己的值；菜单声明依赖，关闭后订阅自动解除。
+
+### 一个按钮取决于三个状态
+
+商店的购买按钮在买得起、库存又够时显示为可购买。能否购买取决于购买数量、玩家余额和剩余库存，三者分别由数量按钮、经济系统和商店系统修改。
+
+**不用 Signal**
+
+```java
+ObservableItem confirm = Item.builder()
+        .setItemProvider(context -> confirmIcon(this.quantity <= this.stock && this.balance >= this.quantity * PRICE))
+        .build();
+
+Item plus = Item.builder()
+        .setItemProviderConstant(plusIcon)
+        .addClickHandler(click -> {
+            this.quantity++;
+            // 数量变了, 通知购买按钮
+            confirm.notifyWindows();
+        })
+        .build();
+
+// 余额在经济系统里变化, 库存在商店系统里变化,
+// 这两处也要找到这个按钮并通知它
+```
+
+**使用 Signal**
+
+```java
+// 三个状态合成一个结果, 任意一个变化都会重新计算
+Signal<Boolean> affordable = Signals.combine(quantity, balance, stock,
+        (amount, money, left) -> amount <= left && money >= (long) amount * PRICE);
+
+Item confirm = Item.builder()
+        .setItemProvider(context -> confirmIcon(affordable.get()))
+        .dependsOn(affordable)
+        .build();
+
+Item plus = Item.builder()
+        .setItemProviderConstant(plusIcon)
+        // 只改数量, 不需要知道谁依赖它
+        .addClickHandler(click -> quantity.update(value -> value + 1))
+        .build();
+```
+
+不用 Signal 时，每个修改状态的地方都要知道哪些按钮依赖它，再多一个依赖这些状态的物品，就要回头给所有修改的地方补上通知。使用 Signal 后，修改的地方只管写入，依赖关系写在读取的一方。
+
+### 数据在数据库里
+
+玩家的金币存在数据库中，打开菜单时要在异步线程查询。查询结果返回时，玩家可能已经关闭了菜单。
+
+**不用 Signal**
+
+```java
+UUID uuid = viewer.getUniqueId();
+CompletableFuture.supplyAsync(() -> database.loadCoins(uuid), executor)
+        .thenAccept(result -> {
+            // 查询期间玩家可能已经关闭菜单, 甚至已经下线
+            if (!window.isOpen()) {
+                return;
+            }
+            this.coins = result;
+            coinsItem.notifyWindows();
+        });
+
+// 每次打开菜单都要查一次; 金币在别处改了,
+// 还要重新查询, 再通知每一个打开着的菜单
+```
+
+**使用 Signal**
+
+```java
+// 每名玩家一份金币, 第一次读取时在 executor 上查询, 查询完成前显示 0
+PlayerKeyedSignal<Long> coins = PlayerKeyedSignal.async(0L, executor, database::loadCoins);
+
+// 按查看者读取各自的金币
+Item coinsItem = Item.builder()
+        .setItemProvider(context -> coinsIcon(coins.get(context.player())))
+        .dependsOn(coins)
+        .build();
+
+// 金币在别处改了: 标记过期, 后台重新查询, 查完后正在显示的菜单自动更新
+coins.dirty(uuid);
+```
+
+上面的手动写法每次打开菜单都会查询，还要在结果返回后检查窗口。使用 `PlayerKeyedSignal` 的示例会按玩家缓存结果。
+
+- 查询完成时如果菜单已经关闭，结果仍会存入缓存，下次打开可以使用
+- 重新查询期间，菜单继续显示上一次的结果，查完再更新，不会出现空白
+- 玩家 A 的金币变化只让 A 的菜单重新显示
+- 玩家退出后，这名玩家的缓存自动丢弃
+
+## Signal 是什么
+
+Signal 是一个会变化的值，值变化时通知依赖它的地方。使用 Signal 时会遇到三种角色：
+
+| 角色 | 是什么 | 例子 |
+| - | - | - |
+| 数据源 | 保存值，可以写入 | `Signal.of`、`Signal.async`、`PlayerKeyedSignal` |
+| 派生 | 由其他 Signal 计算出来，上游变化时跟着变化 | `map`、`Signals.combine` |
+| 消费者 | 读取 Signal 并更新界面 | Item 的 `dependsOn`，Window、Pane、容器的 `bind` |
+
+通知表示数据可能已经变化，本身不携带新值。数据源变化后，通知沿着依赖关系传给派生和消费者；消费者只把格子标记为需要重新显示，等下一 tick 重新显示时才读取、计算最新的值。点击下面的按钮修改数据源，观察通知怎样一层层传开：
+
+演示中每件物品只依赖它显示的数据：修改库存时，只有购买按钮重新显示，数量、总价和余额都不动。数量已经是 1 时再点「数量 −1」，写入的值没有变化，不会发送通知。
+
+业务代码只需要更新数据，显示它的 Item 通过依赖关系收到通知。同一 tick 内发生多次变化时，受影响的格子只刷新一次。
+
+Item 的显示订阅由 Sparrow UI 管理，关闭菜单后会解除对应订阅。没有其他订阅者时，自动轮询会停止，派生结果也只在被读取时计算。
+
+**下一步**：[Signal 基础](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics.md) — 创建、读取和写入 Signal，派生新的值，并订阅它的变化。

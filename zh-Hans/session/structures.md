@@ -1,0 +1,186 @@
+# 会话结构
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/session/structures>
+
+Sparrow UI 提供栈、保留栈和树三种会话结构。它们的区别在于返回哪个窗口，以及返回后是否保留退出的窗口。
+
+示例中的 `viewer` 为当前玩家，打开菜单的代码在玩家线程执行。
+
+## 选择会话结构
+
+在根窗 Builder 上用 `setSessionKind` 设置会话结构，不设置时使用 `STACK`。
+
+```java
+Pane home = Pane.builder("####B####")
+        .addIngredient('B', new ItemStack(Material.BOOK))
+        .build();
+
+Window.builder(home)
+        .setTitle("技能总览")
+        .setSessionKind(WindowSession.Kind.TREE)
+        .open(viewer);
+```
+
+| 结构 | 打开子菜单时 | 返回后 | 适用场景 |
+| - | - | - | - |
+| `STACK` | 将窗口压入栈，同一实例可以重复出现 | 栈中不再有这个窗口时，会话不再持有它 | 逐级进入、逐级返回，退出的子菜单不需要保留 |
+| `RETAINED_STACK` | 与 `STACK` 相同 | 退出的窗口保留到会话结束 | 按进入顺序返回，但还需要保留退出的窗口 |
+| `TREE` | 新窗口成为当前窗口的子节点；已访问的窗口直接重新打开 | 访问过的窗口都保留到会话结束 | 技能分类、设置分组等需要在多个分支间切换的菜单 |
+
+通过 `navigate` 打开的子菜单沿用当前会话的结构，子菜单 Builder 上的 `setSessionKind` 不生效。
+
+## 进入与返回的区别
+
+下方按钮会同时操作三种会话。A、B 各对应一个固定的 Window 实例，「会话持有」列出会话仍引用的窗口，不包括示例变量保存的引用。
+
+点击「进入 A → 返回」后，普通栈不再持有 A，保留栈和树仍保留 A。
+
+重置后依次点击「进入 A → 进入 B → 进入 A → 返回」，两种栈都会回到 B，树会回到总览。
+
+下面的菜单对应这组操作，按钮复用 A、B 两扇窗口，按 Esc 也能返回。修改 `setSessionKind` 的参数就能切换会话结构。
+
+```java
+Window[] destinations = new Window[2];
+Item enterA = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.IRON_PICKAXE))
+        .addClickHandler(click -> click.window().navigate(destinations[0]))
+        .build();
+Item enterB = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.IRON_AXE))
+        .addClickHandler(click -> click.window().navigate(destinations[1]))
+        .build();
+Item back = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.ARROW))
+        .addClickHandler(click -> click.window().back())
+        .build();
+
+Pane controls = Pane.builder("R##A#B###")
+        .addIngredient('R', back)
+        .addIngredient('A', enterA)
+        .addIngredient('B', enterB)
+        .build();
+
+destinations[0] = Window.builder(controls).setTitle("A：采矿")
+        .setBackOnPlayerClose(true).build(viewer);
+destinations[1] = Window.builder(controls).setTitle("B：伐木")
+        .setBackOnPlayerClose(true).build(viewer);
+
+Window.builder(controls)
+        .setTitle("技能总览")
+        .setSessionKind(WindowSession.Kind.TREE)
+        .open(viewer);
+```
+
+两种栈记录的路径都是「总览 → A → B → A」，所以返回的是 B。路径中的两个 A 是同一个 Window。
+
+在 `TREE` 中，A 第一次从总览打开，父节点就是总览。后来从 B 跳到 A 不会改变这个关系，`back()` 仍然返回总览。
+
+对当前已打开的窗口调用 `navigate` 不会改变路径，所以连续点击同一个入口没有效果。
+
+> **信息：树的返回位置**
+>
+> 第一次从 A 打开 B，B 的父节点就是 A，之后调用 `back()` 会返回 A。若分类菜单都需要返回总览，可以让它们首次从总览打开，或在返回按钮中直接 `navigate` 到保存好的总览窗口。
+
+## 保留窗口与保留状态
+
+返回时会重新打开原来的 Window，构建代码不会再执行。复用原窗口时，它的 `data`、Pane 内容和关联对象的状态都会保留。
+
+这个详情窗口用 `setData` 保存已选数量。点击钻石加一，`updateOnClick()` 刷新物品名称。返回目录再进入时，继续使用原来的详情窗口，数量不会清零。
+
+```java
+int[] selected = {0};
+Item counter = Item.builder()
+        .setItemProvider(context -> {
+            ItemStack icon = new ItemStack(Material.DIAMOND);
+            icon.setData(DataComponentTypes.CUSTOM_NAME,
+                    Component.text("已选数量：" + selected[0], NamedTextColor.AQUA)
+                            .decoration(TextDecoration.ITALIC, false));
+            return icon;
+        })
+        .addClickHandler(click -> click.window().data(int[].class)[0]++)
+        .updateOnClick()
+        .build();
+
+Window detail = Window.builder(Pane.builder("####D####")
+                .addIngredient('D', counter)
+                .build())
+        .setTitle("选择数量")
+        .setData(selected)
+        .setBackOnPlayerClose(true)
+        .build(viewer);
+
+Pane home = Pane.builder("####B####")
+        .addIngredient('B', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BOOK))
+                .addClickHandler(click -> click.window().navigate(detail))
+                .build())
+        .build();
+
+Window.builder(home).setTitle("商品目录")
+        .setSessionKind(WindowSession.Kind.TREE)
+        .open(viewer);
+```
+
+> **注意：再次进入时要使用同一个 Window**
+>
+> `navigate(builder)` 每次都会新建窗口。即使标题、Pane 或商品编号相同，`TREE` 也会添加新节点。要保留上次的状态，需要保存并再次传入原来的 Window，也可以复用返回该 Window 的 Future。
+
+上例的入口按钮也引用了 `detail`，所以换成 `STACK` 后，数量同样不会清零。栈弹出窗口只是移除会话的引用，窗口里的数据不变，其他代码还引用它时也不会被 GC。需要每次从零开始，就在点击时新建窗口和状态对象。
+
+`RETAINED_STACK` 弹出的窗口仍由会话保留，但已不在 `chain()` 中，窗口的 `session()` 也变回 `null`。再次进入时仍需传入原窗口，Sparrow UI 没有按名称查找旧窗口的 API。
+
+使用 [分页](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md) 或 [滚动](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/scroll.md) 的菜单，复用原来的 Window、Pane 和 Page / Scroll 对象时，页码和滚动位置也会保留。
+
+## 查看和结束会话
+
+窗口打开后，用 `window.session()` 取得它所属的会话。尚未打开的窗口返回 `null`。
+
+这个菜单中，点击纸张查看会话状态，点击屏障结束会话：
+
+```java
+Pane pane = Pane.builder("###I#E###")
+        .addIngredient('I', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.PAPER))
+                .addClickHandler(click -> {
+                    WindowSession session = click.window().session();
+                    click.player().sendMessage(Component.text(
+                            "结构：" + session.kind()
+                                    + "，路径长度：" + session.chain().size()
+                                    + "，可以返回：" + session.hasBack()));
+                })
+                .build())
+        .addIngredient('E', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                .addClickHandler(click -> click.window().session().end())
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("会话状态").open(viewer);
+```
+
+| API | 用途 |
+| - | - |
+| `current()` | 当前 Window，会话结束后为 `null` |
+| `chain()` | 从根窗到当前窗的路径快照，列表不可修改，只包含这条路径上的窗口 |
+| `hasBack()` | 当前路径上是否有上一扇窗口 |
+| `active()` | 会话是否尚未结束 |
+| `end()` | 关闭当前窗，以 `PLUGIN` 原因结束会话，释放会话持有的成员 |
+
+`end()` 返回 `CompletableFuture<WindowSession.EndResult>`，结果为 `ENDED` 或 `ALREADY_ENDED`，重复调用不会再次触发结束回调。结束时会话会清除自己的窗口引用，插件保存的引用需要自行清理。
+
+**示例需要的 import**
+
+```java
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.momirealms.sparrow.ui.item.Item;
+import net.momirealms.sparrow.ui.pane.Pane;
+import net.momirealms.sparrow.ui.window.Window;
+import net.momirealms.sparrow.ui.window.WindowSession;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+```
+
+**下一步**：[分页](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md) — 为菜单添加上一页、下一页按钮。

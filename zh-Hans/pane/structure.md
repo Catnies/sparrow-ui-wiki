@@ -1,0 +1,312 @@
+# 字符布局
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/structure>
+
+Pane 的布局用字符模板描述：每个字符串是菜单的一行，每个字符占一格，相同字符的格子显示同一份内容。
+
+## 用字符画出布局
+
+调用 `Pane.builder` 时，按菜单的行数传入字符串。每个字符串对应一行，每个字符对应一格。
+
+下面是一个帮助菜单，上下两行是边框，中间放一本帮助手册：
+
+```java
+ItemStack border = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+border.setData(DataComponentTypes.CUSTOM_NAME, Component.empty());
+
+ItemStack book = new ItemStack(Material.BOOK);
+book.setData(
+        DataComponentTypes.CUSTOM_NAME,
+        Component.text("帮助手册", NamedTextColor.WHITE)
+                .decoration(TextDecoration.ITALIC, false)
+);
+
+Pane pane = Pane.builder(
+                "---------",
+                "####B####",
+                "---------"
+        )
+        .addIngredient('-', Item.simple(border))
+        .addIngredient('B', Item.simple(book))
+        .build();
+
+Window.builder(pane)
+        .setTitle(Component.text("帮助"))
+        .open(viewer);
+```
+
+这里写了 3 个字符串，每个有 9 个字符，所以这块 Pane 是 3 行 9 列，共 27 格。点「字符模板」和「玩家视角」按钮，可以在模板和玩家看到的菜单之间切换：
+
+```text title="帮助"
+---------
+####B####
+---------
+```
+
+- `-`：边框（`black_stained_glass_pane`）
+- `B`：帮助手册（`book`）
+- `#`：留空
+
+模板中的字符称为**标志符**（identifier）。字符本身没有含义，只是格子的代号，`addIngredient` 把内容绑定到标志符上。**一个标志符出现在几格，绑定的内容就显示在几格。** `-` 在模板中出现 18 次，一次绑定就铺满上下两行，这 18 格显示的是同一个 Item。需要每格各用一个 Item 时，看 [填充内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients.md)。
+
+同一个标志符多次调用 `addIngredient` 时，只保留最后一次绑定。
+
+一个字符不够表达含义时，可以用反引号把一段文本包起来，整段算作一个标志符，只占一格。绑定时写不带反引号的字符串：
+
+```java
+Pane pane = Pane.builder("##`buy`###`sell`##")
+        .addIngredient("buy", Item.simple(new ItemStack(Material.EMERALD)))
+        .addIngredient("sell", Item.simple(new ItemStack(Material.GOLD_INGOT)))
+        .build();
+```
+
+这一行写了 18 个字符，但只有 9 格：
+
+```text
+##`buy`###`sell`##
+```
+
+- `buy`：购买按钮
+- `sell`：出售按钮
+- `#`：留空
+
+多字符标志符绑定时写成字符串，单字符标志符写成 `'B'` 或 `"B"` 都可以。
+
+单字符能让模板在源码里上下对齐，一眼看出每格的位置，标志符不多时优先用单字符。
+
+> **注意：模板写错时立即报错**
+>
+> 以下情况会抛出 `IllegalArgumentException`：
+>
+> - 各行格数不一致，消息会指出出错的行，例如 `row 2 has logical width 8, expected 9`
+> - 反引号没有闭合，或一对反引号之间没有内容
+> - 模板中出现制表符等控制字符
+> - `addIngredient` 绑定了模板中不存在的标志符，调用 `addIngredient` 时当场抛出，不会等到 `build()`
+
+> **注意：普通窗口要求宽 9、高 1～6**
+>
+> Pane 本身不限制尺寸，限制来自它所在的窗口。`Window.builder(pane)` 打开箱子样式的窗口，箱子行数取 Pane 的高度，所以 Pane 宽度必须为 9、高度在 1～6 之间，否则调用 `build` 或 `open` 时抛出 `IllegalArgumentException`。
+>
+> 漏斗、发射器等窗口有各自的固定尺寸，看 [窗口类型](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/window/types.md)。
+
+## 留空的格子
+
+模板中的标志符不要求全部绑定。没有绑定内容的格子为空：不显示物品，也没有点击行为。
+
+本站的示例约定用 `#` 表示这类格子。`#` 在 Sparrow UI 中没有特殊含义，给 `#` 绑定内容时，它和其他字符一样生效。
+
+Pane 设置了背景时，空格子显示背景物品。下面用灰色玻璃板填满帮助手册以外的 26 格：
+
+```java
+ItemStack background = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+background.setData(DataComponentTypes.CUSTOM_NAME, Component.empty());
+
+Pane pane = Pane.builder(
+                "#########",
+                "####B####",
+                "#########"
+        )
+        .setBackground(background)
+        .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+        .build();
+```
+
+背景的完整用法看 [背景、冻结与嵌套](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/composition.md)。某一格需要保持空白、又不显示背景时，给它绑定 [`Item.empty()`](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/create.md#创建空-item)。
+
+> **注意：写错的字符和空格不会报错**
+>
+> 没有绑定的标志符不会引发任何错误。模板中手误写错的字符会成为一个新的标志符，对应的格子会留空。
+>
+> 空格也是普通字符，同样占一格。不要用空格对齐模板：`"# # # # #"` 是 9 格，其中 4 格的标志符是空格。
+
+## 槽位与坐标
+
+Pane 的每一格有一个**槽位编号**：左上角为 0，先从左到右、再从上到下递增。同一格也可以用坐标 `(x, y)` 表示，`x` 是列、`y` 是行，都从 0 开始。两者的换算是 `slot = x + y × 宽度`。
+
+```text
+---------
+####B####
+---------
+```
+
+- `-`：边框
+- `B`：帮助手册
+- `#`：留空
+
+帮助手册 `B` 位于第 2 行第 5 列，槽位编号是 13，坐标是 `(4, 1)`。
+
+Pane 的尺寸由 `PaneSize` 表示，`PaneSize` 同时负责槽位与坐标的换算：
+
+```java
+Pane pane = Pane.builder(
+                "---------",
+                "####B####",
+                "---------"
+        )
+        .build();
+
+PaneSize size = pane.size();                 // 宽 9, 高 3
+int area = size.area();                      // 27
+int slot = size.indexOf(4, 1);               // 13
+PanePosition position = size.positionOf(13); // x = 4, y = 1
+String identifier = pane.identifierAt(13);   // "B"
+```
+
+坐标或槽位超出范围时，`indexOf` 与 `positionOf` 抛出 `IndexOutOfBoundsException`。
+
+按标志符绑定内容时不需要计算槽位编号。槽位和坐标主要用于 [程序化布局](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/programmatic.md)，也用于读懂异常消息中的位置：`build()` 时某个标志符的内容创建失败，异常会写明标志符、模板行列和槽位编号。
+
+> **信息：Pane 槽位与 Window 槽位**
+>
+> 这里的编号是 **Pane 槽位**，只相对于当前 Pane。`RenderContext.windowSlot` 与 `ItemClick.windowSlot()` 是 **Window 槽位**。Pane 直接作为 `Window.builder(pane)` 的上半部分时，两者数值相同；Pane 嵌套在另一块 Pane 中时则不同，看 [背景、冻结与嵌套](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/composition.md)。
+
+## 预先解析布局
+
+`Pane.builder("行", ...)` 先把模板解析成一份 `Structure`，再用它创建 Builder。`Structure` 记录 Pane 的尺寸和每一格的标志符，创建后不可修改，不保存任何绑定的内容。
+
+同一个布局反复使用时，可以只解析一次，保存为常量：
+
+```java
+private static final Structure LAYOUT = Structure.of(
+        "---------",
+        "####B####",
+        "---------"
+);
+
+public static Pane createPane() {
+    return Pane.builder(LAYOUT)
+            .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+            .build();
+}
+```
+
+`Pane.builder(LAYOUT)` 与直接传入模板行得到相同的 Builder。多个 Builder 共用一份 `Structure` 时，各自绑定的内容互不影响。
+
+每个 `Pane.builder` 入口都对应一种 `Structure`：
+
+| Pane 入口 | 对应的 Structure | 布局内容 |
+| - | - | - |
+| `Pane.builder(String...)` | `Structure.of(String...)` | 多行模板 |
+| `Pane.builder(int, int, String)` | `Structure.of(PaneSize, String)` | 各行首尾相接的一段模板，格数必须等于宽 × 高 |
+| `Pane.builder(PaneSize)`、`Pane.builder(int, int)` | `Structure.of(PaneSize)` | 只有尺寸，没有标志符 |
+| `Pane.builder(Structure)` | 传入的 `Structure` | 已解析的布局 |
+
+只有尺寸的空白布局中没有标志符，无法使用 `addIngredient`，所有格子初始为空。它用于逐格安排内容的场景，看 [程序化布局](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/programmatic.md)。
+
+## 示例: 帮助菜单
+
+上下两条边框，中间三个帮助按钮，点击后在聊天栏发送对应内容；关闭按钮位于底边正中。
+
+```text title="服务器帮助"
+---------
+#R##C##W#
+----X----
+```
+
+- `-`：边框（`black_stained_glass_pane`）
+- `R`：服务器规则（`book`）
+- `C`：常用指令（`writable_book`）
+- `W`：官方网站（`map`）
+- `X`：关闭菜单（`barrier`）
+- `#`：留空
+
+```java
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ItemLore;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.momirealms.sparrow.ui.item.Item;
+import net.momirealms.sparrow.ui.pane.Pane;
+import net.momirealms.sparrow.ui.pane.Structure;
+import net.momirealms.sparrow.ui.window.Window;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.List;
+
+public final class HelpMenu {
+  // 布局只解析一次, 每次打开菜单时复用.
+  private static final Structure LAYOUT = Structure.of(
+          "---------",
+          "#R##C##W#",
+          "----X----"
+  );
+
+  public static void open(Player viewer) {
+      Pane pane = Pane.builder(LAYOUT)
+              // '-' 占 17 格, 一次绑定全部生效; '#' 不绑定, 保持留空.
+              .addIngredient('-', Item.simple(border()))
+              .addIngredient('R', helpButton(Material.BOOK, "服务器规则", List.of(
+                      "不使用作弊客户端。",
+                      "不破坏他人的建筑。"
+              )))
+              .addIngredient('C', helpButton(Material.WRITABLE_BOOK, "常用指令", List.of(
+                      "/spawn 回到主城",
+                      "/home 回到家"
+              )))
+              .addIngredient('W', helpButton(Material.MAP, "官方网站", List.of(
+                      "https://example.com"
+              )))
+              .addIngredient('X', closeButton())
+              .build();
+
+      Window.builder(pane)
+              .setTitle(Component.text("服务器帮助"))
+              .open(viewer);
+  }
+
+  private static Item helpButton(Material material, String title, List<String> lines) {
+      ItemStack stack = new ItemStack(material);
+      stack.setData(
+              DataComponentTypes.CUSTOM_NAME,
+              Component.text(title, NamedTextColor.YELLOW)
+                      .decoration(TextDecoration.ITALIC, false)
+      );
+      stack.setData(
+              DataComponentTypes.LORE,
+              ItemLore.lore(List.of(
+                      Component.text("点击在聊天栏查看。", NamedTextColor.GRAY)
+                              .decoration(TextDecoration.ITALIC, false)
+              ))
+      );
+      return Item.builder()
+              .setItemProviderConstant(stack)
+              .addClickHandler(click -> {
+                  click.player().sendMessage(Component.text(title, NamedTextColor.AQUA));
+                  for (String line : lines) {
+                      click.player().sendMessage(Component.text(line, NamedTextColor.GRAY));
+                  }
+              })
+              .build();
+  }
+
+  private static Item closeButton() {
+      ItemStack stack = new ItemStack(Material.BARRIER);
+      stack.setData(
+              DataComponentTypes.CUSTOM_NAME,
+              Component.text("关闭菜单", NamedTextColor.YELLOW)
+                      .decoration(TextDecoration.ITALIC, false)
+      );
+      return Item.builder()
+              .setItemProviderConstant(stack)
+              .addClickHandler(click -> click.window().close())
+              .build();
+  }
+
+  private static ItemStack border() {
+      ItemStack stack = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+      stack.setData(DataComponentTypes.CUSTOM_NAME, Component.empty());
+      return stack;
+  }
+}
+```
+
+1. **解析布局**（第 17-22 行）：三行模板在类初始化时解析成一份 Structure。每次打开都用它创建 Builder，不再重复解析。
+2. **铺满边框**（第 26-27,85-89 行）：模板中的 “-” 占 17 格，一次 addIngredient 让这些格子都显示黑色玻璃板；“#” 没有绑定，6 格保持空白。
+3. **帮助按钮**（第 28-38,47-70 行）：三个按钮由同一个 helpButton 方法构建，只有物品、名称和聊天内容不同。R、C、W 各出现一次，各占一格。
+4. **关闭按钮**（第 39,72-83 行）：X 位于底边正中，槽位编号为 22，坐标为 (4, 2)。点击后关闭当前窗口。
+5. **打开窗口**（第 25,40,42-44 行）：build() 得到一块 9 × 3 的 Pane，Window\.builder 按它的高度打开三行箱子。
+
+**下一步**：[填充内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients.md) — addIngredient 能绑定的全部内容类型。

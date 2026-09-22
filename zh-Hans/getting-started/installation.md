@@ -1,0 +1,119 @@
+# 安装
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/getting-started/installation>
+
+## 兼容性
+
+| 项目 | 要求 |
+| - | - |
+| 服务端 | Paper 或 Folia |
+| Minecraft | `1.21.4` \~ `26.3`，**同一个构件覆盖全部版本**，不需要按版本分别引入依赖 |
+| Java | Sparrow UI 以 Java 21 编译；运行时用对应 Paper 或 Folia 版本要求的 Java 环境就行 |
+
+## 添加依赖
+
+先加仓库：
+
+**Gradle Kotlin**
+
+```kotlin
+repositories {
+  maven("https://repo.momirealms.net/snapshots")
+}
+```
+
+**Gradle Groovy**
+
+```groovy
+repositories {
+  maven { url = 'https://repo.momirealms.net/snapshots' }
+}
+```
+
+**Maven**
+
+```xml
+<repositories>
+<repository>
+  <id>momirealms</id>
+  <url>https://repo.momirealms.net/snapshots</url>
+</repository>
+</repositories>
+```
+
+再加依赖，并把 `net.momirealms.sparrow.ui` 整体 relocate 到你自己的包名下。把下面的 `com.example.myplugin.libraries.sparrow.ui` 换成你插件独有的目标包名：
+
+**Gradle Kotlin**
+
+```kotlin
+dependencies {
+  implementation("net.momirealms:sparrow-ui:beta.33")
+}
+
+tasks.shadowJar {
+  relocate("net.momirealms.sparrow.ui", "com.example.myplugin.libraries.sparrow.ui")
+}
+```
+
+**Gradle Groovy**
+
+```groovy
+dependencies {
+  implementation 'net.momirealms:sparrow-ui:beta.33'
+}
+
+shadowJar {
+  relocate 'net.momirealms.sparrow.ui', 'com.example.myplugin.libraries.sparrow.ui'
+}
+```
+
+**Maven**
+
+```xml
+<dependency>
+<groupId>net.momirealms</groupId>
+<artifactId>sparrow-ui</artifactId>
+<version>beta.33</version>
+</dependency>
+
+<!-- maven-shade-plugin 的 <configuration> 里 -->
+<relocations>
+<relocation>
+  <pattern>net.momirealms.sparrow.ui</pattern>
+  <shadedPattern>com.example.myplugin.libraries.sparrow.ui</shadedPattern>
+</relocation>
+</relocations>
+```
+
+> **注意：relocate 不是可选项**
+>
+> Sparrow UI 会把一份反射代理装进**服务端类加载器**，代理类的包名跟着 Sparrow UI 的运行时包名走。不 relocate 的话，任何两个带了 Sparrow UI 的插件都会在服务端类加载器里撞上同名类。
+
+## 初始化
+
+在 `onEnable` 里调用一次 `setUp`，把你的插件实例交给 Sparrow UI：
+
+```java
+package com.example.myplugin;
+
+import net.momirealms.sparrow.ui.SparrowUI;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public final class MyPlugin extends JavaPlugin {
+
+    @Override
+    public void onEnable() {
+        SparrowUI.getInstance().setUp(this);
+    }
+}
+```
+
+这一步会安装反射代理、创建窗口管理器与网络管理器，并让 Sparrow UI 的调度器使用你的插件实例。
+
+插件禁用时，Sparrow UI 会监听禁用事件，关闭窗口管理器、网络管理器和自己的调度器。你不需要额外调用 Sparrow UI 的关闭方法。
+
+> **危险：先完成 setUp，再使用其他 API**
+>
+> 在 `setUp` 完成之前，不要访问 Sparrow UI 的任何类，也不要构建 Item、Pane 或 Window。
+
+**下一步**：[快速开始](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/getting-started/quick-start.md) — 编写并打开一个带按钮的欢迎菜单

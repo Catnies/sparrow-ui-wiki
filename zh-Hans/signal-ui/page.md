@@ -1,0 +1,119 @@
+# 分页与筛选
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/page>
+
+[翻页 Page](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md)里的箭头始终显示为可用。这次让上一页在首页变灰，下一页在末页变灰，并在中间显示「1 / 2」这样的页码。
+
+示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+
+## 翻页时更新箭头、页码和内容
+
+沿用翻页示例的十二组钻石，每页九组。`amounts` 改用 `ListSignal`，所以商品数量变化后，分页内容和总页数都会更新。
+
+```text title="钻石目录"
+MMMMMMMMM
+P###C###N
+```
+
+- `M`：当前页内容（`diamond`）
+- `P`：上一页（`gray_dye`）
+- `C`：页码（`paper`）
+- `N`：下一页（`arrow`）
+
+初始为第一页。翻到第二页后，上方显示 10、11、12 三组钻石，右侧按钮变灰。
+
+```java
+ListSignal<Integer> amounts = ListSignal.of();
+amounts.addAll(IntStream.rangeClosed(1, 12).boxed().toList());
+Page<Integer> page = Page.of(amounts, 9);
+Signal<Boolean> hasPrevious = page.page().map(index -> index > 0);
+Signal<Boolean> hasNext = Signals.combine(page.page(), page.count(),
+        (index, count) -> index + 1 < count);
+
+Item previous = Item.builder()
+        .dependsOn(hasPrevious)
+        .setItemProvider(context -> hasPrevious.get()
+                ? named(Material.ARROW, "上一页") : named(Material.GRAY_DYE, "已是第一页"))
+        .addClickGuard((item, click) -> hasPrevious.get())
+        .addClickHandler(click -> page.advance(-1))
+        .build();
+Item next = Item.builder()
+        .dependsOn(hasNext)
+        .setItemProvider(context -> hasNext.get()
+                ? named(Material.ARROW, "下一页") : named(Material.GRAY_DYE, "已是最后一页"))
+        .addClickGuard((item, click) -> hasNext.get())
+        .addClickHandler(click -> page.advance(1))
+        .build();
+Item pageNumber = Item.builder()
+        .dependsOn(page.page(), page.count())
+        .setItemProvider(context -> named(Material.PAPER,
+                (page.page().get() + 1) + " / " + page.count().get()))
+        .build();
+
+Pane pane = Pane.builder("MMMMMMMMM", "P###C###N")
+        .addIngredient('M', page,
+                amount -> Element.item(Item.simple(new ItemStack(Material.DIAMOND, amount))))
+        .addIngredient('P', previous)
+        .addIngredient('C', pageNumber)
+        .addIngredient('N', next)
+        .build();
+Window.builder(pane).setTitle("钻石目录").open(viewer);
+```
+
+`page()` 的页码从零开始，显示时加一。下一页是否可用同时取决于当前页和总页数，所以 `hasNext` 组合了两者。按钮外观与点击守卫读取同一个判断，变灰时也停止执行翻页动作。
+
+列表缩短到只剩九组后，总页数变成一，当前页会落回有效范围，两个箭头都变灰。空列表仍按一页处理，中间显示「1 / 1」，内容区为空。
+
+### 换成筛选结果或数据库分页
+
+如果商品列表来自筛选结果，把完整列表 Signal 传给 `Page.of` 就行。下面接着使用前面的 `amounts`，演示开启筛选后只保留数量不超过五的钻石组。构建 Pane 时，将 `filteredPage` 放到前面 `page` 的位置，箭头也依赖这份分页。
+
+```java
+MutableSignal<Boolean> smallOnly = Signal.of(false);
+Signal<List<Integer>> filtered = Signals.combine(amounts, smallOnly,
+        (values, enabled) -> values.stream().filter(value -> !enabled || value <= 5).toList());
+Page<Integer> filteredPage = Page.of(filtered, 9);
+```
+
+`smallOnly.set(true)` 后只剩五条，页数自动变为一。这里要传 Signal 本身；传入 `filtered.get()` 得到的是普通 List，`Page.of(List, ...)` 会复制那一刻的内容。
+
+数据库按页加载时，箭头和页码的写法也可以保留，只更换分页来源。以下是两种替换方案，`repository` 为业务仓库，`findAmounts(offset, limit)` 返回钻石组数量列表，`count()` 返回记录总数，`ioExecutor` 是已有的 I/O 执行器。
+
+**两种按页加载的来源**
+
+```java
+Page<Integer> page = Page.async(ioExecutor,
+        index -> repository.findAmounts(index * 9, 9),
+        () -> (repository.count() + 8) / 9);
+```
+
+`Page.async` 管理按页缓存，也支持 `refresh()` 和 `prefetch()`，具体流程看[数据库分页](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md#从数据库懒加载数据)。
+
+如果业务层已经提供了按页分区的数据源，可以直接交给 `Page.of`。下面用异步分区和独立的总页数来源说明它们的对应关系。
+
+```java
+KeyedSignal<Integer, List<Integer>> rowsByPage = KeyedSignal.async(
+        List.of(), ioExecutor, index -> repository.findAmounts(index * 9, 9));
+AsyncSignal<Integer> totalPages = Signal.async(1, ioExecutor,
+        () -> (repository.count() + 8) / 9);
+Page<Integer> page = Page.of(rowsByPage, totalPages);
+```
+
+这时刷新由来源负责，例如 `rowsByPage.dirty(page.page().get())` 和 `totalPages.dirty()`；`Page.of` 的 `refresh()` 不负责重新加载。只有当前页分区参与分页内容的订阅。
+
+每名玩家应有自己的 `Page` 对象，才能独立翻页；底层商品列表或数据库分区可以共享。
+
+**示例共用的物品命名方法**
+
+```java
+private static ItemStack named(Material material, String name) {
+    ItemStack stack = new ItemStack(material);
+    stack.setData(DataComponentTypes.CUSTOM_NAME,
+            Component.text(name).decoration(TextDecoration.ITALIC, false));
+    return stack;
+}
+```
+
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+
+**下一步**：[滚动内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/scroll.md) — 通过滚动显示动态列表，并更新当前位置。

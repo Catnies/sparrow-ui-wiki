@@ -1,0 +1,56 @@
+# 滚动内容
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/scroll>
+
+滚动菜单也能直接接收 `ListSignal`。下面十二组钻石按三列排列，一次显示两行。点击向下按钮后，显示范围从第 1～6 组移到第 4～9 组，按钮名称里的行号也会变化。
+
+示例中的 `viewer` 是查看菜单的玩家。请先完成 Sparrow UI 初始化；`named` 是创建带名称物品的辅助方法，实现在页尾。
+
+## 滚动列表与位置显示
+
+```text title="滚动目录"
+###MMM###
+###MMM###
+########D
+```
+
+- `M`：当前可见内容（`diamond`）
+- `D`：向下滚动（`arrow`）
+
+初始显示第 1～6 组。向下滚动一行后，显示第 4～9 组。
+
+```java
+ListSignal<Integer> amounts = ListSignal.of();
+amounts.addAll(IntStream.rangeClosed(1, 12).boxed().toList());
+Scroll<Integer> scroll = Scroll.vertical(amounts, 3, 2);
+Item down = Item.builder()
+        .dependsOn(scroll.line(), scroll.maxLine())
+        .setItemProvider(context -> named(Material.ARROW,
+                "向下滚动，当前第 " + (scroll.line().get() + 1) + " 行"))
+        .addClickGuard((item, click) -> scroll.line().get() < scroll.maxLine().get())
+        .addClickHandler(click -> scroll.advance(1))
+        .build();
+Pane pane = Pane.builder("###MMM###", "###MMM###", "########D")
+        .addIngredient('M', scroll,
+                amount -> Element.item(Item.simple(new ItemStack(Material.DIAMOND, amount))))
+        .addIngredient('D', down)
+        .build();
+Window.builder(pane).setTitle("滚动目录").open(viewer);
+```
+
+向 `amounts` 增删数据，当前内容和可滚动范围也会更新。需要上下两个按钮时，按同样方式给向上按钮设置 `scroll.advance(-1)` 和 `line() > 0` 的守卫。
+
+**示例共用的物品命名方法**
+
+```java
+private static ItemStack named(Material material, String name) {
+    ItemStack stack = new ItemStack(material);
+    stack.setData(DataComponentTypes.CUSTOM_NAME,
+            Component.text(name).decoration(TextDecoration.ITALIC, false));
+    return stack;
+}
+```
+
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+
+**下一步**：[标签选中态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/tab.md) — 切换分类内容，同时标出当前选中的标签。

@@ -1,0 +1,91 @@
+# Sparrow UI
+
+> Sparrow UI is a packet-based reactive UI library for Paper and Folia. It pulls menu state, inventory interaction, rendering, and session management into one reusable component model.
+
+Every link below points to the Markdown version of that page. All pages combined into one file: [llms-full.txt](https://catnies.github.io/sparrow-ui-wiki/llms-full.txt).
+
+简体中文: [llms.txt](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/llms.txt)
+
+- [Introduction](https://catnies.github.io/sparrow-ui-wiki/index.md): Welcome to the Sparrow UI docs! 🐦
+- [FAQ](https://catnies.github.io/sparrow-ui-wiki/faq.md)
+
+## Getting Started
+
+- [Installation](https://catnies.github.io/sparrow-ui-wiki/getting-started/installation.md)
+- [Quick start](https://catnies.github.io/sparrow-ui-wiki/getting-started/quick-start.md)
+- [Core concepts and layers](https://catnies.github.io/sparrow-ui-wiki/getting-started/concepts.md): A Window manages the window, a Pane arranges the layout, and an Element describes what goes in each slot. Panes can nest, and one Window can take several Panes at once.
+
+## Item
+
+- [Creating items](https://catnies.github.io/sparrow-ui-wiki/item/create.md): An arrow in a menu can carry information, turn a page, or go back when clicked. Sparrow UI describes a menu item like this with an Item: it decides what to display and what happens when a player interacts with it.
+- [Rendering and refresh](https://catnies.github.io/sparrow-ui-wiki/item/render.md): An Item's display source can compute its item at display time. When the viewer's level, the current time, or a points value in the database changes, a refresh recomputes what is shown.
+- [Clicks and guards](https://catnies.github.io/sparrow-ui-wiki/item/click.md): An Item's interaction consists of conditional guards and handlers. Guards decide whether the interaction is allowed at all; handlers run after they pass, closing the window, sending a message, and so on.
+
+## Pane
+
+- [Character layouts](https://catnies.github.io/sparrow-ui-wiki/pane/structure.md): A Pane's layout is described with a character template: each string is one row of the menu, each character takes one slot, and slots holding the same character display the same content.
+- [Filling content](https://catnies.github.io/sparrow-ui-wiki/pane/ingredients.md): addIngredient binds content to the identifiers in the template. Beyond Items, it can bind inventories, other Panes, or generate content slot by slot.
+- [Backgrounds, freezing, and nesting](https://catnies.github.io/sparrow-ui-wiki/pane/composition.md): A Pane's background fills the slots that hold no content, and freezing stops a Pane from reacting to player interaction for a while. A Pane can also be nested inside another Pane, or shown in several players' Windows at once.
+- [Programmatic layouts](https://catnies.github.io/sparrow-ui-wiki/pane/programmatic.md): Slots on a Pane can also be filled directly by slot index or coordinate, without a character template, or you can pick an ordered set of slots first and fill them one by one. Once the menu is open, all of these methods remain callable.
+
+## Window
+
+- [Opening and closing](https://catnies.github.io/sparrow-ui-wiki/window/lifecycle.md): A Window presents a Pane to one player and owns opening, closing, and player interaction in between. Each menu open usually creates a fresh Window; the Pane can be shared as needed.
+- [Window layouts](https://catnies.github.io/sparrow-ui-wiki/window/layout.md): The top of a Window is the container; the bottom is the player inventory. The bottom is fixed: three rows of main storage plus one hotbar row, 36 slots in total. You can lay out only the top menu, or put menu content in the bottom as well.
+- [Window types](https://catnies.github.io/sparrow-ui-wiki/window/types.md): Sparrow UI covers 17 vanilla container windows. A regular chest suits free-form layouts; when you need text input, a progress bar, or a trade list, pick a window that ships with those widgets.
+- [Window titles](https://catnies.github.io/sparrow-ui-wiki/window/title.md): A Window's title can be fixed text or generated from business data. After the menu opens, the title can still be updated through the Window.
+- [Window data](https://catnies.github.io/sparrow-ui-wiki/window/data.md): A Window can carry business objects for click handlers to read. This page also covers client state confirmation and the cursor data and cancellation in outside-click events.
+
+## Sessions
+
+- [Submenus and going back](https://catnies.github.io/sparrow-ui-wiki/session/navigation.md): The previous chapters covered building and opening a single Window. A menu with product details, category lists, and other submenus needs to manage moving between and back across several Windows. A WindowSession represents one player's session from opening the menu to leaving it: it records how the Windows relate and runs a callback when the whole session ends.
+- [The three session structures](https://catnies.github.io/sparrow-ui-wiki/session/structures.md): Sparrow UI offers three session structures: stack, retained stack, and tree. They differ in which Window a return goes to, and whether the Window you left is kept afterwards.
+
+## Page & Scroll
+
+- [Pagination Page](https://catnies.github.io/sparrow-ui-wiki/pagination/page.md): When a catalog has more entries than one page can hold, Page splits it across pages. Give it a list and a page size, and buttons can flip to the previous or next page. Page owns the page number and the data per page; the Pane decides which slots hold that content. Once the two are linked through addIngredient, flipping pages updates the items in those slots automatically.
+- [Scroll](https://catnies.github.io/sparrow-ui-wiki/pagination/scroll.md): When menu content should be read one row downward or one column rightward at a time, use Scroll. Showing two rows at once, one downward scroll moves the former second row to the top and brings in a fresh row below.
+- [Tab](https://catnies.github.io/sparrow-ui-wiki/pagination/tab.md): When a menu has categories like "Materials" and "Tools", Tab switches the content of one area in place. Each category maps to a child Pane, each with its own layout and buttons.
+
+## Inventories
+
+- [Putting an inventory in a menu](https://catnies.github.io/sparrow-ui-wiki/inventory/basics.md): Pane slots can link to an inventory; whatever players put in or take out lives in that inventory. Put, take, drag, shift transfer, double-click collection, and number-key swaps all follow vanilla chest rules, with no click logic to write yourself.
+- [Virtual inventories](https://catnies.github.io/sparrow-ui-wiki/inventory/virtual.md): A VirtualInventory keeps items in memory, fitting slots the menu manages itself: input slots, storages, reward chests. It can cap per-slot stacks, reorder bulk operations, and serialize its contents to a byte array and back.
+- [Referenced inventories](https://catnies.github.io/sparrow-ui-wiki/inventory/referencing.md): A ReferencingInventory maps an existing container, such as a chest or a player inventory, into the menu. It stores nothing itself: reads return the mapped container's current contents, and writes go straight into the mapped container.
+- [Access rules and events](https://catnies.github.io/sparrow-ui-wiki/inventory/rules-events.md): Access rules decide whether a player may put items into or take items out of an inventory. Events notify you around every content change: before commit you can cancel or rewrite the change, and after commit you can log it or send a message.
+
+## Visuals & Animation
+
+- [Visual layers](https://catnies.github.io/sparrow-ui-wiki/visual/layers.md): Visual layers decide how a slot looks, without touching the real item in it. What the player sees comes from the visual layer; clicks, shift transfers, code reads, and events all keep using the real item.
+- [Animations](https://catnies.github.io/sparrow-ui-wiki/visual/animation.md): An animation changes a slot's display frame by frame for a while, then the original look returns. Like visual layers, it changes only the display: real items stay untouched, and clicks are unaffected.
+
+## Signal (Optional)
+
+- [Why Signals](https://catnies.github.io/sparrow-ui-wiki/signal/why.md): The data a menu shows changes: a boss's health is dropping, a player's coins just arrived, a few units of a product sold. A Signal holds a changing value and notifies its dependents when it changes, so they can redraw. The menus built from fixed data in the previous chapters follow the data automatically once a Signal is attached.
+- [Signal basics](https://catnies.github.io/sparrow-ui-wiki/signal/basics.md): A Signal holds changing data and can compute new values from it. It works fine in plain business code, with menus reading and displaying it on top.
+- [Deriving and combining](https://catnies.github.io/sparrow-ui-wiki/signal/derive.md): A buy button may depend on the quantity, the unit price, and the balance all at once; switching a category makes the menu read a different source. Derived Signals can combine these inputs and also control when change notifications fire.
+- [Async loading](https://catnies.github.io/sparrow-ui-wiki/signal/async.md): A player opens the shop and the menu needs to show the account balance, but the balance lives in a database and the query can take a few hundred milliseconds. The menu should show "Loading" first and the balance once the query lands; code reading the menu's state meanwhile keeps running.
+- [Polling](https://catnies.github.io/sparrow-ui-wiki/signal/polling.md): The shop shows the server-wide remaining stock, which lives in a database that other subservers also sell from. This server never sees every purchase event, so relying on local dirty() calls alone cannot keep the display current.
+- [Collection state](https://catnies.github.io/sparrow-ui-wiki/signal/collections.md): A shop menu starts out selling apples and bread. An admin lists diamonds and the product list gains an entry while the "number of products" counter moves with it; removing apples updates both places again.
+- [Partition state](https://catnies.github.io/sparrow-ui-wiki/signal/partitions.md): The shop's apples and bread each have their own stock. Viewing the apple detail page cares about apples only; selling one bread should not force a re-read of apple stock.
+
+### Binding Signals to Menus
+
+- [Item display](https://catnies.github.io/sparrow-ui-wiki/signal-ui/item.md): In the purchase menu, the player clicks the diamond and the quantity rises by one each time. The button's name starts at "Quantity: 1" and should read "Quantity: 2" after the click. The quantity belongs to this menu open alone, so the menu creates a plain Signal at build time.
+- [Per-player display](https://catnies.github.io/sparrow-ui-wiki/signal-ui/player.md): Alice picks two in the shop while Bob stays at one, and both can share the same Item. The difference is that the dependency is now a player partition: the provider reads the current viewer's value, and a click updates the clicker's partition.
+- [List contents](https://catnies.github.io/sparrow-ui-wiki/signal-ui/list.md): When an admin lists diamonds, an already open catalog should gain an item right away. A group of slots changes together here, so bind the list with addIngredient.
+- [Pagination and filtering](https://catnies.github.io/sparrow-ui-wiki/signal-ui/page.md): The arrows in Pagination Page always look usable. This time the previous arrow grays out on the first page, the next on the last, and a "1 / 2" style page number sits in the middle.
+- [Scrolling contents](https://catnies.github.io/sparrow-ui-wiki/signal-ui/scroll.md): A scrolling menu takes a ListSignal directly. Twelve diamond stacks below sit in three columns, two rows visible at a time. One click of the down button moves the visible range from stacks 1-6 to 4-9, and the button's row number updates with it.
+- [Tab selection state](https://catnies.github.io/sparrow-ui-wiki/signal-ui/tab.md): A category menu has to switch content and mark the active category. Tab.selected() exposes a Signal for the selected key, and buttons that depend on it can change their names.
+- [Window titles](https://catnies.github.io/sparrow-ui-wiki/signal-ui/title.md): Sometimes the player's chosen quantity belongs in the Window's title. setTitleSupplier computes the title, and window.bind connects quantity changes to updateTitle().
+- [Visual layers](https://catnies.github.io/sparrow-ui-wiki/signal-ui/visual.md): Slot five of the product menu normally shows a diamond. Clicking the marking toggle in the bottom-right should turn slot five into an emerald; clicking again restores the diamond. Only the display changes: clicking slot five still runs the original diamond button's handler.
+
+## Network (Optional)
+
+- [Listening to packets](https://catnies.github.io/sparrow-ui-wiki/network/listen.md)
+- [Sending and injecting](https://catnies.github.io/sparrow-ui-wiki/network/send-receive.md)
+
+## Additional Notes (Optional)
+
+- [Object lifecycle and subscriptions](https://catnies.github.io/sparrow-ui-wiki/advanced/lifecycle.md): After a menu closes, the Window stops displaying, but the Panes, Items, and inventories it references may still serve other menus. What should be kept depends on whether the business still holds it; whether a subscription needs manual shutdown depends on the registration entry.
+- [Transactions and concurrency](https://catnies.github.io/sparrow-ui-wiki/advanced/transaction.md): A player shift-transfers an item from the shared storage into their inventory: the storage must lose it and the inventory must gain it. The library puts the changes across the involved inventories into one transaction, written together on a successful commit; a cancellation or conflict writes none of it.

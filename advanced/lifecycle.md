@@ -1,0 +1,82 @@
+# Object lifecycle and subscriptions
+
+Source: <https://catnies.github.io/sparrow-ui-wiki/advanced/lifecycle>
+
+After a menu closes, the Window stops displaying, but the Panes, Items, and inventories it references may still serve other menus. What should be kept depends on whether the business still holds it; whether a subscription needs manual shutdown depends on the registration entry.
+
+## Temporary menus versus shared data
+
+A confirm dialog is usually built fresh on every open, and its temporary state, like quantities and checkboxes, is born with it. A shared storage is the opposite: the business service keeps the inventory, and each player opens their own Window onto the same contents.
+
+`sharedStorage` below is a nine-slot `VirtualInventory` held by the business service, and `viewer` is the player opening the storage this time.
+
+```java
+Pane pane = Pane.builder("SSSSSSSSS")
+        .addIngredient('S', sharedStorage)
+        .build();
+Window.builder(pane).setTitle("Shared storage").open(viewer);
+```
+
+Closing this Window ends one viewing session only: the shared storage stays, and the inventory other players are using must not be deleted. The reverse mistake is collecting every Window ever created into a long-lived list, which keeps closed Windows alive in business code forever.
+
+Temporary UI no longer in use should be collectable once the business drops its references. Do not treat garbage collection as a "menu has closed" notification, and never rely on it to return items or save data; those actions belong in explicit close or business-end flows.
+
+## Keep the tickets from manual Signal subscriptions
+
+Suppose a background service exposes a `Signal<Integer> onlineCount`, and a debug command wants to watch it temporarily. Save the ticket `onDirty` returns until observation ends, then close it.
+
+```java
+Subscription watch = onlineCount.onDirty(() ->
+        System.out.println("Players online: " + onlineCount.get()));
+System.out.println("Players online: " + onlineCount.get());
+```
+
+Call `watch.close()` when the observation ends. Signals hold subscription nodes weakly, so once the ticket is collected the subscription may vanish with it. Calling `onDirty(...)` and discarding the return value means the listener may simply stop working after a while.
+
+Collection hooks such as `beforeAdd`, `beforePut`, and `afterRemove` return tickets to keep as well. Manual subscriptions and hooks should live exactly as long as the business object that needs them.
+
+## UI bindings are managed by their hosts
+
+When a Window's title should follow the player count, let the Window host the binding. The ticket returned by `window.bind` needs no keeping below.
+
+```java
+Window window = Window.builder(Pane.builder("#########").build())
+        .setTitleSupplier(() -> Component.text("Players online: " + onlineCount.get()))
+        .build(viewer);
+window.bind(onlineCount, Window::updateTitle);
+window.open();
+```
+
+This binding subscribes when the Window opens, pauses on close, and resumes on reopen. The Window keeps the re-subscription declaration; only when one binding must stop early do you save and close its returned `Subscription`.
+
+`Item.dependsOn`, the Pane list bindings, and `visual().bind` are likewise managed by their UI objects, with no tickets to keep just for validity. A Pane's binding, however, may stay active with no Window watching. A shared Pane bound to polling data keeps querying even after one of its Windows closes.
+
+Re-subscribing never replays every change missed while paused. When the interface shows again, read the current value; the title computation at Window open is exactly such a read.
+
+## Inventory events need explicit shutdown for temporary listeners
+
+`subscribeClick`, `subscribePreUpdate`, and `subscribePostUpdate` are held by the inventory; discarding the return value does not unregister. Registering a diagnostic callback on a shared storage just for one viewing session means arranging the unbind yourself.
+
+`window` below is a storage Window that has not opened yet, and `sharedStorage` is a long-lived inventory. The listener receives every update to the inventory, including ones caused by other players.
+
+```java
+Subscription log = sharedStorage.subscribePostUpdate(event ->
+        System.out.println("Slots changed this time: " + event.slotChanges().size()));
+window.addCloseHandler(reason -> log.close());
+window.open();
+```
+
+Closing the Window ends this listener. If the business reopens the same Window, this one-off close handler does not re-register the inventory listener for you; arrange that in the open flow.
+
+For inventories built fresh and released whole after use, the inventory and its handlers are collected together. For long-lived shared inventories, close temporary listeners once they are no longer needed, and above all do not let a callback keep capturing one session's Player or Window.
+
+| Registration | Who keeps the subscription | When work ends |
+| - | - | - |
+| `Signal.onDirty`, collection element hooks | The caller keeps the ticket | Close it explicitly |
+| `bind` on Window, Pane, and Visual | The matching UI host | Managed per host rules; the ticket can unbind early |
+| Inventory event subscriptions | The inventory | Temporary listeners close explicitly |
+| Network listeners | NetworkManager | Close explicitly when the feature ends |
+
+Prefer storing UUIDs, product ids, and business data in state. Fetch players on suitable threads when needed, and never let background queries, shared state, or long-lived listeners accidentally retain an entire player.
+
+**Next**: [Transactions and concurrency](https://catnies.github.io/sparrow-ui-wiki/advanced/transaction.md) — When cross-inventory changes commit together, and how cancellation and conflicts are handled.

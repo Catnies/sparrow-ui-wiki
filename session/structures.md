@@ -1,0 +1,186 @@
+# The three session structures
+
+Source: <https://catnies.github.io/sparrow-ui-wiki/session/structures>
+
+Sparrow UI offers three session structures: stack, retained stack, and tree. They differ in which Window a return goes to, and whether the Window you left is kept afterwards.
+
+In the examples, `viewer` is the current player and the menu-opening code runs on the player thread.
+
+## Choosing a session structure
+
+Set the structure on the root Window's Builder with `setSessionKind`; without it, sessions use `STACK`.
+
+```java
+Pane home = Pane.builder("####B####")
+        .addIngredient('B', new ItemStack(Material.BOOK))
+        .build();
+
+Window.builder(home)
+        .setTitle("Skill overview")
+        .setSessionKind(WindowSession.Kind.TREE)
+        .open(viewer);
+```
+
+| Structure | Opening a submenu | After returning | Best for |
+| - | - | - | - |
+| `STACK` | Pushes the Window onto the stack; the same instance may appear more than once | Once the stack no longer contains it, the session stops holding it | Level-by-level flows where exited submenus need no retention |
+| `RETAINED_STACK` | Same as `STACK` | Exited Windows are retained until the session ends | Returning in entry order while keeping exited Windows around |
+| `TREE` | The new Window becomes a child of the current one; already visited Windows reopen directly | Every visited Window is retained until the session ends | Menus that switch between branches, like skill categories or settings groups |
+
+Submenus opened through `navigate` inherit the current session's structure; `setSessionKind` on a submenu's Builder has no effect.
+
+## How entering differs from returning
+
+The buttons below drive all three session types at once. A and B are each backed by one fixed Window instance; "held by session" lists the Windows the session still references, not the references kept in example variables.
+
+After "enter A → back", the plain stack no longer holds A, while the retained stack and the tree still do.
+
+After a reset, press "enter A → enter B → enter A → back": both stacks land on B, while the tree returns to the overview.
+
+The menu below implements that sequence, reusing the A and B Windows, and Esc also goes back. Change the argument of `setSessionKind` to switch structures.
+
+```java
+Window[] destinations = new Window[2];
+Item enterA = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.IRON_PICKAXE))
+        .addClickHandler(click -> click.window().navigate(destinations[0]))
+        .build();
+Item enterB = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.IRON_AXE))
+        .addClickHandler(click -> click.window().navigate(destinations[1]))
+        .build();
+Item back = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.ARROW))
+        .addClickHandler(click -> click.window().back())
+        .build();
+
+Pane controls = Pane.builder("R##A#B###")
+        .addIngredient('R', back)
+        .addIngredient('A', enterA)
+        .addIngredient('B', enterB)
+        .build();
+
+destinations[0] = Window.builder(controls).setTitle("A: Mining")
+        .setBackOnPlayerClose(true).build(viewer);
+destinations[1] = Window.builder(controls).setTitle("B: Woodcutting")
+        .setBackOnPlayerClose(true).build(viewer);
+
+Window.builder(controls)
+        .setTitle("Skill overview")
+        .setSessionKind(WindowSession.Kind.TREE)
+        .open(viewer);
+```
+
+Both stacks record the path "overview → A → B → A", so going back lands on B. The two A entries in the path are the same Window.
+
+In `TREE`, A was first opened from the overview, so its parent is the overview. Jumping from B to A later does not change that; `back()` still returns to the overview.
+
+Calling `navigate` toward the currently open Window leaves the path unchanged, so clicking the same entrance repeatedly does nothing.
+
+> **Info: Where the tree returns to**
+>
+> The first time B is opened from A, B's parent is A, and `back()` returns there afterwards. If every category menu should return to the overview, have them first open from the overview, or have the back button `navigate` directly to a saved overview Window.
+
+## Retained Windows and retained state
+
+Going back reopens the original Window; the building code does not run again. The Window is still there, along with its `data`, Pane content, and any state in the objects it references.
+
+The detail Window below keeps the selected count with `setData`. Clicking the diamond increments it, and `updateOnClick()` refreshes the item name. Leaving for the catalog and returning resumes the same detail Window, count intact.
+
+```java
+int[] selected = {0};
+Item counter = Item.builder()
+        .setItemProvider(context -> {
+            ItemStack icon = new ItemStack(Material.DIAMOND);
+            icon.setData(DataComponentTypes.CUSTOM_NAME,
+                    Component.text("Selected: " + selected[0], NamedTextColor.AQUA)
+                            .decoration(TextDecoration.ITALIC, false));
+            return icon;
+        })
+        .addClickHandler(click -> click.window().data(int[].class)[0]++)
+        .updateOnClick()
+        .build();
+
+Window detail = Window.builder(Pane.builder("####D####")
+                .addIngredient('D', counter)
+                .build())
+        .setTitle("Pick a quantity")
+        .setData(selected)
+        .setBackOnPlayerClose(true)
+        .build(viewer);
+
+Pane home = Pane.builder("####B####")
+        .addIngredient('B', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BOOK))
+                .addClickHandler(click -> click.window().navigate(detail))
+                .build())
+        .build();
+
+Window.builder(home).setTitle("Catalog")
+        .setSessionKind(WindowSession.Kind.TREE)
+        .open(viewer);
+```
+
+> **Warning: Re-entering must use the same Window**
+>
+> `navigate(builder)` builds a new Window every time. Even with the same title, Pane, or product id, `TREE` adds a new node. To keep the previous state, save the original Window and pass it in again, or reuse the Future that resolves to it.
+
+The entrance button in the example also references `detail`, so switching to `STACK` keeps the count too. Popping a Window only drops the session's reference; the data inside is untouched, and the Window is not GC'd while other code still references it. To start from zero each time, build a new Window and a new state object inside the click.
+
+A `RETAINED_STACK` Window stays held by the session after being popped, but it is no longer in `chain()` and its `session()` reads `null`. Re-entering still passes in the original Window; the library has no lookup-by-name API for old Windows.
+
+Menus using [pagination](https://catnies.github.io/sparrow-ui-wiki/pagination/page.md) or [scrolling](https://catnies.github.io/sparrow-ui-wiki/pagination/scroll.md) also keep their page and scroll position when the original Window, Pane, and Page / Scroll objects are reused.
+
+## Inspecting and ending the session
+
+Once the Window is open, `window.session()` returns its session; `null` before opening.
+
+In this menu, the paper reports session state and the barrier ends the session:
+
+```java
+Pane pane = Pane.builder("###I#E###")
+        .addIngredient('I', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.PAPER))
+                .addClickHandler(click -> {
+                    WindowSession session = click.window().session();
+                    click.player().sendMessage(Component.text(
+                            "Structure: " + session.kind()
+                                    + ", path length: " + session.chain().size()
+                                    + ", can go back: " + session.hasBack()));
+                })
+                .build())
+        .addIngredient('E', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                .addClickHandler(click -> click.window().session().end())
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("Session state").open(viewer);
+```
+
+| API | Purpose |
+| - | - |
+| `current()` | The current Window, `null` after the session ends |
+| `chain()` | A snapshot of the path from root to current Window; the list is unmodifiable and contains only Windows on this path |
+| `hasBack()` | Whether a previous Window exists on the current path |
+| `active()` | Whether the session has not ended yet |
+| `end()` | Closes the current Window, ends the session with the `PLUGIN` reason, and releases the session's members |
+
+`end()` returns a `CompletableFuture<WindowSession.EndResult>` resolving to `ENDED` or `ALREADY_ENDED`; repeat calls fire no second end callback. On end, the session clears its Window references; references your plugin kept are yours to clean up.
+
+**Imports used by the examples**
+
+```java
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.momirealms.sparrow.ui.item.Item;
+import net.momirealms.sparrow.ui.pane.Pane;
+import net.momirealms.sparrow.ui.window.Window;
+import net.momirealms.sparrow.ui.window.WindowSession;
+import org.bukkit.Material;
+import org.bukkit.inventory.ItemStack;
+```
+
+**Next**: [Pagination](https://catnies.github.io/sparrow-ui-wiki/pagination/page.md) — Add previous and next page buttons to a menu.

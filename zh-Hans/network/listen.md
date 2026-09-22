@@ -1,0 +1,50 @@
+# 监听数据包
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/network/listen>
+
+> **信息：可选能力，API 仍可能调整**
+>
+> 网络 API 原本供 Sparrow UI 内部使用，目前也对插件开放，支持监听、发送和模拟接收数据包。接口后续仍可能调整。
+>
+> 只编写菜单时可以跳过本章，点击处理和窗口更新直接使用 UI API 就行。
+
+`NetworkManager` 提供字节层与 NMS 对象层的监听。完成 Sparrow UI 初始化后，通过 `SparrowUI.getInstance().networkManager()` 获取管理器。
+
+## 字节层监听
+
+用 `PacketType` 指定包名、协议阶段和方向，再调用 `listenByteBuf`。例如，下面读取玩家请求选择的快捷栏格子。
+
+```java
+NetworkManager network = SparrowUI.getInstance().networkManager();
+PacketType type = new PacketType(
+        "minecraft:set_carried_item", ConnectionState.PLAY, PacketFlow.SERVERBOUND);
+
+Subscription listener = network.listenByteBuf(type, (user, event) -> {
+    int slot = event.buffer().readShort();
+    System.out.println("快捷栏下标：" + slot);
+});
+```
+
+这里的字段格式按 Minecraft Java 1.21.11 核对，快捷栏下标为 `0～8`。`SERVERBOUND` 表示客户端发往服务端，`CLIENTBOUND` 表示服务端发往客户端；`PLAY` 是游戏阶段，也可以指定握手、状态查询、登录或配置阶段。
+
+包 ID 由 Sparrow UI 按当前服务端解析，当前版本没有该包时，注册会抛出 `IllegalArgumentException`。字段格式仍需调用方按目标版本适配。
+
+`event.buffer()` 提供不含包 ID 的 payload，每个监听器从头读取。直接写入会标记修改，`clear()` 只清空 payload；`event.cancel()` 会取消当前帧并停止后续传播。缓冲只在回调期间借用，不要保存到外部，也不要对它调用 `retain()` 或 `release()`。
+
+## NMS 对象层监听
+
+已有 NMS 适配时，可以改用 `listenNMS`。第三个参数是当前匹配的包对象，具体字段通过项目自己的版本适配读取。
+
+```java
+Subscription listener = network.listenNMS(type, (user, event, packet) -> {
+    System.out.println(packet.getClass().getName());
+});
+```
+
+这段与上面的字节监听是两种独立写法。对象层也支持 `event.cancel()`，或用 `event.replaceRootAndStop(replacement)` 替换整个根包并停止传播。对于 bundle，`packet` 可能是子包，取消或替换仍作用于整个根包。
+
+两类回调都在 Netty 线程同步执行，同一个监听器可能被不同连接并发调用。不要在里面做阻塞查询，或直接操作需要玩家/区域线程的世界与背包。尚未进入游戏的连接不一定有 `Player`，`user.player()`、`uuid()` 和 `name()` 都可能为 `null`。
+
+结束监听时调用返回的 `listener.close()`。管理器会持有监听器，丢弃返回值不会自动注销；已经开始的派发仍可能完成。只需关闭自己注册的监听，不要关闭 Sparrow UI 的整个网络管理器。
+
+**下一步**：[发送与模拟接收](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/network/send-receive.md) — 通过玩家连接发送数据包，或注入一次客户端请求。

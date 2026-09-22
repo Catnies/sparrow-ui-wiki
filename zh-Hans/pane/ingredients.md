@@ -1,0 +1,221 @@
+# 填充内容
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/ingredients>
+
+`addIngredient` 把内容绑定到模板中的标志符。除了 Item，它还可以绑定容器、另一块 Pane，或者为每一格分别生成内容。
+
+## 同一标志符共用物品
+
+绑定 `Item` 时，标志符占的每一格都显示这个 Item。`ItemStack` 和 `ItemProvider` 是简写，Sparrow UI 会用 `Item.simple(...)` 替你包装成 Item：
+
+```java
+Pane pane = Pane.builder("A#B#C####")
+        // 完整写法: 自己创建 Item, 可以配置点击行为.
+        .addIngredient('A', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                .addClickHandler(click -> click.window().close())
+                .build())
+        // 简写: 只显示一个固定物品.
+        .addIngredient('B', new ItemStack(Material.BOOK))
+        // 简写: 显示内容在渲染时生成, 这里显示查看者的等级.
+        .addIngredient('C', ItemProvider.sync(context -> {
+            ItemStack stack = new ItemStack(Material.EXPERIENCE_BOTTLE);
+            stack.setData(
+                    DataComponentTypes.CUSTOM_NAME,
+                    Component.text("等级：" + context.player().getLevel(), NamedTextColor.AQUA)
+                            .decoration(TextDecoration.ITALIC, false)
+            );
+            return stack;
+        }))
+        .build();
+```
+
+简写得到的 Item 只负责显示，点击没有任何反应。需要点击行为、守卫或刷新规则时，用 `Item.builder()` 创建完整的 Item，看 [创建物品](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/create.md)。
+`ItemStack` 在调用 `addIngredient` 时就会复制一份，之后再修改原来的物品，不会影响菜单中的显示。
+
+**标志符出现在多格时，这三种写法都是所有格子共用同一个 Item。** 需要每格各有一个 Item 时，见下一节。
+
+## 每格独立物品：Supplier、ItemBuilder
+
+传入 `Supplier<Item>` 时，标志符的每一格各调用一次，得到各自的 Item。传入 `ItemBuilder` 时同理，每格各调用一次 `build()`。
+
+如果 Item 带有计数器等状态，就需要区分共用一个 Item 和每格创建一个 Item。下面用一个计数按钮演示。
+
+```java
+private static Item counterButton() {
+    AtomicInteger count = new AtomicInteger();
+    return Item.builder()
+            .setItemProvider(context -> {
+                ItemStack stack = new ItemStack(Material.LIME_DYE);
+                stack.setData(
+                        DataComponentTypes.CUSTOM_NAME,
+                        Component.text("点击次数：" + count.get(), NamedTextColor.YELLOW)
+                                .decoration(TextDecoration.ITALIC, false)
+                );
+                return stack;
+            })
+            .addClickHandler(click -> count.incrementAndGet())
+            .updateOnClick()
+            .build();
+}
+```
+
+把它分别用两种方式放进菜单：
+
+```java
+Pane pane = Pane.builder("#AAA#BBB#")
+        // 三格共用一个计数器, 点任意一格, 三格一起变化.
+        .addIngredient('A', counterButton())
+        // 每格调用一次 counterButton(), 三格各自计数.
+        .addIngredient('B', () -> counterButton())
+        .build();
+```
+
+```text title="计数器"
+#AAA#BBB#
+```
+
+- `A`：共用一个 Item（`lime_dye`）
+- `B`：每格一个 Item（`lime_dye`）
+- `#`：留空
+
+`A` 的三格是同一个 Item，点击后 `updateOnClick` 刷新所有显示它的格子，三格一起加一。`B` 的每格各调用了一次 `counterButton()`，各有一个 `AtomicInteger`，只有被点的那格变化。
+
+同样的区别也出现在 [点击间隔守卫](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/click.md#内置守卫) 上：`ItemGuards.throttle` 按 Item 计时，共用一个 Item 时，玩家点击其中任意一格都会占用同一份间隔。
+
+> **注意：每格一个 Item 不等于每格一份状态**
+>
+> `ItemBuilder` 每格调用一次 `build()`，但 Builder 里配置的回调是同一份。如果计数器创建在 Builder 外面、被回调引用，各格的 Item 仍然共用它。
+>
+> 需要每格独立的状态时，像上例一样传入 `Supplier`，在方法内部创建状态，每次调用都得到一份新的。
+
+## 逐格生成内容：ElementSupplier、Element
+
+`ElementSupplier` 为每一格单独生成内容。它收到两个参数：这个标志符占的全部格子 `slots`，以及当前是第几格 `occurrence`。`occurrence` 从 0 开始，按从左到右、从上到下的顺序计数。
+
+下面的一排按钮分别购买 1、8、16、32、64 个绿宝石：
+
+```java
+private static final int[] AMOUNTS = {1, 8, 16, 32, 64};
+
+public static Pane createPane() {
+    return Pane.builder("##QQQQQ##")
+            .addIngredient('Q', (slots, occurrence) -> Element.item(amountButton(AMOUNTS[occurrence])))
+            .build();
+}
+
+private static Item amountButton(int amount) {
+    ItemStack stack = new ItemStack(Material.EMERALD, amount);
+    stack.setData(
+            DataComponentTypes.CUSTOM_NAME,
+            Component.text("购买 " + amount + " 个", NamedTextColor.YELLOW)
+                    .decoration(TextDecoration.ITALIC, false)
+    );
+    return Item.builder()
+            .setItemProviderConstant(stack)
+            .addClickHandler(click -> click.player().sendMessage(
+                    Component.text("已选择购买 " + amount + " 个。", NamedTextColor.GREEN)
+            ))
+            .build();
+}
+```
+
+5 个 `Q` 从左到右依次是第 0～4 格，分别得到 1、8、16、32、64 个的按钮。
+
+`ElementSupplier` 返回的是 `Element`，它是格子内容的统一表示，本页的各种写法最后都会转换成 `Element`。放 Item 时用 `Element.item(...)` 包一层。`Element` 有四种：
+
+| 写法 | 格子里的内容 |
+| - | - |
+| `Element.item(item)` | 一个 Item，与直接传入 Item 相同 |
+| `Element.empty()` | 空格子，与不绑定相同，Pane 设置了背景时显示背景 |
+| `Element.inventory(inventory, slot)` | 连接容器的指定一格 |
+| `Element.pane(pane, slot)` | 连接另一块 Pane 的指定一格 |
+
+`addIngredient` 也可以直接传入一个 `Element`，这时所有格子放同一个 Element。
+
+> **注意：生成失败时整块 Pane 不会创建**
+>
+> `ElementSupplier` 在 `build()` 时调用。它抛出异常或返回 `null` 时，`build()` 抛出 `IllegalStateException`，消息写明标志符和出错格子的位置，原始异常作为 cause。
+>
+> 上例中数组长度必须不小于 `Q` 的格数，否则会因越界而失败。
+
+## 容器：SparrowInventory
+
+绑定 `SparrowInventory` 时，标志符的每一格连接容器的一格：第 1 次出现的格子连接容器的第 0 格，第 2 次出现的连接第 1 格，依此类推。玩家可以在这些格子里放入、取出物品，物品保存在容器中。
+
+```java
+VirtualInventory storage = new VirtualInventory(18);
+
+Pane pane = Pane.builder(
+                "SSSSSSSSS",
+                "SSSSSSSSS"
+        )
+        .addIngredient('S', storage)
+        .build();
+```
+
+`VirtualInventory` 是 Sparrow UI 提供的内存容器。容器的规则、事件等用法看 [把容器放进菜单](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/basics.md)。
+
+> **注意：格子数与容器大小保持一致**
+>
+> 格子比容器多时会从头循环，同一个容器格出现在两个位置；格子比容器少时，多出来的容器格不显示。
+
+> **注意：需要保留物品时，保存容器或序列化内容**
+>
+> 如果只在打开菜单的方法里新建 `VirtualInventory`，没有在其他地方保存它，关闭菜单后就无法再取回玩家放入的物品。
+>
+> 需要保存物品时，在关闭前序列化容器内容，看 [虚拟容器](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/virtual.md)；需要多名玩家共用一个容器时，让菜单引用同一个实例。
+
+## 子面板：Pane
+
+绑定另一块 Pane 时，标志符占据的区域显示那块 Pane 的内容：区域的左上角对应子 Pane 的左上角，其余格子按相同的相对位置对应。
+
+下面把一行「帮助 + 关闭」的页脚做成独立的 Pane，嵌入菜单底部：
+
+```java
+private static Pane footer() {
+    return Pane.builder("H###X")
+            .addIngredient('H', Item.simple(new ItemStack(Material.BOOK)))
+            .addIngredient('X', Item.builder()
+                    .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                    .addClickHandler(click -> click.window().close())
+                    .build())
+            .build();
+}
+
+public static Pane createPane() {
+    return Pane.builder(
+                    "#########",
+                    "#########",
+                    "##FFFFF##"
+            )
+            .addIngredient('F', footer())
+            .build();
+}
+```
+
+```text title="页脚"
+#########
+#########
+##FFFFF##
+```
+
+- `F`：页脚 Pane
+- `#`：留空
+
+`F` 占第 3 行的第 3～7 列，共 5 格，依次对应页脚的 `H###X`。页脚里的按钮保留自己的点击行为，同一个 `footer()` 可以嵌入任意多个菜单。
+
+> **注意：区域不能超出子 Pane**
+>
+> 标志符占据的区域比子 Pane 大时，多出的格子找不到对应位置，`build()` 抛出 `IllegalStateException`。区域比子 Pane 小时只显示子 Pane 左上角的一部分，想显示其他部分，或了解嵌套后的背景与点击规则，看 [背景、冻结与嵌套](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/composition.md)。
+
+> **信息：翻页、滚动、标签与 Signal**
+>
+> 下面几种内容同样用 `addIngredient` 绑定，它们会在数据变化时更新格子，分别在后面的章节介绍：
+>
+> - `Page`：按页显示一份列表，看 [翻页 Page](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md)
+> - `Scroll`：按行或按列滚动显示一份列表，看 [滚动 Scroll](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/scroll.md)
+> - `Tab`：在几块 Pane 之间切换，看 [标签 Tab](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/tab.md)
+> - `Signal` 列表：列表数据变化后自动更新格子，看 [Signal 在 UI 中的使用](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list.md)
+
+**下一步**：[背景、冻结与嵌套](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pane/composition.md) — 设置空格子的背景、禁止玩家操作，以及嵌套 Pane 的偏移与共享。
