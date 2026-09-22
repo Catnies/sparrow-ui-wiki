@@ -1,8 +1,63 @@
 ---
-title: Window Titles
-sidebar_label: Window Titles
+title: Window titles
+sidebar_label: Window titles
 ---
 
-:::info
-This page has not been written yet.
-:::
+A Window's title can be fixed text or generated from business data. After the menu opens, the title can still be updated through the Window.
+
+## Updating the title
+
+The builder's `setTitle` sets the initial title. Once the menu is open, call the Window's method of the same name to request an update; no need to recreate the Window or Pane.
+
+The menu below starts titled "Item Catalog"; clicking the book changes it to "Selected: Book":
+
+```java
+Pane pane = Pane.builder("####B####")
+        .addIngredient('B', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BOOK))
+                .addClickHandler(click -> click.window().setTitle("Selected: Book"))
+                .build())
+        .build();
+
+Window.builder(pane)
+        .setTitle("Item Catalog")
+        .open(viewer);
+```
+
+`setTitle` accepts a plain `String` or an Adventure `Component`; pass a Component when you need colors or other styling. It replaces the current title source and requests one refresh.
+
+Title updates run on the player's entity thread. There is no need to call `updateTitle()` afterwards; `title()` reads the most recently applied title and is not guaranteed to reflect an update you just submitted.
+
+## Generating the title from data
+
+When the title includes variables such as counts or filter conditions, `setTitleSupplier` generates it in one place. After the data changes, call `updateTitle()` to have the Window read the supplier again.
+
+Using the click count as the variable, the initial title is "Clicks: 0":
+
+```java
+AtomicInteger count = new AtomicInteger();
+
+Pane pane = Pane.builder("####B####")
+        .addIngredient('B', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BOOK))
+                .addClickHandler(click -> {
+                    count.incrementAndGet();
+                    click.window().updateTitle();
+                })
+                .build())
+        .build();
+
+Window.builder(pane)
+        .setTitleSupplier(() -> Component.text("Clicks: " + count.get()))
+        .open(viewer);
+```
+
+The supplier is evaluated on the player's entity thread, which suits reading already prepared data. Slow work like file reads and database queries should finish in an async task first; then update the data and request a title refresh.
+
+Changing `count` on its own triggers no refresh, and the supplier does not run automatically every tick. Back-to-back refresh requests are merged. Calling `setTitleSupplier` at runtime swaps the source and requests a refresh; calling `setTitle` afterwards pins the title to a fixed value.
+
+<NextStep
+  to="/window/data"
+  title="Window data"
+  description="Attach business objects to the Window, plus client state confirmation and outside clicks."
+/>

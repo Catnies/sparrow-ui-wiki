@@ -1,10 +1,225 @@
 ---
-title: Filling Content
-sidebar_label: Filling Content
+title: Filling content
+sidebar_label: Filling content
 ---
 
-{/* Placeholder. English version is not written yet — Chinese first, see WIKI-PLAN.md section 3.2. */}
+`addIngredient` binds content to the identifiers in the template. Beyond Items, it can bind inventories, other Panes, or generate content slot by slot.
 
-:::info
-This page has not been written yet.
+## Sharing one item: Item, ItemStack, ItemProvider
+
+When you bind an `Item`, every slot the identifier occupies shows that Item. `ItemStack` and `ItemProvider` are shorthands; the library wraps them into an Item for you with `Item.simple(...)`:
+
+```java
+Pane pane = Pane.builder("A#B#C####")
+        // Full form: build the Item yourself, with click behavior configured.
+        .addIngredient('A', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                .addClickHandler(click -> click.window().close())
+                .build())
+        // Shorthand: just show a fixed item.
+        .addIngredient('B', new ItemStack(Material.BOOK))
+        // Shorthand: content generated at render time, here the viewer's level.
+        .addIngredient('C', ItemProvider.sync(context -> {
+            ItemStack stack = new ItemStack(Material.EXPERIENCE_BOTTLE);
+            stack.setData(
+                    DataComponentTypes.CUSTOM_NAME,
+                    Component.text("Level: " + context.player().getLevel(), NamedTextColor.AQUA)
+                            .decoration(TextDecoration.ITALIC, false)
+            );
+            return stack;
+        }))
+        .build();
+```
+
+Items made through the shorthands are display-only; clicks do nothing. When you need click behavior, guards, or refresh rules, build a full Item with `Item.builder()`, as shown in [Creating items](/item/create).
+`ItemStack` is copied at the moment `addIngredient` runs, so changing the original afterwards does not touch what the menu shows.
+
+**When an identifier spans multiple slots, all three forms share one Item across those slots.** For one Item per slot, see the next section.
+
+## An item per slot: Supplier, ItemBuilder
+
+Passing a `Supplier<Item>` calls it once per slot the identifier occupies, giving each slot its own Item. Passing an `ItemBuilder` works the same way, calling `build()` once per slot.
+
+Most of the time sharing one Item and one Item per slot look identical. The difference appears once an Item carries state, like this button that counts its clicks:
+
+```java
+private static Item counterButton() {
+    AtomicInteger count = new AtomicInteger();
+    return Item.builder()
+            .setItemProvider(context -> {
+                ItemStack stack = new ItemStack(Material.LIME_DYE);
+                stack.setData(
+                        DataComponentTypes.CUSTOM_NAME,
+                        Component.text("Clicks: " + count.get(), NamedTextColor.YELLOW)
+                                .decoration(TextDecoration.ITALIC, false)
+                );
+                return stack;
+            })
+            .addClickHandler(click -> count.incrementAndGet())
+            .updateOnClick()
+            .build();
+}
+```
+
+Put it into a menu both ways:
+
+```java
+Pane pane = Pane.builder("#AAA#BBB#")
+        // Three slots share one counter; clicking any of them changes all three.
+        .addIngredient('A', counterButton())
+        // counterButton() runs once per slot, so all three count separately.
+        .addIngredient('B', () -> counterButton())
+        .build();
+```
+
+<MinecraftSlotGrid
+  title="Counter"
+  rows={["#AAA#BBB#"]}
+  legend={{A: 'one shared Item', B: 'one Item per slot', '#': 'empty'}}
+  items={{
+    A: {icon: 'lime_dye', name: 'Clicks: 0', nameColor: '#ffff55'},
+    B: {icon: 'lime_dye', name: 'Clicks: 0', nameColor: '#ffff55'},
+  }}
+/>
+
+The three `A` slots are one Item: after a click, `updateOnClick` refreshes every slot showing it, so all three count up together. Each `B` slot got its own `counterButton()` call with its own `AtomicInteger`, so only the slot you click changes.
+
+The same distinction shows up in the [click interval guard](/item/click#built-in-guards): `ItemGuards.throttle` times per Item, so with a shared Item, clicking any of its slots consumes the same interval.
+
+:::warning[One Item per slot is not one state per slot]
+`ItemBuilder` calls `build()` once per slot, but the callbacks configured on the builder are shared. If the counter is created outside the builder and referenced from a callback, every slot's Item still uses the same one.
+
+For per-slot state, pass a `Supplier` like the example above and create the state inside the method, so each call gets a fresh one.
 :::
+
+## Generating content per slot: ElementSupplier, Element
+
+An `ElementSupplier` generates content for each slot individually. It receives two arguments: `slots`, all the slots this identifier occupies, and `occurrence`, which slot among them is being filled. `occurrence` starts at 0 and counts left to right, top to bottom.
+
+The row of buttons below buys 1, 8, 16, 32, and 64 emeralds:
+
+```java
+private static final int[] AMOUNTS = {1, 8, 16, 32, 64};
+
+public static Pane createPane() {
+    return Pane.builder("##QQQQQ##")
+            .addIngredient('Q', (slots, occurrence) -> Element.item(amountButton(AMOUNTS[occurrence])))
+            .build();
+}
+
+private static Item amountButton(int amount) {
+    ItemStack stack = new ItemStack(Material.EMERALD, amount);
+    stack.setData(
+            DataComponentTypes.CUSTOM_NAME,
+            Component.text("Buy " + amount, NamedTextColor.YELLOW)
+                    .decoration(TextDecoration.ITALIC, false)
+    );
+    return Item.builder()
+            .setItemProviderConstant(stack)
+            .addClickHandler(click -> click.player().sendMessage(
+                    Component.text("Buying " + amount + " emeralds.", NamedTextColor.GREEN)
+            ))
+            .build();
+}
+```
+
+The five `Q` slots read 0 through 4 from left to right and get the 1, 8, 16, 32, and 64 buttons.
+
+`ElementSupplier` returns an `Element`, the unified representation of slot content; every form on this page is converted into one. When placing an Item, wrap it with `Element.item(...)`. There are four kinds:
+
+| Form | What the slot holds |
+|---|---|
+| `Element.item(item)` | An Item, the same as passing one directly |
+| `Element.empty()` | An empty slot, the same as leaving it unbound; shows the Pane background if one is set |
+| `Element.inventory(inventory, slot)` | A link to a specific slot of an inventory |
+| `Element.pane(pane, slot)` | A link to a specific slot of another Pane |
+
+`addIngredient` also accepts a bare `Element`, in which case every slot holds that same Element.
+
+:::warning[If generation fails, the whole Pane fails]
+`ElementSupplier` runs at `build()`. If it throws or returns `null`, `build()` throws an `IllegalStateException` naming the identifier and the slot that went wrong, with the original exception as the cause.
+
+In the example, the array must be at least as long as the number of `Q` slots, or the lookup fails out of bounds.
+:::
+
+## Inventories: SparrowInventory
+
+When you bind a `SparrowInventory`, each slot the identifier occupies links to one slot of the inventory: the first occurrence links to slot 0, the second to slot 1, and so on. Players can put items in and take them out, and the items live in the inventory.
+
+```java
+VirtualInventory storage = new VirtualInventory(18);
+
+Pane pane = Pane.builder(
+                "SSSSSSSSS",
+                "SSSSSSSSS"
+        )
+        .addIngredient('S', storage)
+        .build();
+```
+
+`VirtualInventory` is the library's in-memory inventory. Rules, events, and other inventory usage are covered in [Putting an inventory in a menu](/inventory/basics).
+
+:::warning[Keep the slot count and inventory size in step]
+More slots than inventory capacity wraps around from the start, so one inventory slot appears in two places; fewer slots leaves the extra inventory slots undisplayed.
+:::
+
+:::warning[An inventory created with the menu is lost with it]
+If you create a `VirtualInventory` inside the method that opens the menu, nothing references it once the menu closes, and everything a player put in it goes too.
+
+To keep the contents, serialize the inventory before closing, see [Virtual inventories](/inventory/virtual). To share one inventory among several players, have the menus reference the same instance.
+:::
+
+## Child panes: Pane
+
+When you bind another Pane, the area its identifier occupies displays that Pane's content: the top-left of the area matches the top-left of the child Pane, and the rest follows the same relative positions.
+
+Below, a one-row "help + close" footer becomes its own Pane embedded at the bottom of the menu:
+
+```java
+private static Pane footer() {
+    return Pane.builder("H###X")
+            .addIngredient('H', Item.simple(new ItemStack(Material.BOOK)))
+            .addIngredient('X', Item.builder()
+                    .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                    .addClickHandler(click -> click.window().close())
+                    .build())
+            .build();
+}
+
+public static Pane createPane() {
+    return Pane.builder(
+                    "#########",
+                    "#########",
+                    "##FFFFF##"
+            )
+            .addIngredient('F', footer())
+            .build();
+}
+```
+
+<MinecraftSlotGrid
+  title="Footer"
+  rows={["#########", "#########", "##FFFFF##"]}
+  legend={{F: 'footer Pane', '#': 'empty'}}
+/>
+
+`F` occupies columns 3 through 7 of row 3, five slots matching the footer's `H###X` in order. The buttons inside keep their click behavior, and the same `footer()` can be embedded in as many menus as you like.
+
+:::warning[The area cannot exceed the child Pane]
+When the identifier's area is larger than the child Pane, the extra slots have no matching position and `build()` throws an `IllegalStateException`. When the area is smaller, only the top-left portion of the child Pane shows. To display a different portion, or to learn about backgrounds and click rules after nesting, see [Backgrounds, freezing, and nesting](/pane/composition).
+:::
+
+:::info[Paging, scrolling, tabs, and Signals]
+The following bind through `addIngredient` as well; they update their slots as data changes and each gets its own chapter later:
+
+- `Page`: show a list one page at a time, see [Pagination Page](/pagination/page)
+- `Scroll`: scroll a list row by row or column by column, see [Scroll](/pagination/scroll)
+- `Tab`: switch between several Panes, see [Tab](/pagination/tab)
+- `Signal` lists: slots update automatically when list data changes, see [Signals in the UI](/signal-ui/list)
+:::
+
+<NextStep
+  to="/pane/composition"
+  title="Backgrounds, freezing, and nesting"
+  description="Backgrounds for empty slots, blocking player interaction, and nested Pane offsets and sharing."
+/>

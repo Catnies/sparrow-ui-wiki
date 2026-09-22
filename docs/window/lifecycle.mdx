@@ -1,10 +1,229 @@
 ---
-title: Opening & Closing
-sidebar_label: Opening & Closing
+title: Opening and closing
+sidebar_label: Opening and closing
 ---
 
-{/* Placeholder. English version is not written yet — Chinese first, see WIKI-PLAN.md section 4.1. */}
+A Window presents a Pane to one player and owns opening, closing, and player interaction in between. Each menu open usually creates a fresh Window; the Pane can be shared as needed.
 
-:::info
-This page has not been written yet.
+## Creating and opening a Window
+
+`Window.builder(pane)` puts the Pane in the top half of the Window; the bottom half defaults to the player's own inventory. Opening a three-row chest menu with a close button:
+
+```java
+Pane pane = Pane.builder(
+                "#########",
+                "####B####",
+                "########X"
+        )
+        .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+        .addIngredient('X', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                .addClickHandler(click -> click.window().close())
+                .build())
+        .build();
+
+Window.builder(pane)
+        .setTitle("Help Menu")
+        .open(viewer);
+```
+
+When you need to keep the Window reference, split building from opening:
+
+```java
+Window window = Window.builder(pane)
+        .setTitle("Help Menu")
+        .build(viewer);
+
+CompletableFuture<Window.OpenResult> opening = window.open();
+```
+
+`build(viewer)` creates a Window that is not open yet; `open()` is what requests display. The builder's `open(viewer)` chains the two and returns a Future for the open result. The Window's viewer is fixed at build time and available through `window.viewer()`.
+
+| `OpenResult` | Meaning |
+|---|---|
+| `OPENED` | The server finished the open flow |
+| `ALREADY_OPEN` | This Window instance was already open and was not opened again |
+| `VIEWER_UNAVAILABLE` | The player cannot open a menu right now, for instance disconnected, sleeping, or the library is shutting down |
+
+The Future completing means the server-side flow is done; the client still needs time to receive the data and render the menu. Exceptions from `build(viewer)` throw at the call site; exceptions raised while `open()` runs complete the Future exceptionally.
+
+Opening another Window for the same player replaces their current one. To keep the previous Window around with a back button, use [Sessions and navigation](/session/navigation).
+
+:::warning[Build thread when using the default player inventory]
+When you do not set an explicit lower Pane, `build(viewer)` creates the default player inventory mapping and reads inventory contents on the calling thread; the builder's `open(viewer)` runs `build(viewer)` first, so the same applies.
+
+In most cases this needs no special care: Paper and Folia currently allow async reads, and once `window.open()` starts, the built mapped inventory is synced back on the player's thread, so nothing goes wrong in practice.
+
+Some Fork server software does add access checks to certain methods, though; go by your actual runtime.
 :::
+
+## Closing the Window
+
+With a Window reference kept, call `close()` directly. Inside a button handler, reach the current Window through `click.window()`:
+
+```java
+CompletableFuture<Window.CloseResult> closing = window.close();
+```
+
+| `CloseResult` | Meaning |
+|---|---|
+| `CLOSED` | The close finished |
+| `ALREADY_CLOSED` | The Window was already closed, or was never opened |
+
+`window.isOpen()` reports whether it is currently open. After closing, `open()` on the same instance works and shows the Pane's current content.
+
+:::warning[Do not block on opening or closing]
+Do not call `join()` or `get()` on these Futures from the main thread or the player's entity thread. The operation may still be waiting for that very thread. To act on the player after opening, use the open handler below; to chain async steps, use `thenCompose`.
+:::
+
+## Open and close handlers
+
+The builder's `addOpenHandler` receives the opened Window, and `addCloseHandler` receives the Window plus the close reason. Below, the player gets a message when the Window opens, and a farewell when it is closed by a player:
+
+```java
+Window window = Window.builder(pane)
+        .setTitle("Help Menu")
+        .addOpenHandler(opened ->
+                opened.viewer().sendMessage(Component.text("Help menu opened")))
+        .addCloseHandler((closed, reason) -> {
+            if (reason == WindowCloseReason.PLAYER) {
+                closed.viewer().sendMessage(Component.text("Help menu closed"));
+            }
+        })
+        .build(viewer);
+
+window.open();
+```
+
+Handlers run when the Window actually opens or closes. Calling `open()` again on an already open instance, or `close()` on an already closed one, does not fire the handlers again; closing and reopening does.
+
+Handlers can also be added after the Window is built. In that form the open handler takes no arguments and the close handler takes only the reason:
+
+```java
+window.addOpenHandler(() ->
+        window.viewer().sendMessage(Component.text("Help menu opened")));
+window.addCloseHandler(reason ->
+        plugin.getLogger().info("Help menu closed, reason: " + reason));
+```
+
+Close reasons come from Sparrow UI's `WindowCloseReason`:
+
+| Reason | When it fires |
+|---|---|
+| `PLAYER` | The player closed it themselves, such as pressing Esc |
+| `PLUGIN` | A plugin called `window.close()`, or the library shut the Window down |
+| `OPEN_NEW` | The Window was replaced by a new Window or another container |
+| `DISCONNECT` | The player disconnected |
+| `DEATH` | The player died and the container closed |
+| `TELEPORT` | A teleport closed the container |
+| `CANT_USE` | The player can no longer use the container |
+| `UNLOADED` | The region holding the container unloaded |
+| `UNKNOWN` | The platform offered no recognizable reason |
+
+The actual reason depends on what the server reports. `TELEPORT` means this close was caused by a teleport, not that every teleport closes the Window.
+
+:::warning[Threads and heavy work in handlers]
+Normal open and close handlers follow the player's entity thread, so do not query databases or touch files inside them. Close handlers on cleanup paths, such as player disconnects or entities leaving scheduling, must not assume the player is still online or keep touching world state.
+
+Future callbacks like `thenAccept` and `whenComplete` carry no player-thread guarantee either. To act on the player, use the open handler, or schedule onto the player's entity thread yourself.
+:::
+
+A single Window's close handler also fires when the Window is replaced. Logic that should wait until the player is done with the whole menu flow belongs in the [session end handler](/session/navigation).
+
+## Blocking player-initiated closes
+
+Windows allow players to close them by default. `setCloseable(false)` re-displays the Window when the player tries to close it with Esc or similar. The notice menu below closes only via the bottom-right button:
+
+```java
+Pane notice = Pane.builder(
+                "#########",
+                "####B####",
+                "########X"
+        )
+        .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+        .addIngredient('X', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BARRIER))
+                .addClickHandler(click -> click.window().close())
+                .build())
+        .build();
+
+Window.builder(notice)
+        .setTitle("Click the bottom-right button to close")
+        .setCloseable(false)
+        .open(viewer);
+```
+
+While the menu is open, `window.setCloseable(true)` lets players close it again, and `window.isCloseable()` reports the current setting. A rejected player close fires no close handlers.
+
+:::warning[Only player-initiated closes are limited]
+A plugin calling `window.close()` still works, and disconnects, replacement by another container, and server-driven closes ignore this setting.
+:::
+
+## Building and opening from an async task
+
+You can build a Window in an async task and call `open()` directly, or use the builder's `open(viewer)`. Below, both Panes are explicit: a book on top and a blank display area below:
+
+```java
+public static CompletableFuture<Window.OpenResult> openAsync(Plugin plugin, Player viewer) {
+    return Scheduling.async(plugin, () -> {
+        Pane upper = Pane.builder(
+                        "#########",
+                        "####B####",
+                        "#########"
+                )
+                .addIngredient('B', Item.simple(new ItemStack(Material.BOOK)))
+                .build();
+        Pane lower = Pane.builder(
+                        "#########",
+                        "#########",
+                        "#########",
+                        "#########"
+                ).build();
+
+        return Window.splitBuilder(upper, lower)
+                .setTitle("Book display")
+                .open(viewer);
+    }).thenCompose(opening -> opening);
+}
+```
+
+`open(viewer)` is called inside the async task, and the library schedules the actual open onto the viewer's entity thread. Since `open(viewer)` itself returns a Future, `thenCompose(opening -> opening)` flattens the two layers so the caller gets a plain `CompletableFuture<Window.OpenResult>` for the whole build-and-open flow.
+
+`Scheduling` is a helper from the example, not part of Sparrow UI's public API; you would need it in your own project:
+
+<Details summary="The Scheduling implementation and imports" previewHeight={0}>
+
+```java
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.Plugin;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+
+public final class Scheduling {
+    private Scheduling() {
+    }
+
+    public static <T> CompletableFuture<T> async(Plugin plugin, Supplier<? extends T> work) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        Bukkit.getAsyncScheduler().runNow(plugin, task -> {
+            try {
+                future.complete(work.get());
+            } catch (Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
+        return future;
+    }
+}
+```
+
+</Details>
+
+Upper and lower Pane sizes and the player inventory mapping rules are covered in [Window layouts](/window/layout).
+
+<NextStep
+  to="/window/layout"
+  title="Window layouts"
+  description="Choose regular, split, or merged layouts and arrange the container and player inventory areas."
+/>

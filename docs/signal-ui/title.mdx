@@ -1,10 +1,59 @@
 ---
-title: Window Titles
-sidebar_label: Window Titles
+title: Window titles
+sidebar_label: Window titles
 ---
 
-{/* Placeholder. English version is not written yet — Chinese first, see WIKI-PLAN.md section 9.8.7. */}
+Sometimes the player's chosen quantity belongs in the Window's title. `setTitleSupplier` computes the title, and `window.bind` connects quantity changes to `updateTitle()`.
 
-:::info
-This page has not been written yet.
-:::
+`viewer` in the examples is the player opening the menu, and Sparrow UI initialization must have completed beforehand. `named` builds an item with a name; drop the method below into your menu class.
+
+<Details summary="The item naming helper shared by the examples" previewHeight={0}>
+
+```java
+private static ItemStack named(Material material, String name) {
+    ItemStack stack = new ItemStack(material);
+    stack.setData(DataComponentTypes.CUSTOM_NAME,
+            Component.text(name).decoration(TextDecoration.ITALIC, false));
+    return stack;
+}
+```
+
+It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching the style in [Item rendering](/item/render).
+
+</Details>
+
+## A title that follows the quantity
+
+
+The title below starts at "Buying 1" and becomes "Buying 2" after clicking the diamond. The binding is declared before the Window opens.
+
+<MinecraftSlotGrid
+  title="Buying 1"
+  rows={['####Q####']}
+  legend={{Q: 'add one'}}
+  items={{Q: {icon: 'diamond', name: 'Add one'}}}
+  caption="The title starts at Buying 1. Clicking the diamond makes it Buying 2, while the item's name stays Add one."
+/>
+
+```java
+MutableSignal<Integer> quantity = Signal.of(1);
+Pane pane = Pane.builder("####Q####")
+        .addIngredient('Q', Item.builder()
+                .setItemProviderConstant(named(Material.DIAMOND, "Add one"))
+                .addClickHandler(click -> quantity.update(value -> value + 1))
+                .build())
+        .build();
+Window window = Window.builder(pane)
+        .setTitleSupplier(() -> Component.text("Buying " + quantity.get()))
+        .build(viewer);
+window.bind(quantity, Window::updateTitle);
+window.open();
+```
+
+The title computes on first open. `window.bind` does not invoke the callback immediately; it waits for Signal notifications to request updates. The binding activates while the Window is open, pauses on close, and resumes on reopen. `updateTitle()` hands the title update to the player thread; a plain `bind` callback itself does not switch threads.
+
+<NextStep
+  to="/signal-ui/visual"
+  title="Visual layers"
+  description="Swap a product's visual marking through a Signal."
+/>

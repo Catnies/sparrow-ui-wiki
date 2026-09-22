@@ -5,8 +5,48 @@ slug: /
 sidebar_position: 1
 ---
 
-{/* Placeholder. English version is not written yet — Chinese first, see WIKI-PLAN.md section 1.1. */}
+Welcome to the Sparrow UI docs! 🐦
+
+## What is Sparrow UI
+
+Sparrow UI is a **packet-based reactive UI library** for **Paper and Folia**. It pulls menu state, inventory interaction, rendering, and session management into one reusable component model, so a single set of Items, Panes, and Inventories can serve multiple Windows and multiple players at the same time.
 
 :::info
-This page has not been written yet.
+
+Menus are built directly on the protocol layer and never pass through Bukkit containers. Every slot and every vanilla widget the client sees is under your control. What the player sees is decoupled from the real data: visual effects and animations layered on top never touch the items stored in the inventory.
+
 :::
+
+## Core features
+
+- **🖼️ Complete native menu APIs.** Chests, anvils, brewing stands, cartography tables, crafters, crafting tables, dispensers, droppers, enchanting tables, all three furnace variants, grindstones, hoppers, merchants, smithing tables, and stonecutters are all covered. Each menu type has its own Window API, exposing native features such as progress bars, buttons, the recipe book, trades, and map previews.
+
+- **⏳ Sync and async item rendering.** Items render synchronously for instant menus or asynchronously for data that comes from a database. While an async task runs you can show a placeholder item, and a stale result never overwrites newer content.
+
+- **🧩 Reusable components with multiple observers.** The same Item, Pane, or Inventory can back several Windows at once and be shown to several players, without rebuilding the shared component. When it changes, every observer is notified and each Window refreshes only the slots that were affected.
+
+- **📦 Virtual and referenced inventories.** `VirtualInventory` behaves like a regular chest: players can put items in, take them out, drag, shift-click, and swap with number keys, and you get slot rules, stack limits, and persistence on top. `ReferencingInventory` plugs a player inventory, a Bukkit container, or your own storage into the menu; shared inventories accept concurrent access by multiple players.
+
+- **🔄 Transactional inventory interaction.** A click is collected into one complete transaction: the inventories involved, slot changes, cursor, off-hand, and dropped items. It coexists with Bukkit's `InventoryClickEvent` and `InventoryDragEvent`, and Sparrow's own events let you view, modify, or cancel the whole operation. A cancelled event or a concurrency conflict leaves no partial writes behind.
+
+- **🧭 Multi-Window menu sessions.** `WindowSession` offers stack, retained stack, and tree structures and handles forward navigation, back navigation, ESC, async construction of the next Window, and session end. A retained Window remembers its page, scroll position, and menu data when it is reopened.
+
+- **✨ Layered visuals and animations.** Inventory, Pane, Window, cursor, and title each have their own visual layer, so display changes never modify real inventory content. Effects set on an Inventory or Pane are visible to every observer, effects set on a Window affect only that player, and several animations can play on top of each other.
+
+- **⚡ A reactive Signal system with weak subscriptions.** Signals support mapping, combining, async loading, polling, debounce, throttle, List, Set, Map, and per-player partitions. Items and Panes declare their dependencies directly; once nobody is watching, derived chains and polling tasks stop and become eligible for collection.
+
+- **📄 Signal-driven pagination.** `Page` exposes its current content, page number, page count, and actual item count as Signals. It handles dynamic lists, partitioned page sources, and async database loading, with caching, refresh, and prefetch. The same model extends to Scroll and Tab.
+
+- **🖥️ Thread-safe by design, with Folia in mind.** Window lifecycle and protocol operations run serially on the player's entity thread, while shared components and virtual inventories accept concurrent access from different player threads. The transaction system relies on a fixed lock order and version checks to avoid deadlocks and stale writes, and Bukkit's own entity and region thread rules stay intact.
+
+:::warning[The public API may still change]
+
+Sparrow UI is in Beta. The public API will keep moving until the first stable release, so read the changelog before upgrading.
+
+:::
+
+<NextStep
+  to="/getting-started/installation"
+  title="Installation"
+  description="Add the dependency, set up relocation, and initialize Sparrow UI"
+/>

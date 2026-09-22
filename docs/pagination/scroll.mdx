@@ -3,8 +3,138 @@ title: Scroll
 sidebar_label: Scroll
 ---
 
-{/* Placeholder. English version is not written yet. */}
+When menu content should be read one row downward or one column rightward at a time, use `Scroll`. Showing two rows at once, one downward scroll moves the former second row to the top and brings in a fresh row below.
 
-:::info
-This page has not been written yet.
+Like Page, Scroll joins a Pane through `addIngredient`, and buttons call `advance(...)` to move the content. Vertical scrolling moves by rows; horizontal scrolling moves by columns.
+
+## Vertical scrolling
+
+`Scroll.vertical(items, width, rows)` arranges the list by rows: `width` is the entries per row and `rows` how many rows are visible at once.
+
+Below, 12 diamond stacks sit three per row across four rows. The menu shows two consecutive rows, with two buttons on the right scrolling up and down.
+
+<MinecraftSlotGrid
+  title="Vertical scroll"
+  rows={['###MMM#U#', '###MMM#D#']}
+  legend={{M: 'scrolling content', U: 'up', D: 'down'}}
+  items={{
+    M: {icon: 'diamond', name: 'Diamond', count: [1, 2, 3, 4, 5, 6]},
+    U: {icon: 'arrow', name: 'Scroll up', nameColor: 'yellow'},
+    D: {icon: 'arrow', name: 'Scroll down', nameColor: 'yellow'},
+  }}
+  caption="Rows 1 and 2 show initially; one downward scroll brings rows 2 and 3 into view."
+/>
+
+```java
+// Each diamond's count marks its list position, making the ordering easy to follow
+List<Item> items = IntStream.rangeClosed(1, 12)
+        .mapToObj(amount -> Item.simple(new ItemStack(Material.DIAMOND, amount)))
+        .toList();
+// Three per row, two rows visible, matching the two rows of three M slots
+Scroll<Item> scroll = Scroll.vertical(items, 3, 2);
+
+ItemStack upArrow = new ItemStack(Material.ARROW);
+upArrow.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("Scroll up", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+ItemStack downArrow = new ItemStack(Material.ARROW);
+downArrow.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("Scroll down", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+
+Pane pane = Pane.builder("###MMM#U#", "###MMM#D#")
+        .addIngredient('M', scroll)
+        .addIngredient('U', Item.builder()
+                .setItemProviderConstant(upArrow)
+                .addClickHandler(click -> scroll.advance(-1))
+                .build())
+        .addIngredient('D', Item.builder()
+                .setItemProviderConstant(downArrow)
+                // One row down; the previously second row stays on screen
+                .addClickHandler(click -> scroll.advance(1))
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("Vertical scroll").open(viewer);
+```
+
+Diamonds 1 through 6 show initially. One downward scroll shows 4 through 9; another shows 7 through 12. Further clicks change nothing.
+
+### Scroll distance and starting position
+
+| Call | Effect when scrolling vertically |
+|---|---|
+| `scroll.advance(1)` | Move one row down from the current position |
+| `scroll.advance(-1)` | Move one row up from the current position |
+| `scroll.advance(2)` | Move two rows down |
+| `scroll.setLine(0)` | Return to the very top |
+| `scroll.setLine(1)` | Start displaying from the list's second row |
+
+`setLine`'s index starts at 0 and marks which row the display area begins at. The example has 4 rows with 2 visible, so only start positions 0, 1, and 2 exist. At the bottom, the last two rows stay in view.
+
+Both methods clamp to the scroll range and stop at the nearest end. Content shorter than one screen cannot scroll; a partially filled last row leaves the remaining slots empty, and an empty list clears the whole content area.
+
+:::warning[Size of the display area]
+Both `width` and `rows` must be positive, and the template's content slots should match that width and height. The example is 3 columns by 2 rows, 6 slots; leave one out and that slot's content simply does not display.
 :::
+
+## Horizontal scrolling
+
+`Scroll.horizontal(items, height, columns)` arranges the list by columns: `height` is the entries per column and `columns` how many columns are visible at once.
+
+Below, each column holds 2 diamond stacks and 3 columns show at once. The list's first two entries fill the first column, entries 3 and 4 the second, so the initial view reads 1, 3, 5 on top and 2, 4, 6 below.
+
+<MinecraftSlotGrid
+  title="Horizontal scroll"
+  rows={['###MMM###', 'L##MMM##R']}
+  legend={{M: 'scrolling content', L: 'left', R: 'right'}}
+  items={{
+    M: {icon: 'diamond', name: 'Diamond', count: [1, 3, 5, 2, 4, 6]},
+    L: {icon: 'arrow', name: 'Scroll left', nameColor: 'yellow'},
+    R: {icon: 'arrow', name: 'Scroll right', nameColor: 'yellow'},
+  }}
+  caption="Columns fill top to bottom before moving on; one scroll right starts the leftmost column at 3, 4."
+/>
+
+```java
+List<Item> items = IntStream.rangeClosed(1, 12)
+        .mapToObj(amount -> Item.simple(new ItemStack(Material.DIAMOND, amount)))
+        .toList();
+// Arguments are the column height, then the visible column count: 2 rows by 3 columns here
+Scroll<Item> scroll = Scroll.horizontal(items, 2, 3);
+
+ItemStack leftArrow = new ItemStack(Material.ARROW);
+leftArrow.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("Scroll left", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+ItemStack rightArrow = new ItemStack(Material.ARROW);
+rightArrow.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("Scroll right", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+
+Pane pane = Pane.builder("###MMM###", "L##MMM##R")
+        // A horizontal Scroll fills the M slots column by column: top, bottom, then the next column
+        .addIngredient('M', scroll)
+        .addIngredient('L', Item.builder()
+                .setItemProviderConstant(leftArrow)
+                .addClickHandler(click -> scroll.advance(-1))
+                .build())
+        .addIngredient('R', Item.builder()
+                .setItemProviderConstant(rightArrow)
+                // Positive moves right, one column at a time
+                .addClickHandler(click -> scroll.advance(1))
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("Horizontal scroll").open(viewer);
+```
+
+One scroll right shows 3, 5, 7 on top and 4, 6, 8 below. The 12 stacks occupy 6 columns with 3 visible, so the rightmost start position is 3, showing columns 4 through 6.
+
+Horizontal scrolling uses the same `advance` and `setLine`, but in columns. `setLine(0)` returns to the far left and `setLine(1)` starts at the second column. `height` and `columns` must both be positive, and the template's content area should reserve the matching rows and columns.
+
+### Content and button state
+
+The plain List overloads of `Scroll.vertical` and `Scroll.horizontal` copy the list. Changing the original afterwards does not change what scrolls; the Item objects inside stay the same instances, so their display can still be modified.
+
+If the list holds business data instead, convert it with `addIngredient('M', scroll, toElement)` just like [Page](/pagination/page#turning-data-into-items). The converter first runs on the Pane-building thread and defaults to async afterwards, so it should stick to prepared data.
+
+The buttons above never change. To show the current position or disable them at either end, use the Signals from `line()` and `maxLine()`; lists that change dynamically can also be backed by Signals, see [Wiring Signals into the UI](/signal-ui/scroll).
+
+<NextStep to="/pagination/tab" title="Tab" description="Switch between different Panes inside the same area." />

@@ -1,10 +1,324 @@
 ---
-title: Clicks & Guards
-sidebar_label: Clicks & Guards
+title: Clicks and guards
+sidebar_label: Clicks and guards
 ---
 
-{/* Placeholder. English version is not written yet — Chinese first, see WIKI-PLAN.md section 2.3. */}
+An Item's interaction consists of conditional guards and handlers. Guards decide whether the interaction is allowed at all; handlers run after they pass, closing the window, sending a message, and so on.
 
-:::info
-This page has not been written yet.
+## Handling clicks
+
+`addClickHandler` adds a click handler. The `ItemClick` it receives describes the click: who clicked, what kind of click, and which Window:
+
+| Member | Meaning |
+|---|---|
+| `player()` | The player who clicked |
+| `window()` | The Window this click belongs to |
+| `clickType()` | Bukkit's `ClickType` |
+| `windowSlot()` | The slot index in the Window, starting at 0 |
+| `cursor()` | A snapshot of the cursor item when the click dispatched |
+| `hotbarButton()` | The hotbar index for number-key clicks, or -1 if none |
+| `remembered()` | Data recorded at render time, or null if none |
+
+For example, making one button respond to a plain left click and right click:
+
+```java
+Item button = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.LIME_DYE))
+        .addClickHandler(click -> {
+            if (click.clickType() == ClickType.LEFT) {
+                click.player().sendMessage(Component.text("Hello!"));
+            } else if (click.clickType() == ClickType.RIGHT) {
+                click.window().close();
+            }
+        })
+        .build();
+```
+
+This handles only `LEFT` and `RIGHT`. Shift clicks are their own `SHIFT_LEFT` and `SHIFT_RIGHT` types and never enter these branches. Number-key clicks arrive as `NUMBER_KEY` with a matching `hotbarButton()` of 0 through 8.
+
+`cursor()` is a snapshot; mutating it does not write back to the player's cursor. How `remembered()` data gets recorded is covered in [What RenderContext provides](/item/render#what-rendercontext-provides).
+
+### Handler ordering
+
+One builder can call `addClickHandler` several times, and handlers run in the order they were added. To reach the Item itself, use the two-argument overload:
+
+```java
+Item button = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.ARROW))
+        .addClickHandler((item, click) -> {
+            click.player().sendMessage(Component.text("Button clicked"));
+        })
+        .addClickHandler(click -> click.window().close())
+        .build();
+```
+
+A `return` inside one handler ends only that handler; later handlers still run. To reject the whole interaction, put the condition in a guard.
+
+:::warning[Callbacks run on the clicking player's entity thread]
+Guards and handlers for clicks, drags, and bundle selections all run on the entity thread of the player performing the action. Reading that player's state, sending them messages, or closing their window is safe here.
+
+Blocking work such as database queries and HTTP requests belongs in async tasks. To act on the player once that work finishes, hop back onto their entity thread first. On Folia, being on that thread still does not license access to other players or arbitrary world regions.
 :::
+
+## Conditional guards
+
+`addClickGuard` adds a check that runs before any click handler. **Guards run in the order they were added, and the handlers only run once every guard returns `true`. The first `false` stops both the remaining guards and the handlers.**
+
+### Built-in guards
+
+`ItemGuards` covers the common cases:
+
+| Method | Condition |
+|---|---|
+| `permission(node)` | The player has the given permission |
+| `gameMode(mode)` | The player is in the given game mode |
+| `throttle(intervalMillis)` | Clicks by the same player on the same Item respect the interval |
+
+Built-in guards can also carry rejection feedback. Prefer `addClickGuard(guard, onRejected)`, which keeps each condition next to its own message. Requiring a permission, survival mode, and a one-second click interval:
+
+```java
+Item button = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.LIME_DYE))
+        .addClickGuard(
+                ItemGuards.permission("example.menu.greet"),
+                click -> click.player().sendMessage(
+                        Component.text("No permission.", NamedTextColor.RED)
+                )
+        )
+        .addClickGuard(
+                ItemGuards.gameMode(GameMode.SURVIVAL),
+                click -> click.player().sendMessage(
+                        Component.text("Switch to survival mode.", NamedTextColor.GOLD)
+                )
+        )
+        .addClickGuard(
+                ItemGuards.throttle(1000),
+                click -> click.player().sendMessage(
+                        Component.text("Not so fast.", NamedTextColor.GOLD)
+                )
+        )
+        .addClickHandler(click -> {
+            click.player().sendMessage(Component.text("Hello!"));
+        })
+        .build();
+```
+
+The second argument, `onRejected`, receives the `ItemClick` and runs only when its own guard returns `false`. If an earlier guard already rejected, later guards and their callbacks never run. When no feedback is needed, use the single-argument `addClickGuard(guard)`.
+
+`throttle` takes a positive number of milliseconds. The first click passes immediately, and clicks rejected inside the interval do not extend the wait. When several players share the Item, each is timed separately; one player clicking the same Item in several slots shares the interval.
+
+Placing permission and game-mode checks before the throttle keeps failed clicks from consuming an interval. Once the throttle passes, the wait starts; a handler that throws afterwards does not give it back.
+
+### Custom guards
+
+Custom conditions use `ItemGuard<ItemClick>`. It receives the Item and the click context, returning `true` to allow and `false` to reject. A guard that only accepts a plain left click:
+
+```java
+ItemGuard<ItemClick> leftOnly = (item, click) ->
+        click.clickType() == ClickType.LEFT;
+
+Item button = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.LIME_DYE))
+        .addClickGuard(leftOnly)
+        .addClickHandler(click -> {
+            click.player().sendMessage(Component.text("Hello!"));
+        })
+        .build();
+```
+
+Custom guards take rejection feedback the same way, via `addClickGuard(leftOnly, onRejected)`. To bundle a condition with its feedback into one reusable guard, use `guard.onRejected((item, click) -> ...)`.
+
+## Drags and bundle selections
+
+These two interactions have their own contexts and registration methods; they are never converted into plain clicks:
+
+| Interaction | Guard | Handler |
+|---|---|---|
+| Drag | `addDragGuard` | `addDragHandler` |
+| Bundle selection | `addBundleSelectGuard` | `addBundleSelectHandler` |
+
+`addClickGuard` for plain clicks does not restrict either of them. Permission and game-mode guards work on both; `ItemGuards.throttle` only applies to `ItemClick`.
+
+### A drag passing over the Item
+
+`addDragHandler` receives an `ItemDrag`. Beyond the player, Window, and current slot, it can read the full drag path:
+
+```java
+Item dragTarget = Item.builder()
+        .setItemProviderConstant(new ItemStack(Material.GRAY_DYE))
+        .addDragGuard(ItemGuards.permission("example.menu.drag"))
+        .addDragHandler(drag -> {
+            int slot = drag.windowSlot();
+            int total = drag.path().size();
+            drag.player().sendMessage(
+                    Component.text("Crossed slot " + slot + ", path covers " + total + " slots")
+            );
+        })
+        .build();
+```
+
+`path()` lists the window slots this gesture crossed, deduplicated in the order the client submitted them; each entry exposes its index through `windowSlot()`. `index()` returns the current slot's position within the path, and `currentStop()` returns the current path element.
+
+**Each Item slot the drag crosses gets its own callback.** The same Item in multiple slots is called multiple times: the current slot differs, the path is the same. `cursor()` is the cursor snapshot from when the gesture began; `clickType()` is left, right, or creative middle-click. Invalid drags, like an empty cursor, never reach the Item.
+
+A drag guard only decides whether this Item's drag handler runs. It never cancels the drag gesture as a whole.
+
+### Selecting bundle contents
+
+`addBundleSelectHandler` receives a `BundleSelectClick`. `windowSlot()` is the window slot holding the bundle, and `bundleSlot()` is the in-bundle selection index submitted by the client, with `-1` meaning nothing selected.
+
+This creates a bundle holding two items and reacts to the selection:
+
+```java
+ItemStack stack = new ItemStack(Material.BUNDLE);
+stack.setData(
+        DataComponentTypes.BUNDLE_CONTENTS,
+        BundleContents.bundleContents(List.of(
+                new ItemStack(Material.APPLE),
+                new ItemStack(Material.CARROT)
+        ))
+);
+
+Item bundle = Item.builder()
+        .setItemProviderConstant(stack)
+        .addBundleSelectHandler(select -> {
+            int index = select.bundleSlot();
+            String message = index == -1
+                    ? "Selection cancelled"
+                    : "Selected bundle index: " + index;
+            select.player().sendMessage(Component.text(message));
+        })
+        .build();
+```
+
+A selection guard controls whether the handler runs; it cannot roll back a selection the client has already made.
+
+## A guarded button example
+
+Combining a permission check and a one-second throttle into a greeting button: insufficient permission shows a red message, clicking too fast shows a gold one, and an allowed click sends a green greeting.
+
+<CodeSteps
+  language="java"
+  steps={[
+    {
+        "title": "Layout and window",
+        "lines": "17-27",
+        "note": "G is bound to the greeting button, C to the close button. Each open builds a fresh set of Items."
+    },
+    {
+        "title": "Button looks",
+        "lines": "30-44",
+        "note": "Build the name and lore first, then set the item as the button's fixed display source."
+    },
+    {
+        "title": "Permission and rejection message",
+        "lines": "45-51",
+        "note": "Without permission, this guard's rejection callback runs and the throttle check and greeting never do."
+    },
+    {
+        "title": "Click interval",
+        "lines": "52-58",
+        "note": "After the permission passes, the one-second interval is checked. A too-fast click gets a wait message."
+    },
+    {
+        "title": "Running when allowed",
+        "lines": "59-63",
+        "note": "Once every guard passes, the click handler sends the greeting to the current player."
+    },
+    {
+        "title": "Close button",
+        "lines": "66-77",
+        "note": "The close button is built independently and closes the current Window when clicked."
+    }
+]}
+  code={`
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ItemLore;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import net.momirealms.sparrow.ui.item.Item;
+import net.momirealms.sparrow.ui.item.guard.ItemGuards;
+import net.momirealms.sparrow.ui.pane.Pane;
+import net.momirealms.sparrow.ui.window.Window;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+
+import java.util.List;
+
+public final class GuardedMenu {
+    public static void open(Player viewer) {
+        // Fresh buttons on every open; the throttle record restarts with this menu.
+        Pane pane = Pane.builder("##G###C##")
+                .addIngredient('G', createGreetButton())
+                .addIngredient('C', createCloseButton())
+                .build();
+
+        Window.builder(pane)
+                .setTitle(Component.text("Clicks and guards"))
+                .open(viewer);
+    }
+
+    private static Item createGreetButton() {
+        ItemStack stack = new ItemStack(Material.LIME_DYE);
+        stack.setData(
+                DataComponentTypes.CUSTOM_NAME,
+                Component.text("Say hi", NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false)
+        );
+        stack.setData(
+                DataComponentTypes.LORE,
+                ItemLore.lore(List.of(
+                        Component.text("Click to send a greeting, once per second.", NamedTextColor.GRAY)
+                                .decoration(TextDecoration.ITALIC, false)
+                ))
+        );
+        return Item.builder()
+                .setItemProviderConstant(stack)
+                // The interval is only checked once the permission passes.
+                .addClickGuard(
+                        ItemGuards.permission("example.menu.greet"),
+                        click -> click.player().sendMessage(
+                                Component.text("No permission.", NamedTextColor.RED)
+                        )
+                )
+                // When this guard rejects, only its wait message is sent.
+                .addClickGuard(
+                        ItemGuards.throttle(1000),
+                        click -> click.player().sendMessage(
+                                Component.text("Not so fast.", NamedTextColor.GOLD)
+                        )
+                )
+                // With both guards passed, send the greeting.
+                .addClickHandler(click -> click.player().sendMessage(
+                        Component.text("Hello!", NamedTextColor.GREEN)
+                ))
+                .build();
+    }
+
+    private static Item createCloseButton() {
+        ItemStack stack = new ItemStack(Material.BARRIER);
+        stack.setData(
+                DataComponentTypes.CUSTOM_NAME,
+                Component.text("Close menu", NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false)
+        );
+        return Item.builder()
+                .setItemProviderConstant(stack)
+                .addClickHandler(click -> click.window().close())
+                .build();
+    }
+}
+  `}
+/>
+
+After the plugin finishes [initialization](/getting-started/installation), call `GuardedMenu.open(viewer)` to open it. The greeting button only passes the permission guard once the player has `example.menu.greet`. Since the example builds a fresh Item on every open, its throttle record starts over too.
+
+To update the button's looks after a click, see [Refreshing after a click](/item/render#refreshing-after-a-click).
+
+<NextStep
+  to="/pane/structure"
+  title="Character layouts"
+  description="Place Items in the menu with a character template."
+/>

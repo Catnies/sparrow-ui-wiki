@@ -3,8 +3,98 @@ title: Installation
 sidebar_label: Installation
 ---
 
-{/* Placeholder. English version is not written yet — Chinese first, see WIKI-PLAN.md section 1.1. */}
+## Compatibility
 
-:::info
-This page has not been written yet.
+| Item | Requirement |
+|---|---|
+| Server | Paper or Folia |
+| Minecraft | `1.21.4` ~ `26.3`. **One artifact covers the whole range**, no per-version dependencies |
+| Java | The library is compiled for Java 21; at runtime use the Java version your Paper or Folia build requires |
+
+## Adding the dependency
+
+First the repository:
+
+<BuildTabs
+  kotlin={`repositories {
+    maven("https://repo.momirealms.net/snapshots")
+}`}
+  groovy={`repositories {
+    maven { url = 'https://repo.momirealms.net/snapshots' }
+}`}
+  maven={`<repositories>
+  <repository>
+    <id>momirealms</id>
+    <url>https://repo.momirealms.net/snapshots</url>
+  </repository>
+</repositories>`}
+/>
+
+Then the dependency. Relocate the whole `net.momirealms.sparrow.ui` package under your own package name, replacing `com.example.myplugin.libraries.sparrow.ui` with a package unique to your plugin:
+
+<BuildTabs
+  kotlin={`dependencies {
+    implementation("net.momirealms:sparrow-ui:beta.33")
+}
+
+tasks.shadowJar {
+    relocate("net.momirealms.sparrow.ui", "com.example.myplugin.libraries.sparrow.ui")
+}`}
+  groovy={`dependencies {
+    implementation 'net.momirealms:sparrow-ui:beta.33'
+}
+
+shadowJar {
+    relocate 'net.momirealms.sparrow.ui', 'com.example.myplugin.libraries.sparrow.ui'
+}`}
+  maven={`<dependency>
+  <groupId>net.momirealms</groupId>
+  <artifactId>sparrow-ui</artifactId>
+  <version>beta.33</version>
+</dependency>
+
+<!-- inside <configuration> of maven-shade-plugin -->
+<relocations>
+  <relocation>
+    <pattern>net.momirealms.sparrow.ui</pattern>
+    <shadedPattern>com.example.myplugin.libraries.sparrow.ui</shadedPattern>
+  </relocation>
+</relocations>`}
+/>
+
+:::warning[Relocation is not optional]
+Sparrow UI installs a reflection proxy into the **server class loader**, and the proxy's package follows the library's runtime package. Without relocation, any two plugins that bundle Sparrow UI collide on identical class names in the server class loader.
 :::
+
+## Initialization
+
+Call `setUp` once in `onEnable` and hand the library your plugin instance:
+
+```java
+package com.example.myplugin;
+
+import net.momirealms.sparrow.ui.SparrowUI;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public final class MyPlugin extends JavaPlugin {
+
+    @Override
+    public void onEnable() {
+        SparrowUI.getInstance().setUp(this);
+    }
+}
+```
+
+This installs the reflection proxies, creates the window and network managers, and binds the library's scheduler to your plugin.
+
+**Your plugin has nothing to do on disable.** Sparrow UI listens for the plugin disable event itself: it shuts down the window and network managers and stops its scheduler.
+
+:::danger[Run setUp before touching any Sparrow UI class]
+Until `setUp` has finished, do not touch any Sparrow UI class and do not build Items, Panes, or Windows.
+:::
+
+<NextStep
+  to="/getting-started/quick-start"
+  title="Quick start"
+  description="From an empty plugin to the first menu on screen"
+/>

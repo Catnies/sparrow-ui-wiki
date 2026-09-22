@@ -1,10 +1,71 @@
 ---
-title: Visual Mapping
-sidebar_label: Visual Mapping
+title: Visual layers
+sidebar_label: Visual layers
 ---
 
-{/* Placeholder. English version is not written yet — Chinese first, see WIKI-PLAN.md section 9.8.8. */}
+Slot five of the product menu normally shows a diamond. Clicking the marking toggle in the bottom-right should turn slot five into an emerald; clicking again restores the diamond. Only the display changes: clicking slot five still runs the original diamond button's handler.
 
-:::info
-This page has not been written yet.
-:::
+`viewer` in the examples is the player opening the menu, and Sparrow UI initialization must have completed beforehand. `named` builds an item with a name; drop the method below into your menu class.
+
+<Details summary="The item naming helper shared by the examples" previewHeight={0}>
+
+```java
+private static ItemStack named(Material material, String name) {
+    ItemStack stack = new ItemStack(material);
+    stack.setData(DataComponentTypes.CUSTOM_NAME,
+            Component.text(name).decoration(TextDecoration.ITALIC, false));
+    return stack;
+}
+```
+
+It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching the style in [Item rendering](/item/render).
+
+</Details>
+
+## Toggling a product marking
+
+
+The menu below stands alone. `highlighted` starts `false`, meaning nothing is marked yet.
+
+<MinecraftSlotGrid
+  title="Product marking"
+  rows={['####Q###H']}
+  legend={{Q: 'product', H: 'marking toggle'}}
+  items={{
+    Q: {icon: 'diamond', name: 'Pick the diamond'},
+    H: {icon: 'lime_dye', name: 'Toggle product marking'},
+  }}
+  caption="A diamond shows initially. With marking on, slot five displays an emerald named Featured product."
+/>
+
+```java
+MutableSignal<Boolean> highlighted = Signal.of(false);
+Pane pane = Pane.builder("####Q###H")
+        .addIngredient('Q', Item.builder()
+                .setItemProviderConstant(named(Material.DIAMOND, "Pick the diamond"))
+                .addClickHandler(click -> click.player().sendMessage(Component.text("Diamond picked")))
+                .build())
+        .addIngredient('H', Item.builder()
+                .setItemProviderConstant(named(Material.LIME_DYE, "Toggle product marking"))
+                .addClickHandler(click -> highlighted.update(value -> !value))
+                .build())
+        .build();
+Window window = Window.builder(pane).setTitle("Product marking").build(viewer);
+
+ItemStack mark = named(Material.EMERALD, "Featured product");
+window.setVisualizerItem(4, actual -> highlighted.get() ? mark : actual);
+window.visual().bind(highlighted);
+window.open();
+```
+
+`visual().bind` requests a visual-layer redraw whenever the Signal changes, and the mapping reads the current value. Slots count from zero, so `4` is the template's `Q`. Once the emerald displays, clicking it still delivers "Diamond picked"; visual mappings never change content or click behavior.
+
+The binding belongs to this Window, so only its viewer is affected. To let every viewer of one Pane see mapping changes together, configure the mapping on the Pane's visual layer and bind the source there; each layer's scope is covered in [Visual layers](/visual/layers).
+
+Visual bindings on a Window start and stop with its open state, and the returned `Subscription` can unbind early. List bindings on a shared Pane may stay active even with no Window watching, so closing one Window does not stop every shared source's queries.
+
+<NextStep
+  to="/network/listen"
+  title="Listening to packets (optional)"
+  description="The extra packet-listening capability; skippable if you only write menus."
+/>

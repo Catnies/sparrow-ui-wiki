@@ -1,10 +1,58 @@
 ---
-title: Item Display
-sidebar_label: Item Display
+title: Item display
+sidebar_label: Item display
 ---
 
-{/* Placeholder. English version is not written yet — Chinese first, see WIKI-PLAN.md section 9.8.1. */}
+In the purchase menu, the player clicks the diamond and the quantity rises by one each time. The button's name starts at "Quantity: 1" and should read "Quantity: 2" after the click. The quantity belongs to this menu open alone, so the menu creates a plain Signal at build time.
 
-:::info
-This page has not been written yet.
-:::
+`viewer` in the examples is the player opening the menu, and Sparrow UI initialization must have completed beforehand. `named` builds an item with a name; drop the method below into your menu class.
+
+<Details summary="The item naming helper shared by the examples" previewHeight={0}>
+
+```java
+private static ItemStack named(Material material, String name) {
+    ItemStack stack = new ItemStack(material);
+    stack.setData(DataComponentTypes.CUSTOM_NAME,
+            Component.text(name).decoration(TextDecoration.ITALIC, false));
+    return stack;
+}
+```
+
+It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching the style in [Item rendering](/item/render).
+
+</Details>
+
+## The button follows the quantity
+
+
+<MinecraftSlotGrid
+  title="Pick a quantity"
+  rows={['####Q####']}
+  legend={{Q: 'quantity button'}}
+  items={{Q: {icon: 'diamond', name: 'Quantity: 1'}}}
+  caption="The initial quantity is 1. Clicking changes the number in the name; the diamond's stack size stays 1."
+/>
+
+```java
+MutableSignal<Integer> quantity = Signal.of(1);
+Item amountButton = Item.builder()
+        .dependsOn(quantity)
+        .setItemProvider(context -> named(Material.DIAMOND, "Quantity: " + quantity.get()))
+        .addClickHandler(click -> quantity.update(value -> value + 1))
+        .build();
+
+Pane pane = Pane.builder("####Q####")
+        .addIngredient('Q', amountButton)
+        .build();
+Window.builder(pane).setTitle("Pick a quantity").open(viewer);
+```
+
+`dependsOn(quantity)` declares that this Item's display depends on the quantity. The click only writes data; the library requests a redraw of every position showing the Item, the provider runs again, and the new name appears. No `updateOnClick()` needed.
+
+Merely reading `quantity.get()` inside the provider does not create a dependency. When the look depends on several independent states, pass them together with `dependsOn(quantity, price)`; if a `combine` already derived the total, depending on the total Signal works too.
+
+<NextStep
+  to="/signal-ui/player"
+  title="Per-player display"
+  description="Share one button across Windows while each player sees their own data."
+/>

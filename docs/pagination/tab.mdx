@@ -3,8 +3,131 @@ title: Tab
 sidebar_label: Tab
 ---
 
-{/* Placeholder. English version is not written yet. */}
+When a menu has categories like "Materials" and "Tools", `Tab` switches the content of one area in place. Each category maps to a child Pane, each with its own layout and buttons.
 
-:::info
-This page has not been written yet.
+When creating a Tab, give every child Pane a key and pick the initial category. Switch buttons call `select(key)`, the content area swaps to that Pane, and the Window and category buttons stay put.
+
+## Building a tabbed menu
+
+`Tab.of` takes already built child Panes. The menu below puts two category buttons on top and shows the current category in the row below, with Materials selected by default.
+
+```java
+// Each category has its own layout; switching replaces the whole content block
+Pane materials = Pane.builder("###ABC###")
+        .addIngredient('A', new ItemStack(Material.STONE))
+        .addIngredient('B', new ItemStack(Material.OAK_LOG))
+        .addIngredient('C', new ItemStack(Material.GLASS))
+        .build();
+Pane tools = Pane.builder("###ABC###")
+        .addIngredient('A', new ItemStack(Material.IRON_PICKAXE))
+        .addIngredient('B', new ItemStack(Material.IRON_AXE))
+        .addIngredient('C', new ItemStack(Material.IRON_SHOVEL))
+        .build();
+
+// Keys look up their Pane; the second argument picks Materials as the initial view
+Tab<String> tabs = Tab.of(Map.of("materials", materials, "tools", tools), "materials");
+
+ItemStack materialsIcon = new ItemStack(Material.BRICKS);
+materialsIcon.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("Materials", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+ItemStack toolsIcon = new ItemStack(Material.IRON_PICKAXE);
+toolsIcon.setData(DataComponentTypes.CUSTOM_NAME,
+        Component.text("Tools", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+
+Pane pane = Pane.builder("###M#T###", "VVVVVVVVV")
+        // V is the whole category area; no per-category template juggling needed
+        .addIngredient('V', tabs)
+        .addIngredient('M', Item.builder()
+                .setItemProviderConstant(materialsIcon)
+                .addClickHandler(click -> tabs.select("materials"))
+                .build())
+        .addIngredient('T', Item.builder()
+                .setItemProviderConstant(toolsIcon)
+                .addClickHandler(click -> tabs.select("tools"))
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("Categories").open(viewer);
+```
+
+Keys can be strings, enums, or other types. Button placement comes from the Pane template, not from Map order. Clicking the Tools button replaces only the V area; the two buttons above stay.
+
+:::warning[Tab keys]
+Both the initial key and the key passed to `select` must exist in the Map given at creation, or an `IllegalArgumentException` is thrown. The Tab copies the Map, so adding categories to the original afterwards changes nothing.
 :::
+
+The category buttons here keep a fixed look. To highlight the active category, use the Signal from `selected()`; see [Wiring Signals into the UI](/signal-ui/tab).
+
+## Content area size and layout
+
+Tab displays content by the child Pane's rows and columns. The content area's top-left matches the child Pane's top-left, and blank slots inside the child Pane are preserved.
+
+The child Pane below is 3 columns by 2 rows, with a diamond in the top-left corner and an emerald in the bottom-right. The outer menu reserves the same shape: two rows of three V.
+
+<MinecraftWindow
+  title="Category layout"
+  rows={2}
+  layout={['###D#####', '#####E###']}
+  items={{D: {icon: 'diamond', name: 'Diamond'}, E: {icon: 'emerald', name: 'Emerald'}}}
+/>
+
+```java
+Pane category = Pane.builder("D##", "##E")
+        .addIngredient('D', new ItemStack(Material.DIAMOND))
+        .addIngredient('E', new ItemStack(Material.EMERALD))
+        .build();
+Tab<String> tabs = Tab.of(Map.of("gems", category), "gems");
+
+// Two rows of V match the child Pane's two rows; # is outside the tab area
+Pane pane = Pane.builder("###VVV###", "###VVV###")
+        .addIngredient('V', tabs)
+        .build();
+
+Window.builder(pane).setTitle("Category layout").open(viewer);
+```
+
+A child Pane smaller than the content area leaves the uncovered slots empty; a larger one simply does not show the excess, with no scaling or wrapping. Keeping every category the same size and reserving a matching rectangle is usually all it takes.
+
+Gaps between V count toward the relative coordinates too. A row of `V#V` maps to slots 1 and 3 of the child Pane, while the middle `#` keeps the outer Pane's own content.
+
+## Creating on first switch
+
+When there are many categories, or some are rarely used, `Tab.lazy` helps. The Map holds functions that build the Panes, each running the first time its category displays, with the result cached.
+
+The Tools category below builds only when first switched to. Materials is the default and gets created when the outer Pane builds and binds the Tab.
+
+```java
+Tab<String> tabs = Tab.lazy(Map.of(
+        "materials", () -> Pane.builder("####S####")
+                .addIngredient('S', new ItemStack(Material.STONE))
+                .build(),
+        "tools", () -> Pane.builder("####P####")
+                .addIngredient('P', new ItemStack(Material.IRON_PICKAXE))
+                .build()
+), "materials");
+
+Pane pane = Pane.builder("###M#T###", "VVVVVVVVV")
+        .addIngredient('V', tabs)
+        .addIngredient('M', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BRICKS))
+                .addClickHandler(click -> tabs.select("materials"))
+                .build())
+        .addIngredient('T', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.IRON_PICKAXE))
+                // Created on first selection; later switches reuse the same tools Pane
+                .addClickHandler(click -> tabs.select("tools"))
+                .build())
+        .build();
+
+Window.builder(pane).setTitle("Lazy categories").open(viewer);
+```
+
+Both `Tab.of` and `Tab.lazy` reuse each category's Pane. Switch away and back, and the content is still there; a Page or Scroll inside a category keeps its page and scroll position too. A built Pane is never destroyed by switching away, and its data bindings keep working.
+
+:::warning[Lazy creation runs synchronously]
+`Tab.lazy` does not hand the builder function to an async thread. In the example's click handler, the first switch to a category runs the function on the player thread, so no database queries or large file reads inside it. For per-page database queries, use [Page.async](/pagination/page) inside the child Pane. The function must return a Pane and never `null`.
+:::
+
+By default each menu open creates its own Tab, so category selection stays independent per menu. If several players share one Tab, `select` changes the category they all see.
+
+<NextStep to="/inventory/basics" title="Inventories" description="Link an inventory that stores and moves real items to a Pane." />

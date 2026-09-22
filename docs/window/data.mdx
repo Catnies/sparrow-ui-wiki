@@ -1,8 +1,102 @@
 ---
-title: Window Data
-sidebar_label: Window Data
+title: Window data
+sidebar_label: Window data
 ---
 
-:::info
-This page has not been written yet.
-:::
+A Window can carry business objects for click handlers to read. This page also covers client state confirmation and the cursor data and cancellation in outside-click events.
+
+## Carrying custom context
+
+The builder's `setData` attaches one object to the Window. Once a click handler has the Window, it reads the object back with `data(Class)`. This fits product ids, filter conditions, or the current menu's context.
+
+Below, the product info rides on the Window. Because the button reads it from the current Window, the click logic does not need to capture a specific product object:
+
+```java
+record ProductContext(String id, String name) {}
+
+Pane pane = Pane.builder("####B####")
+        .addIngredient('B', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.BOOK))
+                .addClickHandler(click -> {
+                    ProductContext product = click.window().data(ProductContext.class);
+                    click.player().sendMessage(Component.text(
+                            "Current product: " + product.name() + " (" + product.id() + ")"));
+                })
+                .build())
+        .build();
+
+Window.builder(pane)
+        .setData(new ProductContext("travel-notes", "Travel Notes"))
+        .setTitle("Product Details")
+        .open(viewer);
+```
+
+The Window stores the reference you pass in; it does not copy, serialize, or watch the object's fields. After mutating a mutable object, refresh the title or Items yourself as needed, and Windows sharing the same object will read the same business data.
+
+`setData` is a build-time setting; the Window has no matching setter to replace the reference afterwards. `data()` returns the raw object, while `data(Class)` only casts: `null` when no data was set, and a `ClassCastException` when the type does not match. The example always sets a `ProductContext` at build time, so the click can read that type directly.
+
+As long as business code or a session holds the Window, the attached object is held too. How sessions retain Windows is covered in [Sessions and navigation](/session/navigation).
+
+## Waiting for the client to confirm window state
+
+`setWindowState(int)` sets an integer marker. When the Window is already open, the library sends a Ping, updates the client state when the matching Pong arrives, and calls handlers registered with `addWindowStateChangeHandler`.
+
+This group of APIs distinguishes the state the server has set from the state the client has confirmed. Business data such as products and filters still lives in `setData` from the previous section.
+
+Each click on the paper below bumps the state by one and sends a message once the client confirms:
+
+```java
+Pane pane = Pane.builder("####P####")
+        .addIngredient('P', Item.builder()
+                .setItemProviderConstant(new ItemStack(Material.PAPER))
+                .addClickHandler(click -> click.window().incrementWindowState())
+                .build())
+        .build();
+
+Window.builder(pane)
+        .setTitle("State confirmation")
+        .setWindowState(0)
+        .addWindowStateChangeHandler(state ->
+                viewer.sendMessage(Component.text("Client confirmed state: " + state)))
+        .open(viewer);
+```
+
+| API | Meaning |
+|---|---|
+| `setWindowState(value)` | Set the server state; sends a confirmation request when the Window is open |
+| `incrementWindowState()` | Bump the server state by one and request confirmation the same way |
+| `serverWindowState()` | The most recently set server state |
+| `clientWindowState()` | The most recently confirmed state via Pong |
+| `addWindowStateChangeHandler(handler)` | Hands each state to the handler once its matching Pong arrives |
+
+Setting a state changes no title, Pane, or item, and does not intercept clicks. The callback means the client replied with a confirmation packet; it does not prove the player saw the screen or completed any business action. Before the Window opens, setting a state only stores the number; no Ping goes out.
+
+## Handling clicks outside the container
+
+`addOutsideClickHandler` receives clicks the player makes outside the container view. It is separate from the Item click handlers on slots; clicking the player inventory below still counts as a slot click.
+
+When a player holds a cursor item and clicks outside the container, the client usually drops the item. Cancelling here keeps it on the cursor:
+
+```java
+Pane pane = Pane.builder("#########").build();
+
+Window.builder(pane)
+        .setTitle("Outside clicks")
+        .addOutsideClickHandler(click -> {
+            click.setCancelled(true);
+            if (!click.getCursor().isEmpty()) {
+                click.getPlayer().sendMessage(Component.text("Put the item back in a slot."));
+            }
+        })
+        .open(viewer);
+```
+
+`WindowOutsideClick` uses getters such as `getPlayer()`, `getWindow()`, `getClickType()`, and `getCursor()`, which read differently from the Item click event's `player()` and `window()`.
+
+`getCursor()` is a copy of the cursor item when the event dispatched; mutating it does not replace the actual cursor item. After the handler returns, the library checks the cancelled flag: a cancelled click stops further outside-click processing, otherwise the click's item operations proceed. Cancelling an outside click does not stop Esc from closing the Window; that is covered in [Opening and closing](/window/lifecycle).
+
+<NextStep
+  to="/session/navigation"
+  title="Sessions and navigation"
+  description="Chain Windows into menu flows: move forward and back and pass context along."
+/>
