@@ -3,8 +3,104 @@ title: 事务与并发
 sidebar_label: 事务与并发
 ---
 
-{/* 待撰写。本页大纲见项目根目录 WIKI-PLAN.md 第 11.4 节。 */}
+玩家把物品从共享仓库 Shift 转移到背包时，仓库要减少物品，背包要增加物品。库会把这次操作涉及的容器变更放进同一笔事务，提交成功时一起写入；取消或发生冲突时，这一笔都不写入。
 
-:::info
-本页尚未撰写。
-:::
+这里的事务只覆盖库纳入本次操作的状态，不会自动把消息、数据库写入或经济插件的扣款也变成可回滚操作。
+
+## 读取提交结果
+
+代码调用 `trySetItem`、`tryAdd` 等方法时，也要检查事务结果。下面尝试把八颗钻石放进一个九格虚拟容器，并记录实际未放入的数量。
+
+```java
+VirtualInventory storage = new VirtualInventory(9);
+AddResult result = storage.tryAdd(new ItemStack(Material.DIAMOND, 8));
+
+switch (result.result()) {
+    case TransactionResult.Committed committed ->
+            System.out.println("提交完成，剩余 " + result.remaining() + " 个未放入");
+    case TransactionResult.Cancelled ignored ->
+            System.out.println("本次放入被拒绝");
+    case TransactionResult.Conflicted ignored ->
+            System.out.println("容器状态已变化，请重新操作");
+}
+```
+
+空容器正常接受八颗钻石，结果为 `Committed`，剩余数量为零。`Committed` 表示本次计划已经写入，不等于所有请求物品都放得下；`tryAdd` 允许只放入一部分，要继续检查 `remaining()`。
+
+| 结果 | 含义 |
+|---|---|
+| `Committed` | 本次参与的容器变更已经写入，`rootChanges()` 可读取各容器的变更组 |
+| `Cancelled` | 操作被规则、玩家侧冻结检查或提交前取消等条件拒绝，本次事务没有写入 |
+| `Conflicted` | 规划依据或提交条件已失效，本次事务没有写入 |
+
+普通 `setItem`、`add` 等写入入口与 `try` 方法经过的检查不同，选择方式见[访问规则与事件](/inventory/rules-events)。规则拒绝某些格子时，`tryAdd` 这类尽量放入的方法还可以跳过它们，并不一定整笔返回 `Cancelled`。
+
+## 让两个容器一起变化
+
+例如，把输入格里的一颗钻石换成输出格里的两颗绿宝石。输入清空与输出增加必须属于同一笔修改，否则可能出现一边成功、一边失败。
+
+下面只展示兑换逻辑。`input` 和 `output` 都是一格的 `VirtualInventory`，由[兑换台示例](/inventory/rules-events#示例-兑换台)放进同一扇菜单。输入规则限制每次放入一颗钻石，输出已有物品时拒绝本次兑换。
+
+```java
+input.setAccessRule(context -> !context.isAdd()
+        || (context.addedItem().getType() == Material.DIAMOND
+            && context.addedAmount() == 1));
+output.setAccessRule(context -> !context.isAdd());
+
+input.subscribePreUpdate(event -> {
+    ItemStack placed = event.after(0);
+    if (placed == null) return;
+
+    event.include(output);
+    if (event.after(output, 0) != null) {
+        event.setCancelled(true);
+        return;
+    }
+    event.setAfter(0, null);
+    event.setAfter(output, 0, new ItemStack(Material.EMERALD, 2));
+});
+```
+
+`include(output)` 把输出容器加入本次修改。提交后，输入格为空、输出格有两颗绿宝石；如果后续处理器取消，或者提交时其中一个容器的状态已变，本次兑换都不会写入。
+
+提交前处理器应通过 `event.setAfter` 修改这次计划。直接调用 `output.setItem(...)` 会另开一次独立写入，不会随外层事务取消。通过 `setAfter` 改写的内容不再经过访问规则，因此兑换结果能写入禁止玩家放入的输出格。
+
+## 共享容器发生冲突时
+
+两名玩家几乎同时从仓库拿走最后一组钻石，双方都可能先看到还有库存。提交时，库会检查这次规划依赖的状态；一方先写入后，另一方基于旧状态的事务可能返回 `Conflicted`。它不会继续用旧库存覆盖新状态。
+
+玩家操作由窗口处理提交与同步。业务代码发起 `try` 请求时，应把冲突当作本次没有成功。需要重试，就重新读取当前状态并重新判断业务条件，不要无条件重复发放奖励或无限重试。
+
+例如，下面的 `storage` 是业务共享的容器，尝试清空第零格。只有收到成功结果才继续执行成功分支。
+
+```java
+TransactionResult result = storage.trySetItem(0, null);
+if (!(result instanceof TransactionResult.Committed)) {
+    return;
+}
+System.out.println("本次清空已提交");
+```
+
+这段只判断清空请求是否提交，不表示原来一定存在物品，也不表示它可以替代带条件的购买或兑换逻辑。共享数据的业务条件应纳入相应操作的判断过程。
+
+## 提交后再执行外部操作
+
+需要记录容器变更时，可以使用提交后事件。它触发时，这笔容器修改已经生效。
+
+```java
+storage.subscribePostUpdate(event -> {
+    System.out.println("已提交的变化格数：" + event.slotChanges().size());
+});
+```
+
+不要在提交前事件里扣款、写数据库或发消息，然后期待事务失败时自动撤回。提交前仍可能被取消或发现冲突，外部操作却已经发生。
+
+提交后执行外部操作也不意味着数据库与容器组成了同一笔事务。外部写入失败、网络超时或服务重启，需要业务自己处理；不能把已经提交的容器修改当作没有发生。
+
+并发修改的提交后回调不保证按提交顺序到达。需要比较先后时，可查看事件的 `version()`；需要按序派发时，虚拟容器提供 `serialPostDispatch(true)`，详见[线程与顺序](/inventory/rules-events#线程与顺序)。处理器在发起修改的线程执行，共享处理器还需要考虑并发访问。
+
+<NextStep
+  to="/faq"
+  title="常见问题"
+  description="查阅菜单刷新、异步数据、玩家物品栏与订阅管理的常见问题。"
+/>

@@ -118,28 +118,10 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: '🔬 进阶（可选）',
-      items: [
-        'advanced/threading',
-        'advanced/sharing',
-        'advanced/lifecycle',
-        'advanced/transaction',
-        'advanced/troubleshooting',
-      ],
-    },
-    {
-      type: 'category',
-      label: '🍳 实战示例',
-      items: [
-        'examples/overview',
-      ],
+      items: [        'advanced/lifecycle',
+        'advanced/transaction',      ],
     },
     'faq',
-    // 临时项: 通用组件的自查页。正文全部收口后连同页面一起删掉。
-    {
-      type: 'doc',
-      id: 'components-preview',
-      label: '🧪 组件预览（临时）',
-    },
   ],
 };
 

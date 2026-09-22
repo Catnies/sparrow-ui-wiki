@@ -121,29 +121,10 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: '🔬 Advanced (Optional)',
-      items: [
-        'advanced/threading',
-        'advanced/sharing',
-        'advanced/lifecycle',
-        'advanced/transaction',
-        'advanced/troubleshooting',
-      ],
-    },
-    {
-      type: 'category',
-      label: '🍳 Examples',
-      items: [
-        'examples/overview',
-      ],
+      items: [        'advanced/lifecycle',
+        'advanced/transaction',      ],
     },
     'faq',
-    // Temporary: the component self-check page. Remove it together with the
-    // page once all the prose is finished.
-    {
-      type: 'doc',
-      id: 'components-preview',
-      label: '🧪 Component preview',
-    },
   ],
 };
 
