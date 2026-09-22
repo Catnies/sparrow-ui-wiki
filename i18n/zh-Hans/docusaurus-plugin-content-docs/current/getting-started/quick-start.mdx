@@ -60,7 +60,7 @@ Pane.builder(
     {
       title: '画出布局',
       lines: '27-31',
-      note: '三行字符串对应三行九列，共 27 格。每个字符代表一格，下一步用这些字符指定格子里的内容。',
+      note: '下面的模板对应一个三行箱子菜单。每个字符代表一个槽位，G 和 C 用于绑定两个按钮，# 留作背景。',
       preview: (
         <MinecraftSlotGrid
           rows={["#########", "###G#C###", "#########"]}
@@ -71,7 +71,7 @@ Pane.builder(
     {
       title: '铺上背景',
       lines: '32,64-68',
-      note: 'setBackground 管的是所有没被单独安排的格子，也就是这里的一整圈 #。背景物品点不动，用来占位和分区。',
+      note: 'setBackground 为未绑定内容的槽位设置背景。本例用灰色玻璃板填充 # 区域，背景不响应点击。',
       preview: (
         <MinecraftSlotGrid
           rows={["#########", "###G#C###", "#########"]}
@@ -93,14 +93,14 @@ Pane.builder(
       ),
     },
     {
-      title: '按钮长什么样',
+      title: '设置物品外观',
       lines: '40-42',
-      note: '按钮外观由 ItemStack 决定。这里用 Paper 的数据组件 API 设置名称，并关闭自定义名称默认的斜体。',
+      note: '示例使用 Paper 数据组件 API 设置名称，并关闭默认斜体。',
     },
     {
-      title: '点下去做什么',
+      title: '处理点击',
       lines: '46-47,59',
-      note: 'addClickHandler 收到的 click 里有这次点击的全部上下文：谁点的、点在哪一格、哪种点击、当时光标上拿着什么、属于哪扇窗口。关闭按钮要用的就是其中的 window()。',
+      note: 'addClickHandler 注册点击处理器。问候按钮通过 click.player() 发送消息，关闭按钮通过 click.window().close() 关闭当前窗口。',
     },
     {
       title: '打开它',
@@ -183,7 +183,7 @@ public final class WelcomeMenu {
 
 ## 添加一个命令打开它
 
-菜单类写完了，还差一个调用它的地方。下面用 Paper 的 Brigadier 命令 API 注册一条 `/welcome`，进服务器打 `/welcome`，菜单就出来了。
+最后用 Paper Brigadier API 注册 `/welcome` 命令。玩家执行命令后，调用 WelcomeMenu.open 打开刚才的菜单。
 
 ```java
 // 在你的 JavaPlugin#onEnable 里
