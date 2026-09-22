@@ -101,7 +101,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://github.com/Catnies/sparrow-ui-wiki',
+          href: 'https://github.com/Catnies/sparrow-ui',
           label: 'GitHub',
           position: 'right',
         },
