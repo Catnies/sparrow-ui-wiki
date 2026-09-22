@@ -117,7 +117,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '🔬 进阶（可选）',
+      label: '📎 补充说明（可选）',
       items: [        'advanced/lifecycle',
         'advanced/transaction',      ],
     },

@@ -120,7 +120,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: '🔬 Advanced (Optional)',
+      label: '📎 Additional Notes (Optional)',
       items: [        'advanced/lifecycle',
         'advanced/transaction',      ],
     },
