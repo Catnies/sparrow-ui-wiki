@@ -3,43 +3,86 @@ title: 滚动内容
 sidebar_label: 滚动内容
 ---
 
-滚动菜单也能直接接收 `ListSignal`。下面十二组钻石按三列排列，一次显示两行。点击向下按钮后，显示范围从第 1～6 组移到第 4～9 组，按钮名称里的行号也会变化。
+成就菜单用三列显示已解锁的成就，一次只看得到两行。玩家往下滚动时，按钮上要显示现在滚到了第几行；滚到底以后，按钮不再响应。
 
-示例共用的 `named` 辅助方法见页尾。
+成就还会随时解锁新的。列表变长了，能滚动的范围也要跟着变大。
 
-## 滚动列表与位置显示
+## Scroll 的 Signal 做什么
 
-<MinecraftSlotGrid
-  title="滚动目录"
-  rows={['###MMM###', '###MMM###', '########D']}
-  legend={{M: '当前可见内容', D: '向下滚动'}}
-  items={{
-    M: {icon: 'diamond', name: '钻石', count: [1, 2, 3, 4, 5, 6]},
-    D: {icon: 'arrow', name: '向下滚动，当前第 1 行'},
+`Scroll.vertical(list, width, rows)` 可以直接接收 `ListSignal`，列表变化时，可见内容和可滚动范围一起更新。
+
+它提供两个 Signal。`line()` 是当前停在第几行，从 0 开始；`maxLine()` 是最多能滚到第几行，内容不足一屏时为 0。按钮依赖它们，滚动或列表变化时就会刷新。
+
+## 成就列表
+
+<SignalStepDemo
+  code={`
+    MutableListSignal<String> achievements = ListSignal.of();
+    achievements.addAll(List.of(
+            "初次挖矿", "获得铁锭", "钻石！", "附魔师", "下界之旅", "烈焰人猎手",
+            "末影之眼", "进入末地", "屠龙前夜", "信标", "海底神殿", "满级附魔"
+    ));
+    Scroll<String> scroll = Scroll.vertical(achievements, 3, 2);  // 3 列，一次显示 2 行
+
+    Item down = Item.builder()
+            .dependsOn(scroll.line(), scroll.maxLine())
+            .setItemProvider(context -> {
+                String text = "向下滚动（第 " + (scroll.line().get() + 1) + " 行）";
+                return named(Material.ARROW, text);
+            })
+            .addClickGuard((item, click) -> scroll.line().get() < scroll.maxLine().get())
+            .addClickHandler(click -> scroll.advance(1))
+            .build();
+
+    Pane pane = Pane.builder("###MMM###", "###MMM###", "########D")
+            .addIngredient('M', scroll, name ->
+                    Element.item(Item.simple(named(Material.GOLD_INGOT, name)))
+            )
+            .addIngredient('D', down)
+            .build();
+    Window.builder(pane).setTitle("成就").open(viewer);
+
+    achievements.add("屠龙者");  // 列表变长，可以多滚一行
+  `}
+  title="成就"
+  rows={3}
+  layout={['###ABC###', '###DEF###', '########X']}
+  signals={[{id: 'line', label: 'scroll.line()'}, {id: 'max', label: 'scroll.maxLine()'}, {id: 'size', label: 'achievements.size()'}]}
+  items={(s) => {
+    const names = ['初次挖矿', '获得铁锭', '钻石！', '附魔师', '下界之旅', '烈焰人猎手',
+      '末影之眼', '进入末地', '屠龙前夜', '信标', '海底神殿', '满级附魔', '屠龙者'];
+    const cell = (offset) => {
+      const index = s.line * 3 + offset;
+      return index < s.size ? {icon: 'gold_ingot', name: names[index]} : null;
+    };
+    return {
+      A: cell(0), B: cell(1), C: cell(2), D: cell(3), E: cell(4), F: cell(5),
+      X: {icon: 'arrow', name: `向下滚动（第 ${s.line + 1} 行）`},
+    };
   }}
-  caption="初始显示第 1～6 组。向下滚动一行后，显示第 4～9 组。"
+  steps={[
+    {lines: '1-6', state: {line: 0, max: 2, size: 12}, note: '十二个成就排成四行，一次显示两行，最多滚到第 2 行（从 0 数）。'},
+    {lines: '18-24', state: {line: 0, max: 2, size: 12}, refresh: ['A', 'B', 'C', 'D', 'E', 'F', 'X'], note: '打开菜单，显示前六个成就。'},
+    {lines: '14-15', state: {line: 1, max: 2, size: 12}, notified: ['line'], refresh: ['A', 'B', 'C', 'D', 'E', 'F', 'X'],
+      note: '向下滚一行，显示第 4 到第 9 个成就。相邻两屏是重叠的，一次只换一行。'},
+    {lines: '14-15', state: {line: 2, max: 2, size: 12}, notified: ['line'], refresh: ['A', 'B', 'C', 'D', 'E', 'F', 'X'], note: '滚到底了。'},
+    {lines: '14', state: {line: 2, max: 2, size: 12}, quiet: ['line'], note: '再点被守卫拦下，位置不变。'},
+    {lines: '26', state: {line: 2, max: 3, size: 13}, notified: ['max'], refresh: ['X'],
+      note: '解锁了新成就。列表变成五行，maxLine 变成 3，按钮又能继续往下滚了。'},
+  ]}
 />
 
-```java
-ListSignal<Integer> amounts = ListSignal.of();
-amounts.addAll(IntStream.rangeClosed(1, 12).boxed().toList());
-Scroll<Integer> scroll = Scroll.vertical(amounts, 3, 2);
-Item down = Item.builder()
-        .dependsOn(scroll.line(), scroll.maxLine())
-        .setItemProvider(context -> named(Material.ARROW,
-                "向下滚动，当前第 " + (scroll.line().get() + 1) + " 行"))
-        .addClickGuard((item, click) -> scroll.line().get() < scroll.maxLine().get())
-        .addClickHandler(click -> scroll.advance(1))
-        .build();
-Pane pane = Pane.builder("###MMM###", "###MMM###", "########D")
-        .addIngredient('M', scroll,
-                amount -> Element.item(Item.simple(new ItemStack(Material.DIAMOND, amount))))
-        .addIngredient('D', down)
-        .build();
-Window.builder(pane).setTitle("滚动目录").open(viewer);
-```
+需要上下两个按钮时，向上按钮用 `scroll.advance(-1)`，守卫写成 `scroll.line().get() > 0`。
 
-向 `amounts` 增删数据，当前内容和可滚动范围也会更新。需要上下两个按钮时，按同样方式给向上按钮设置 `scroll.advance(-1)` 和 `line() > 0` 的守卫。
+## 注意事项
+
+:::warning[滚动位置属于这个 Scroll]
+和 `Page` 一样，当前行保存在 `Scroll` 对象里。每名玩家要有自己的 `Scroll` 才能独立滚动，底层的成就列表可以共用。
+:::
+
+:::warning[列表缩短时位置会回退]
+列表变短、可滚动的范围变小时，当前行会自动落回 `[0, maxLine]` 之内。内容不足一屏时，哪边都滚不动。
+:::
 
 <Details summary="示例共用的物品命名方法" previewHeight={0}>
 
@@ -47,17 +90,18 @@ Window.builder(pane).setTitle("滚动目录").open(viewer);
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](/item/render)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](/item/render) 中的写法相同。
 
 </Details>
 
 <NextStep
   to="/signal-ui/tab"
   title="标签选中态"
-  description="切换分类内容，同时标出当前选中的标签。"
+  description="切换标签内容，同时标出当前选中的标签。"
 />

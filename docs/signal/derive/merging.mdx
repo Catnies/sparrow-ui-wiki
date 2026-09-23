@@ -1,0 +1,103 @@
+---
+title: merging
+sidebar_label: merging
+---
+
+The party menu shows the party's total health. Each member's health is its own Signal, and members join and leave at any time.
+
+[combine](/signal/derive/combine) fixes its sources at creation, at most three, so it cannot handle a party whose size changes. Listening yourself means subscribing to each new member's health when they join and unsubscribing when they leave, which is easy to get wrong.
+
+## What merging does
+
+`Signals.merging` watches two things at once: the member list itself, and each member's Signal. When the list changes, or any member's Signal changes, it notifies downstream.
+
+New members are watched as soon as they join and dropped as soon as they leave.
+
+It returns a `Signal<Long>`, a number that grows on every change. The number has no business meaning; it only says "something changed". Chain a `map` to compute the real result.
+
+## Total party health
+
+The party list is a [ListSignal](/signal/collection/list), so members can be added and removed in place. The menu shows each member, with the total on the right.
+
+<SignalStepDemo
+  code={`
+    record Member(String name, MutableSignal<Integer> health) {}
+
+    Member alice = new Member("Alice", Signal.of(20));
+    Member bob = new Member("Bob", Signal.of(14));
+    Member carol = new Member("Carol", Signal.of(20));
+
+    MutableListSignal<Member> party = ListSignal.of();
+    party.addAll(List.of(alice, bob));
+
+    // The second argument tells merging how to get a member's Signal
+    Signal<Long> changed = Signals.merging(party, Member::health);
+    Signal<Integer> totalHealth = changed.map(ignored ->
+            party.stream().mapToInt(member -> member.health().get()).sum()
+    );
+
+    Subscription subscription = totalHealth.onDirty(() -> {
+        System.out.println("Party health: " + totalHealth.get());
+    });
+
+    System.out.println(totalHealth.get());  // 34
+    alice.health().set(15);  // prints "Party health: 29"
+    party.remove(bob);       // prints "Party health: 15"
+    bob.health().set(0);     // Bob left and is no longer watched, prints nothing
+    party.add(carol);        // prints "Party health: 35"
+
+    subscription.close();
+  `}
+  title="Party"
+  layout={['ABC#####T']}
+  signals={[
+    {id: 'party', label: 'party'},
+    {id: 'a', label: 'alice.health'},
+    {id: 'b', label: 'bob.health'},
+    {id: 'total', label: 'totalHealth'},
+  ]}
+  items={(s) => ({
+    A: s.party.includes('Alice') ? {icon: 'golden_apple', name: `Alice ❤ ${s.a}`} : null,
+    B: s.party.includes('Bob') ? {icon: 'golden_apple', name: `Bob ❤ ${s.b}`} : null,
+    C: s.party.includes('Carol') ? {icon: 'golden_apple', name: 'Carol ❤ 20'} : null,
+    T: {icon: 'red_stained_glass_pane', name: `Party health: ${s.total}`, nameColor: '#ff5555'},
+  })}
+  steps={[
+    {lines: '1-8', state: {party: 'Alice, Bob', a: 20, b: 14, total: 34}, note: 'Alice and Bob form a party; Carol has not joined yet.'},
+    {lines: '10-14', state: {party: 'Alice, Bob', a: 20, b: 14, total: 34}, note: 'merging watches the list plus Alice and Bob\'s health. The map adds the health up.'},
+    {lines: '16-18', state: {party: 'Alice, Bob', a: 20, b: 14, total: 34}, note: 'Subscribe to the total.'},
+    {lines: '20', state: {party: 'Alice, Bob', a: 20, b: 14, total: 34}, output: '34'},
+    {lines: '21', state: {party: 'Alice, Bob', a: 15, b: 14, total: 29}, notified: ['a', 'total'], output: 'Party health: 29', refresh: ['A', 'T'],
+      note: 'A member\'s Signal changed.'},
+    {lines: '22', state: {party: 'Alice', a: 15, b: 14, total: 15}, notified: ['party', 'total'], output: 'Party health: 15', refresh: ['B', 'T'],
+      note: 'The list changed. merging also stops watching Bob\'s health.'},
+    {lines: '23', state: {party: 'Alice', a: 15, b: 0, total: 15}, notified: ['b'], quiet: ['total'],
+      note: 'Bob is no longer in the list, so his change has nothing to do with the party.'},
+    {lines: '24', state: {party: 'Alice, Carol', a: 15, b: 0, total: 35}, notified: ['party', 'total'], output: 'Party health: 35', refresh: ['C', 'T'],
+      note: 'Carol joins and merging starts watching her health.'},
+  ]}
+/>
+
+The same pattern gives average health, the number of living members, or the member with the lowest health; just change the calculation inside `map`.
+
+## Holding the list in a plain Signal
+
+The member list can also be a `MutableSignal<List<Member>>`. Then publish a new list with `set`, such as `members.set(List.of(alice, carol))`. Changing the old list in place notifies nobody.
+
+`ListSignal` and `SetSignal` support in-place changes and work directly as member sources, which is usually more convenient.
+
+## Caveats
+
+:::warning[Members and iteration order]
+The function that gets a Signal should return the member's existing Signal, not create a new one on every call. The list's iteration order should be stable.
+:::
+
+:::warning[Do not put Player in members]
+The list is held long term. Identify players in member objects by UUID or name, never by storing a `Player`.
+:::
+
+<NextStep
+  to="/signal/time/debounce"
+  title="debounce"
+  description="Wait until input settles, such as searching only after the player finishes typing."
+/>

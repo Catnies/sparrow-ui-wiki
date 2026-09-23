@@ -146,12 +146,14 @@ CompletableFuture.supplyAsync(() -> database.loadCoins(uuid), executor)
 
 ```java
 // 每名玩家一份金币, 第一次读取时在 executor 上查询, 查询完成前显示 0
-PlayerKeyedSignal<Long> coins = PlayerKeyedSignal.async(0L, executor, database::loadCoins);
+KeyedSignal<UUID, Long> coins = KeyedSignal.async(0L, executor, database::loadCoins);
+// 玩家退出时丢弃这名玩家的缓存
+Signals.evictOnQuit(coins);
 
 // 按查看者读取各自的金币
 Item coinsItem = Item.builder()
-        .setItemProvider(context -> coinsIcon(coins.get(context.player())))
-        .dependsOn(coins)
+        .setItemProvider(context -> coinsIcon(coins.get(context.player().getUniqueId())))
+        .dependsOn(coins, context -> context.player().getUniqueId())
         .build();
 
 // 金币在别处改了: 标记过期, 后台重新查询, 查完后正在显示的菜单自动更新
@@ -161,7 +163,7 @@ coins.dirty(uuid);
 </TabItem>
 </Tabs>
 
-上面的手动写法每次打开菜单都会查询，还要在结果返回后检查窗口。使用 `PlayerKeyedSignal` 的示例会按玩家缓存结果。
+上面的手动写法每次打开菜单都会查询，还要在结果返回后检查窗口。使用 Signal 的示例会按玩家缓存结果。
 
 - 查询完成时如果菜单已经关闭，结果仍会存入缓存，下次打开可以使用
 - 重新查询期间，菜单继续显示上一次的结果，查完再更新，不会出现空白
@@ -174,7 +176,7 @@ Signal 是一个会变化的值，值变化时通知依赖它的地方。使用 
 
 | 角色 | 是什么 | 例子 |
 |---|---|---|
-| 数据源 | 保存值，可以写入 | `Signal.of`、`Signal.async`、`PlayerKeyedSignal` |
+| 数据源 | 保存值，可以写入 | `Signal.of`、`Signal.async`、`KeyedSignal` |
 | 派生 | 由其他 Signal 计算出来，上游变化时跟着变化 | `map`、`Signals.combine` |
 | 消费者 | 读取 Signal 并更新界面 | Item 的 `dependsOn`，Window、Pane、容器的 `bind` |
 
@@ -221,7 +223,7 @@ Signal 是一个会变化的值，值变化时通知依赖它的地方。使用 
 Item 的显示订阅由 Sparrow UI 管理，关闭菜单后会解除对应订阅。没有其他订阅者时，自动轮询会停止，派生结果也只在被读取时计算。
 
 <NextStep
-  to="/signal/basics"
-  title="Signal 基础"
-  description="创建、读取和写入 Signal，派生新的值，并订阅它的变化。"
+  to="/signal/basics/mutable"
+  title="可写状态"
+  description="用 Signal.of 创建一个能读能写的状态。"
 />

@@ -1,0 +1,181 @@
+/* SignalStepDemo.module.css
+   外框与 SignalFlowDemo 一致：上下两条分隔线，直角、无投影。
+   代码行的压暗与 CodeSteps 相同；状态色用 Infima 的主题色与当前背景调和，浅色、深色下都看得清。 */
+
+.wrapper {
+  margin: 1.2rem 0;
+  padding: 16px 0;
+  border-block: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.controls button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.counter {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  min-height: 1.75em;
+  margin: 0 0 12px;
+  padding-left: 0.8rem;
+  border-left: 2px solid var(--ifm-color-primary);
+  border-radius: 0;
+  font-size: 0.95rem;
+  line-height: 1.75;
+}
+
+/* ── 代码：整份显示，没被选中的行压暗 ── */
+
+.code > div {
+  margin-bottom: 12px;
+}
+
+.code :global(.token-line) {
+  opacity: 1;
+  transition: opacity 220ms ease, background-color 220ms ease;
+}
+
+.code :global(.token-line:not(.theme-code-block-highlighted-line)) {
+  opacity: 0.38;
+}
+
+/* ── 结果：菜单 + Signal 状态 + 控制台 ── */
+
+.result {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px 20px;
+  align-items: start;
+}
+
+/* 成品窗口自带上下外边距，这里清掉 */
+.window > div {
+  margin: 0;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.values {
+  display: table;
+  width: 100%;
+  margin: 0;
+  font-size: 0.82rem;
+  border-collapse: collapse;
+}
+
+.values tr {
+  border: 0;
+  background: transparent;
+  transition: background-color 0.2s ease-out;
+}
+
+.values th,
+.values td {
+  padding: 4px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.values th {
+  font-weight: normal;
+  white-space: nowrap;
+}
+
+.values td {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* 这一步值变了的 Signal */
+.changed {
+  background: color-mix(in srgb, var(--ifm-color-primary) 14%, transparent) !important;
+}
+
+.staleValue {
+  color: var(--ifm-color-emphasis-600);
+  text-decoration: line-through;
+}
+
+.badgeCell {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 6px;
+  font-size: 0.72rem;
+  border: 1px solid;
+}
+
+.notified {
+  border-color: var(--ifm-color-success);
+  background: color-mix(in srgb, var(--ifm-color-success) 18%, transparent);
+}
+
+.quiet {
+  border-color: var(--ifm-color-emphasis-400);
+  color: var(--ifm-color-emphasis-700);
+}
+
+.stale {
+  border-color: var(--ifm-color-warning);
+  background: color-mix(in srgb, var(--ifm-color-warning) 18%, transparent);
+}
+
+.console {
+  padding: 6px 10px;
+  min-height: 2.4em;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  background: var(--ifm-code-background);
+  color: var(--ifm-color-emphasis-800);
+}
+
+.consoleEmpty {
+  color: var(--ifm-color-emphasis-500);
+}
+
+.consoleNew {
+  color: var(--ifm-color-success-darkest);
+  font-weight: 600;
+}
+
+[data-theme='dark'] .consoleNew {
+  color: var(--ifm-color-success-lightest);
+}
+
+@media (max-width: 760px) {
+  .result {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .values tr,
+  .code :global(.token-line) {
+    transition: none;
+  }
+}

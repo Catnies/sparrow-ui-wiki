@@ -1,0 +1,101 @@
+---
+title: switching
+sidebar_label: switching
+---
+
+The skill menu has two class tabs at the top, Warrior and Mage, and shows the remaining skill points of the current class below. Each class's skill points live in their own Signal.
+
+Combining the class and both point Signals with [combine](/signal/derive/combine) gives the right answer, but adds dependencies. While a player looks at the Warrior tab, any change to the Mage points still refreshes the item. The more classes, the more wasted refreshes.
+
+## What switching does
+
+`Signals.switching` takes a "selection" Signal and a set of sources. It only follows the currently selected source; the others can change however they like without affecting it.
+
+When the selection changes, it switches to the new source and reads its current value right away.
+
+## Showing the selected class's skill points
+
+The first argument maps selection values to sources, and the second is the selection Signal. The skill point item depends on `skillPoints`.
+
+<SignalStepDemo
+  code={`
+    MutableSignal<Integer> warriorPoints = Signal.of(5);
+    MutableSignal<Integer> magePoints = Signal.of(2);
+    MutableSignal<String> job = Signal.of("warrior");
+
+    Signal<Integer> skillPoints = Signals.switching(
+            Map.of("warrior", warriorPoints, "mage", magePoints),
+            job
+    );
+
+    Subscription subscription = skillPoints.onDirty(() -> {
+        System.out.println("Skill points: " + skillPoints.get());
+    });
+
+    magePoints.set(3);     // mage not selected, prints nothing
+    job.set("mage");       // prints "Skill points: 3"
+    warriorPoints.set(6);  // warrior is no longer the source, prints nothing
+    magePoints.set(4);     // prints "Skill points: 4"
+
+    subscription.close();
+  `}
+  title="Skill tree"
+  layout={['#W#M#P###']}
+  signals={[
+    {id: 'job', label: 'job'},
+    {id: 'warrior', label: 'warriorPoints'},
+    {id: 'mage', label: 'magePoints'},
+    {id: 'points', label: 'skillPoints'},
+  ]}
+  items={(s) => ({
+    W: {icon: 'diamond_sword', name: s.job === 'warrior' ? '▶ Warrior' : 'Warrior', nameColor: s.job === 'warrior' ? '#55ff55' : '#aaaaaa'},
+    M: {icon: 'blaze_powder', name: s.job === 'mage' ? '▶ Mage' : 'Mage', nameColor: s.job === 'mage' ? '#55ff55' : '#aaaaaa'},
+    P: {icon: 'emerald', name: `Skill points left: ${s.points}`, count: s.points},
+  })}
+  steps={[
+    {lines: '1-8', state: {job: 'warrior', warrior: 5, mage: 2, points: 5}, note: 'Warrior is selected, so skillPoints follows warriorPoints.'},
+    {lines: '10-12', state: {job: 'warrior', warrior: 5, mage: 2, points: 5}, note: 'Subscribe to skill point changes.'},
+    {lines: '14', state: {job: 'warrior', warrior: 5, mage: 3, points: 5}, notified: ['mage'], quiet: ['points'],
+      note: 'The Mage points changed, but Mage is not selected, so the item does not refresh.'},
+    {lines: '15', state: {job: 'mage', warrior: 5, mage: 3, points: 3}, notified: ['job', 'points'], output: 'Skill points: 3', refresh: ['W', 'M', 'P'],
+      note: 'Switch to Mage. It now follows magePoints and reads 3.'},
+    {lines: '16', state: {job: 'mage', warrior: 6, mage: 3, points: 3}, notified: ['warrior'], quiet: ['points'],
+      note: 'Warrior is no longer the source, so this change is ignored.'},
+    {lines: '17', state: {job: 'mage', warrior: 6, mage: 4, points: 4}, notified: ['mage', 'points'], output: 'Skill points: 4', refresh: ['P']},
+  ]}
+/>
+
+In real projects the selection is usually an enum, such as `Map.of(Job.WARRIOR, warriorPoints, Job.MAGE, magePoints)`.
+
+## Switching between partitions
+
+There are many arenas and new ones get added, so listing them in a map is not practical. Each arena's player count lives in a [KeyedSignal](/signal/keyed/basics) partitioned by arena id, and `switching` accepts it directly.
+
+```java
+MutableKeyedSignal<String, Integer> arenaPlayers = KeyedSignal.of(arena -> 0);
+MutableSignal<String> selectedArena = Signal.of("desert");
+Signal<Integer> shown = Signals.switching(arenaPlayers, selectedArena);
+
+arenaPlayers.set("desert", 6);
+arenaPlayers.set("forest", 2);
+System.out.println(shown.get());  // 6
+
+selectedArena.set("forest");      // the player clicked the forest arena in the list
+System.out.println(shown.get());  // 2
+```
+
+When partitions load asynchronously, switching to a new partition starts loading it on the first read, and the placeholder is returned meanwhile; see [Async and polling partitions](/signal/keyed/async).
+
+## Caveats
+
+:::warning[The map and the selection]
+The map is copied, so changing the original map later adds no sources. It must not be empty; if the current selection has no source in the map when read, `IllegalArgumentException` is thrown.
+
+The selection Signal's value must not be `null`.
+:::
+
+<NextStep
+  to="/signal/derive/merging"
+  title="merging"
+  description="Track a group of members that come and go, such as the total health of a party."
+/>

@@ -39,6 +39,8 @@ const ADMONITIONS = new Set(['note', 'tip', 'info', 'warning', 'danger', 'cautio
 
 /** JSX 写成的 prop 值。转换函数只能忽略它；需要当文字用时 ctx.string 会报错。 */
 const JSX_VALUE = Object.freeze({jsx: true});
+// 回调函数类的 prop（例如按状态生成物品的 items）不求值，转换函数用不到它们
+const FUNCTION_VALUE = Object.freeze({function: true});
 
 /**
  * 转换一篇文档，返回 {markdown, lead}。
@@ -167,7 +169,7 @@ function readProps(node, state) {
 /**
  * 求出 prop 表达式的值，只认字面量：字符串、数字、数组、对象、无插值的模板字符串。
  *
- * 不执行任何代码。写成 JSX 的值返回 JSX_VALUE，其他表达式直接报错。
+ * 不执行任何代码。写成 JSX 的值返回 JSX_VALUE，函数返回 FUNCTION_VALUE，其他表达式直接报错。
  */
 function evaluate(expression, state, node) {
   switch (expression.type) {
@@ -190,6 +192,9 @@ function evaluate(expression, state, node) {
     case 'JSXElement':
     case 'JSXFragment':
       return JSX_VALUE;
+    case 'ArrowFunctionExpression':
+    case 'FunctionExpression':
+      return FUNCTION_VALUE;
   }
   throw locatedError(state, node, `<${node.name}> props contain a ${expression.type}, only literals can be converted to Markdown`);
 }

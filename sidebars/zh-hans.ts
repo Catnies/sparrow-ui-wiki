@@ -85,12 +85,62 @@ const sidebars: SidebarsConfig = {
       label: '⚡ 响应式 Signal（可选）',
       items: [
         'signal/why',
-        'signal/basics',
-        'signal/derive',
-        'signal/async',
-        'signal/polling',
-        'signal/collections',
-        'signal/partitions',
+        {
+          type: 'category',
+          label: '入门',
+          items: [
+            'signal/basics/mutable',
+            'signal/basics/subscribe',
+          ],
+        },
+        {
+          type: 'category',
+          label: '派生',
+          items: [
+            'signal/derive/map',
+            'signal/derive/map-distinct',
+            'signal/derive/combine',
+            'signal/derive/lens',
+            'signal/derive/switching',
+            'signal/derive/merging',
+          ],
+        },
+        {
+          type: 'category',
+          label: '时间控制',
+          items: [
+            'signal/time/debounce',
+            'signal/time/throttle',
+            'signal/time/clock',
+          ],
+        },
+        {
+          type: 'category',
+          label: '数据来源',
+          items: [
+            'signal/source/async',
+            'signal/source/polling',
+          ],
+        },
+        {
+          type: 'category',
+          label: '集合',
+          items: [
+            'signal/collection/list',
+            'signal/collection/set',
+            'signal/collection/map',
+            'signal/collection/read-only',
+          ],
+        },
+        {
+          type: 'category',
+          label: '分区',
+          items: [
+            'signal/keyed/basics',
+            'signal/keyed/async',
+            'signal/keyed/player',
+          ],
+        },
         {
           type: 'category',
           label: 'Signal 在 UI 中的使用',

@@ -3,56 +3,89 @@ title: Item display
 sidebar_label: Item display
 ---
 
-In the purchase menu, the player clicks the diamond and the quantity rises by one each time. The button's name starts at "Quantity: 1" and should read "Quantity: 2" after the click. The quantity belongs to this menu open alone, so the menu creates a plain Signal at build time.
+The attribute menu has a "Strength" button whose name shows the current level and the remaining skill points. Each click raises Strength by one and spends a point, and the name follows; once the points run out, clicking does nothing.
 
-`viewer` in the examples is the player opening the menu, and Sparrow UI initialization must have completed beforehand. `named` builds an item with a name; drop the method below into your menu class.
+The button's look depends on two Signals. After a click, something has to tell the menu to redraw this slot, and only this slot.
 
-<Details summary="The item naming helper shared by the examples" previewHeight={0}>
+## What dependsOn does
+
+`Item.builder().dependsOn(signals...)` declares which Signals the item's look depends on. When any of them notifies, the slots showing this item run the Provider again on the next tick and get the new look.
+
+Sparrow UI manages the subscription. It subscribes while the item is shown in a window and unsubscribes when the window closes, so you never keep a `Subscription` yourself.
+
+## An attribute button
+
+Step through and watch the button name change with each click.
+
+<SignalStepDemo
+  code={`
+    MutableSignal<Integer> strength = Signal.of(1);
+    MutableSignal<Integer> points = Signal.of(2);  // remaining skill points
+
+    Item strengthButton = Item.builder()
+            .dependsOn(strength, points)  // the look depends on both Signals
+            .setItemProvider(context -> {
+                String name = "Strength Lv." + strength.get() + " (" + points.get() + " points left)";
+                return named(Material.DIAMOND_SWORD, name);
+            })
+            .addClickGuard((item, click) -> points.get() > 0)  // ignore clicks without points
+            .addClickHandler(click -> {
+                points.update(value -> value - 1);
+                strength.update(value -> value + 1);
+            })
+            .build();
+
+    Pane pane = Pane.builder("####S####")
+            .addIngredient('S', strengthButton)
+            .build();
+    Window.builder(pane).setTitle("Attributes").open(viewer);
+  `}
+  title="Attributes"
+  layout={['####S####']}
+  signals={[{id: 'strength', label: 'strength'}, {id: 'points', label: 'points'}]}
+  items={(s) => ({S: {icon: 'diamond_sword', name: `Strength Lv.${s.strength} (${s.points} points left)`}})}
+  steps={[
+    {lines: '1-2', state: {strength: 1, points: 2}, note: 'Strength is level 1 with 2 skill points left.'},
+    {lines: '4-15', state: {strength: 1, points: 2}, note: 'The button depends on strength and points. The guard blocks clicks when no points are left.'},
+    {lines: '17-20', state: {strength: 1, points: 2}, refresh: ['S'], note: 'Opening the window runs the Provider once and shows the initial name.'},
+    {lines: '11-14', state: {strength: 2, points: 1}, notified: ['strength', 'points'], refresh: ['S'],
+      note: 'The player clicks. Both Signals change, but several notifications in one tick redraw this slot only once.'},
+    {lines: '11-14', state: {strength: 3, points: 0}, notified: ['strength', 'points'], refresh: ['S'], note: 'Another click spends the last point.'},
+    {lines: '10', state: {strength: 3, points: 0}, quiet: ['strength', 'points'],
+      note: 'The third click is blocked by the guard. The handler does not run, nothing changes, and the button does not refresh.'},
+  ]}
+/>
+
+The click handler only changes data and never calls `updateOnClick()`. Which slots redraw is decided by the `dependsOn` dependencies.
+
+## Caveats
+
+:::warning[Reading in the Provider creates no dependency]
+Calling `strength.get()` in the Provider only reads the value once. Forget `dependsOn(strength)` and the button will not refresh when the data changes. Pass every Signal the look depends on to `dependsOn`; if you already combined them with [combine](/signal/derive/combine), depend on the combined result.
+:::
+
+:::warning[Guard and look should read the same data]
+A button that looks clickable but is blocked, or the other way round, confuses players. Have the guard and the Provider read the same Signal so the two can never disagree.
+:::
+
+<Details summary="The naming helper used in the examples" previewHeight={0}>
 
 ```java
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching the style in [Item rendering](/item/render).
+It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching [Item rendering](/item/render).
 
 </Details>
-
-## The button follows the quantity
-
-
-<MinecraftSlotGrid
-  title="Pick a quantity"
-  rows={['####Q####']}
-  legend={{Q: 'quantity button'}}
-  items={{Q: {icon: 'diamond', name: 'Quantity: 1'}}}
-  caption="The initial quantity is 1. Clicking changes the number in the name; the diamond's stack size stays 1."
-/>
-
-```java
-MutableSignal<Integer> quantity = Signal.of(1);
-Item amountButton = Item.builder()
-        .dependsOn(quantity)
-        .setItemProvider(context -> named(Material.DIAMOND, "Quantity: " + quantity.get()))
-        .addClickHandler(click -> quantity.update(value -> value + 1))
-        .build();
-
-Pane pane = Pane.builder("####Q####")
-        .addIngredient('Q', amountButton)
-        .build();
-Window.builder(pane).setTitle("Pick a quantity").open(viewer);
-```
-
-`dependsOn(quantity)` declares that this Item's display depends on the quantity. The click only writes data; the library requests a redraw of every position showing the Item, the provider runs again, and the new name appears. No `updateOnClick()` needed.
-
-Merely reading `quantity.get()` inside the provider does not create a dependency. When the look depends on several independent states, pass them together with `dependsOn(quantity, price)`; if a `combine` already derived the total, depending on the total Signal works too.
 
 <NextStep
   to="/signal-ui/player"
   title="Per-player display"
-  description="Share one button across Windows while each player sees their own data."
+  description="Share one button across windows while each viewer sees their own data."
 />

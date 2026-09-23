@@ -80,7 +80,7 @@ rewards.subscribeClick(event -> {
 });
 ```
 
-The event provides `player()`, `slot()`, `clickType()`, `hotbarButton()`, and `action()`. `slot()` is the inventory's own slot index; `action()` is the click's final effect, `NOTHING` when nothing changed.
+The event provides `player()`, `slot()`, `clickType()`, `hotbarButton()`, and `action()`. `slot()` is the inventory's own slot index; `action()` is the click's final effect, typed as Sparrow UI's own `InventoryClickAction` enum, and `NOTHING` when nothing changed. It covers common operations such as `PICKUP_ALL`, `PLACE_ONE`, and `MOVE_TO_OTHER_INVENTORY`, and tells bundle insertions and extractions apart, such as `PLACE_ALL_INTO_BUNDLE` and `PICKUP_FROM_BUNDLE`.
 
 Only the clicked inventory receives the click event. On a shift transfer, the receiving inventory gets no click event, only the pre- and post-commit events below. Drags and clicks on button slots dispatch nothing here; button clicks are covered in [Clicks and guards](/item/click).
 

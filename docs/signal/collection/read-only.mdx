@@ -1,0 +1,132 @@
+---
+title: Read-only views and online players
+sidebar_label: Read-only views and online players
+---
+
+A room's waiting queue should only be changed by the room itself; menus, scoreboards, and other modules just display it. Hand out the `MutableListSignal`, though, and anyone can call `clear()` and wipe the queue.
+
+Another common need is the online player list. Maintaining it yourself means listening to join and quit events and handling several players joining in the same tick.
+
+## What read-only views and the online list do
+
+Every collection Signal can produce a read-only view with `asReadOnly()`. The view can be read, subscribed to, and derived from, but any modifying method throws `UnsupportedOperationException`. It is another way of looking at the same collection, not a copy: when the source changes, the view's subscribers are notified.
+
+`Signals.onlinePlayers()` is Sparrow UI's built-in online player list, a read-only `ListSignal<Player>` that updates as players join and leave.
+
+## Exposing read-only access
+
+Keep the field as `MutableListSignal` and return a read-only view.
+
+```java
+public final class GameRoom {
+    private final MutableListSignal<UUID> waiting = ListSignal.of();
+
+    // calling asReadOnly() repeatedly on the same list returns the same view object
+    public ListSignal<UUID> waiting() {
+        return this.waiting.asReadOnly();
+    }
+
+    public void join(UUID playerId) {
+        if (!this.waiting.contains(playerId)) {
+            this.waiting.add(playerId);
+        }
+    }
+
+    public void leave(UUID playerId) {
+        this.waiting.remove(playerId);
+    }
+}
+```
+
+This is what other code sees once it has `waiting()`. `alice` and `bob` are two players' UUIDs.
+
+<SignalStepDemo
+  code={`
+    GameRoom room = new GameRoom();
+    ListSignal<UUID> waiting = room.waiting();
+    Signal<Integer> waitingCount = waiting.mapDistinct(List::size);
+
+    room.join(alice);
+    room.join(bob);
+    System.out.println(waitingCount.get());  // 2
+
+    waiting.clear();  // throws UnsupportedOperationException
+  `}
+  title="Waiting room"
+  layout={['AB######S']}
+  signals={[{id: 'waiting', label: 'waiting'}, {id: 'count', label: 'waitingCount'}]}
+  items={(s) => ({
+    A: s.count >= 1 ? {icon: 'paper', name: 'Alice'} : null,
+    B: s.count >= 2 ? {icon: 'paper', name: 'Bob'} : null,
+    S: {icon: 'lime_dye', name: `Waiting ${s.count} / 8`},
+  })}
+  steps={[
+    {lines: '1-3', state: {waiting: '[]', count: 0}, note: 'This is a read-only view, and deriving from it works as usual.'},
+    {lines: '5', state: {waiting: '[alice]', count: 1}, notified: ['waiting', 'count'], refresh: ['A', 'S'], note: 'The room changes its own queue, and the view\'s subscribers are notified too.'},
+    {lines: '6', state: {waiting: '[alice, bob]', count: 2}, notified: ['waiting', 'count'], refresh: ['B', 'S']},
+    {lines: '7', state: {waiting: '[alice, bob]', count: 2}, output: '2'},
+    {lines: '9', state: {waiting: '[alice, bob]', count: 2}, output: 'UnsupportedOperationException', note: 'Modifying through the view throws, and the queue is untouched.'},
+  ]}
+/>
+
+The view's `get()`, iterators, and `subList` cannot be used to modify it either. `asReadOnly()` on `SetSignal` and `MapSignal` follows the same rules; a read-only `MapSignal` also blocks changes through `keySet()`, `values()`, `entrySet()`, and `Map.Entry.setValue`.
+
+## Showing online players
+
+The lobby menu's title shows the online count and lists player names below. No event listeners needed.
+
+<SignalStepDemo
+  code={`
+    ListSignal<Player> online = Signals.onlinePlayers();
+    Signal<String> onlineText = online.mapDistinct(players ->
+            "Online: " + players.size()
+    );
+    Signal<List<String>> names = online.mapDistinct(players ->
+            players.stream().map(Player::getName).toList()
+    );
+
+    // Alice and Bob join the server in the same tick
+    // on the next tick, onlineText and names are each notified once
+  `}
+  title={(s) => `Lobby · ${s.text}`}
+  layout={['ABC######']}
+  signals={[{id: 'online', label: 'online.get()'}, {id: 'text', label: 'onlineText'}, {id: 'names', label: 'names'}]}
+  items={(s) => {
+    const list = s.names.slice(1, -1).split(', ').filter(Boolean);
+    const slot = (index) => (list[index] ? {icon: 'paper', name: list[index]} : null);
+    return {A: slot(0), B: slot(1), C: slot(2)};
+  }}
+  steps={[
+    {lines: '1-7', state: {online: '[Steve]', text: 'Online: 1', names: '[Steve]'}, note: 'Only Steve is on the server.'},
+    {lines: '9', state: {online: '[Steve, Alice, Bob]', text: 'Online: 1', names: '[Steve]'}, stale: ['text', 'names'],
+      note: 'Right after the join events, get() already reads the new list. The notification is held and merged into the next tick.'},
+    {lines: '10', state: {online: '[Steve, Alice, Bob]', text: 'Online: 3', names: '[Steve, Alice, Bob]'}, notified: ['online', 'text', 'names'], refresh: ['B', 'C'],
+      note: 'One notification on the next tick: two players joined, and the menu refreshes once.'},
+  ]}
+/>
+
+To put list contents in menu slots, see [List contents](/signal-ui/list).
+
+## Caveats
+
+:::warning[Only the collection is read-only]
+The view blocks changes to the collection, but mutable element objects can still have their fields changed. Keep elements immutable.
+:::
+
+:::warning[The online list's get() returns a snapshot]
+Each time the list changes, `get()` produces a new unmodifiable list, and returns the same one while nothing changes. A list you already obtained does not change with later joins and quits.
+
+Notifications come from the Bukkit main thread, or the global region thread on Folia. There is one instance for the whole server, and every call returns the same object. Sparrow UI must be [initialized](/getting-started/installation#initialization) first.
+:::
+
+:::warning[Do not keep Player objects]
+The `Player` objects in the list are managed by Sparrow UI and removed when players quit. Do not copy them into your own collections, maps, or partitions; store UUIDs when you need to remember players.
+
+Derivation functions may run on threads that do not own the player, so only read names, UUIDs, and other data that does not need the owning thread.
+:::
+
+<NextStep
+  to="/signal/keyed/basics"
+  title="KeyedSignal"
+  description="Hold independent state per key, with each key notifying separately."
+/>

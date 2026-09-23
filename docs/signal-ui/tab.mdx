@@ -3,73 +3,97 @@ title: Tab selection state
 sidebar_label: Tab selection state
 ---
 
-A category menu has to switch content and mark the active category. `Tab.selected()` exposes a Signal for the selected key, and buttons that depend on it can change their names.
+The skill menu has a class tab on each side, Warrior and Mage, with the current class's skill in the middle. When the player switches to Mage, the middle should show the Mage skill and the Mage tab should get a "▶" in front of it.
 
-`viewer` in the examples is the player opening the menu, and Sparrow UI initialization must have completed beforehand. `named` builds an item with a name; drop the method below into your menu class.
+[Tab](/pagination/tab) handles switching the middle contents, but the two tab buttons do not know which one is selected, so they never change.
 
-<Details summary="The item naming helper shared by the examples" previewHeight={0}>
+## What Tab.selected() does
+
+`Tab.selected()` is a Signal of the selected key. Tab buttons that depend on it refresh when the tab changes, and each button compares `selected().get()` with its own key to decide how to look.
+
+The content area follows the selection through `addIngredient(identifier, tabs)`, with no extra binding.
+
+## Class tabs
+
+<SignalStepDemo
+  code={`
+    Pane warrior = Pane.builder("S")
+            .addIngredient('S', Item.simple(named(Material.DIAMOND_SWORD, "Whirlwind")))
+            .build();
+    Pane mage = Pane.builder("S")
+            .addIngredient('S', Item.simple(named(Material.BLAZE_POWDER, "Fireball")))
+            .build();
+    Tab<String> tabs = Tab.of(Map.of("warrior", warrior, "mage", mage), "warrior");
+
+    Item warriorButton = Item.builder()
+            .dependsOn(tabs.selected())
+            .setItemProvider(context -> {
+                boolean selected = tabs.selected().get().equals("warrior");
+                return named(Material.DIAMOND_SWORD, selected ? "▶ Warrior" : "Warrior");
+            })
+            .addClickHandler(click -> tabs.select("warrior"))
+            .build();
+    Item mageButton = Item.builder()
+            .dependsOn(tabs.selected())
+            .setItemProvider(context -> {
+                boolean selected = tabs.selected().get().equals("mage");
+                return named(Material.BLAZE_POWDER, selected ? "▶ Mage" : "Mage");
+            })
+            .addClickHandler(click -> tabs.select("mage"))
+            .build();
+
+    Pane pane = Pane.builder("W###C###M")
+            .addIngredient('W', warriorButton)
+            .addIngredient('C', tabs)  // the content area follows the selected tab
+            .addIngredient('M', mageButton)
+            .build();
+    Window.builder(pane).setTitle("Skills").open(viewer);
+  `}
+  title="Skills"
+  layout={['W###C###M']}
+  signals={[{id: 'selected', label: 'tabs.selected()'}]}
+  items={(s) => ({
+    W: {icon: 'diamond_sword', name: s.selected === 'warrior' ? '▶ Warrior' : 'Warrior', nameColor: s.selected === 'warrior' ? '#55ff55' : '#aaaaaa'},
+    C: s.selected === 'warrior' ? {icon: 'diamond_sword', name: 'Whirlwind'} : {icon: 'blaze_powder', name: 'Fireball'},
+    M: {icon: 'blaze_powder', name: s.selected === 'mage' ? '▶ Mage' : 'Mage', nameColor: s.selected === 'mage' ? '#55ff55' : '#aaaaaa'},
+  })}
+  steps={[
+    {lines: '1-7', state: {selected: 'warrior'}, note: 'Each class has a sub-Pane; Warrior is selected by default.'},
+    {lines: '9-24', state: {selected: 'warrior'}, note: 'Both buttons depend on selected() and each checks whether it is the selected one.'},
+    {lines: '26-31', state: {selected: 'warrior'}, refresh: ['W', 'C', 'M'], note: 'Open the menu; the middle shows the Warrior\'s Whirlwind.'},
+    {lines: '23', state: {selected: 'mage'}, notified: ['selected'], refresh: ['W', 'C', 'M'],
+      note: 'Click the Mage tab. The middle switches to Fireball and both button names refresh.'},
+    {lines: '23', state: {selected: 'mage'}, quiet: ['selected'], note: 'Clicking Mage again changes nothing, so nothing refreshes.'},
+    {lines: '15', state: {selected: 'warrior'}, notified: ['selected'], refresh: ['W', 'C', 'M'], note: 'Back to Warrior.'},
+  ]}
+/>
+
+`Tab.lazy`, which creates sub-Panes on demand, uses the same binding.
+
+## Caveats
+
+:::warning[The selection belongs to this Tab]
+The selected tab lives in the `Tab` object. Each player needs their own `Tab` to switch independently; the class sub-Panes can be shared.
+:::
+
+<Details summary="The naming helper used in the examples" previewHeight={0}>
 
 ```java
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching the style in [Item rendering](/item/render).
+It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching [Item rendering](/item/render).
 
 </Details>
-
-## Switching categories and updating buttons
-
-
-The food category below shows an apple and the materials category a diamond, with the center `C` holding the current child Pane. Food starts selected; clicking materials swaps the center to the diamond and adds "(selected)" to the materials button.
-
-<MinecraftSlotGrid
-  title="Pick a category"
-  rows={['F###C###M']}
-  legend={{F: 'food category', C: 'current category content', M: 'materials category'}}
-  items={{
-    F: {icon: 'apple', name: 'Food (selected)'},
-    C: {icon: 'apple', name: 'Apple'},
-    M: {icon: 'diamond', name: 'Materials'},
-  }}
-  caption="Food starts selected with an apple in the center. Switching to materials shows the diamond and marks the materials button as selected."
-/>
-
-```java
-Pane food = Pane.builder("X")
-        .addIngredient('X', Item.simple(new ItemStack(Material.APPLE))).build();
-Pane material = Pane.builder("X")
-        .addIngredient('X', Item.simple(new ItemStack(Material.DIAMOND))).build();
-Tab<String> tabs = Tab.of(Map.of("food", food, "material", material), "food");
-
-Item foodButton = Item.builder()
-        .dependsOn(tabs.selected())
-        .setItemProvider(context -> named(Material.APPLE,
-                tabs.selected().get().equals("food") ? "Food (selected)" : "Food"))
-        .addClickHandler(click -> tabs.select("food"))
-        .build();
-Item materialButton = Item.builder()
-        .dependsOn(tabs.selected())
-        .setItemProvider(context -> named(Material.DIAMOND,
-                tabs.selected().get().equals("material") ? "Materials (selected)" : "Materials"))
-        .addClickHandler(click -> tabs.select("material"))
-        .build();
-Pane pane = Pane.builder("F###C###M")
-        .addIngredient('F', foodButton)
-        .addIngredient('C', tabs)
-        .addIngredient('M', materialButton)
-        .build();
-Window.builder(pane).setTitle("Pick a category").open(viewer);
-```
-
-The content area follows the selection through `addIngredient('C', tabs)`, and the two category buttons each depend on `selected()`. `Tab.lazy` uses the same binding style.
 
 <NextStep
   to="/signal-ui/title"
   title="Window titles"
-  description="Wire a quantity change into the Window's title refresh."
+  description="Update the window title automatically when data changes."
 />

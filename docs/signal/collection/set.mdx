@@ -1,0 +1,83 @@
+---
+title: SetSignal
+sidebar_label: SetSignal
+---
+
+In the waypoint menu, places the player has visited show as maps and the rest show as question marks, with discovery progress at the top. The first time a player reaches a waypoint, it is recorded.
+
+The catch is that players keep coming back to spawn. With a list, you would check for duplicates every time, or spawn gets recorded over and over and the progress goes wrong.
+
+## What SetSignal does
+
+A `SetSignal` is a `Set` you can subscribe to, with no duplicate elements. Adding an element that is already there changes nothing and notifies nobody.
+
+It works almost like [ListSignal](/signal/collection/list); `SetSignal.of()` returns a `MutableSetSignal`. It suits "have or have not" data, such as unlocked achievements, discovered waypoints, or checked options.
+
+## Recording discovered waypoints
+
+Each waypoint button in the menu uses `discovered.contains(name)` to decide between a map and a question mark.
+
+<SignalStepDemo
+  code={`
+    MutableSetSignal<String> discovered = SetSignal.of();
+    Signal<String> progress = discovered.mapDistinct(set ->
+            "Discovered " + set.size() + " / 4"
+    );
+
+    discovered.add("Spawn");
+    discovered.add("Desert Temple");
+    boolean addedAgain = discovered.add("Spawn");  // already there, returns false, no notification
+
+    System.out.println(addedAgain);                           // false
+    System.out.println(progress.get());                       // Discovered 2 / 4
+    System.out.println(discovered.contains("Desert Temple"));  // true
+  `}
+  title="Waypoints"
+  layout={['#ABCD##P#']}
+  signals={[{id: 'set', label: 'discovered'}, {id: 'progress', label: 'progress'}]}
+  items={(s) => {
+    const point = (name) => (s.set.includes(name)
+      ? {icon: 'map', name, nameColor: '#55ff55'}
+      : {icon: 'gray_dye', name: '???', nameColor: '#aaaaaa'});
+    return {A: point('Spawn'), B: point('Desert Temple'), C: point('Mines'), D: point('Nether Portal'),
+      P: {icon: 'book', name: s.progress}};
+  }}
+  steps={[
+    {lines: '1-4', state: {set: '[]', progress: 'Discovered 0 / 4'}, note: 'No waypoint visited yet.'},
+    {lines: '6', state: {set: '[Spawn]', progress: 'Discovered 1 / 4'}, notified: ['set', 'progress'], refresh: ['A', 'P']},
+    {lines: '7', state: {set: '[Spawn, Desert Temple]', progress: 'Discovered 2 / 4'}, notified: ['set', 'progress'], refresh: ['B', 'P']},
+    {lines: '8', state: {set: '[Spawn, Desert Temple]', progress: 'Discovered 2 / 4'}, quiet: ['set'],
+      note: 'Back at spawn, it is recorded again. Spawn is already in the set, so add returns false and the menu does not refresh. No contains check needed.'},
+    {lines: '10-12', state: {set: '[Spawn, Desert Temple]', progress: 'Discovered 2 / 4'}, output: ['false', 'Discovered 2 / 4', 'true']},
+  ]}
+/>
+
+## Backing set
+
+`SetSignal.of()` is backed by a `LinkedHashSet` and iterates in insertion order. For cross-thread access, wrap a concurrent set.
+
+```java
+MutableSetSignal<String> discovered = SetSignal.wrap(ConcurrentHashMap.newKeySet());
+```
+
+`MutableSetSignal` also provides `batch`, `beforeAdd`, and `afterRemove`; see [ListSignal](/signal/collection/list#merging-changes-with-batch).
+
+## Caveats
+
+:::warning[Same rules as ListSignal]
+`get()` returns a live view of the set itself; after `wrap` it must only be changed through the wrapper; sets created with `of()` are not thread safe; hook handles must be kept.
+:::
+
+:::warning[add checks for duplicates before hooks]
+`add` first checks whether the original element is present, and if so, `beforeAdd` does not run. If a hook swaps in an element equal to one already in the set, the add has no effect.
+:::
+
+:::warning[Do not store players]
+Set elements are kept long term. Do not store `Player`, `Entity`, or `World`; use UUIDs, names, or ids.
+:::
+
+<NextStep
+  to="/signal/collection/map"
+  title="MapSignal"
+  description="Hold data by key, such as a kill leaderboard or waypoints read from a config."
+/>

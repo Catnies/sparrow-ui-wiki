@@ -3,53 +3,90 @@ title: 玩家与分区显示
 sidebar_label: 玩家与分区显示
 ---
 
-Alice 在商店选择购买两件，Bob 仍选择一件，两人可以共用同一个 Item。区别在于这次依赖的是玩家分区，Provider 要读取当前查看者的值，点击时也更新点击者的分区。
+小游戏大厅里有一个「准备」按钮。Alice 点了之后，她看到的按钮变成「已准备」，Bob 看到的还是「点击准备」。
 
-示例共用的 `named` 辅助方法见页尾。
+每次打开菜单都新建一个按钮、捕获当时的 `viewer`，能做到，但按钮就没法在多个窗口之间共用了。想共用同一个按钮，它就得在渲染时知道「现在是谁在看」。
 
-## 共用按钮，各自显示玩家的数据
+## 按查看者绑定分区做什么
 
-下面的 `quantities` 和 `amountButton` 可以在商店服务中创建一次，让多个窗口复用。每次打开菜单时，把这个按钮放进对应 Pane 就行。
+`dependsOn(signal, keyOf)` 接收一个 [KeyedSignal](/signal/keyed/basics) 和一个取 key 的函数。函数收到当前显示位置的渲染上下文，返回这个位置要绑定的分区 key。
 
-<MinecraftSlotGrid
-  title="选择数量"
-  rows={['####Q####']}
-  legend={{Q: '当前玩家的数量'}}
-  items={{Q: {icon: 'diamond', name: '购买数量：1'}}}
-  caption="Alice 和 Bob 初次打开时都显示 1。Alice 点击一次后，她的按钮名称显示 2，Bob 仍显示 1。"
+按玩家分区时，取 `context.player().getUniqueId()`，每个查看者就绑定自己的分区。Alice 的分区变化，只有 Alice 看到的按钮刷新。
+
+## 共用的准备按钮
+
+`ready` 按玩家 UUID 保存准备状态，见 [玩家分区](/signal/keyed/player)。演示里上一行是 Alice 看到的按钮，下一行是 Bob 看到的，它们是同一个 `readyButton`。
+
+<SignalStepDemo
+  code={`
+    MutableKeyedSignal<UUID, Boolean> ready = KeyedSignal.of(playerId -> false);
+    Signals.evictOnQuit(ready);
+
+    // 按钮只创建一次，放进每名玩家打开的大厅菜单
+    Item readyButton = Item.builder()
+            .dependsOn(ready, context -> context.player().getUniqueId())
+            .setItemProvider(context -> {
+                boolean isReady = ready.get(context.player().getUniqueId());
+                return isReady
+                        ? named(Material.LIME_DYE, "已准备")
+                        : named(Material.GRAY_DYE, "点击准备");
+            })
+            .addClickHandler(click -> {
+                ready.update(click.player().getUniqueId(), value -> !value);
+            })
+            .build();
+
+    Pane pane = Pane.builder("####R####")
+            .addIngredient('R', readyButton)
+            .build();
+    Window.builder(pane).setTitle("小游戏大厅").open(viewer);
+  `}
+  title="小游戏大厅"
+  rows={2}
+  layout={['####A####', '####B####']}
+  signals={[{id: 'alice', label: 'ready[alice]'}, {id: 'bob', label: 'ready[bob]'}]}
+  items={(s) => ({
+    A: s.alice ? {icon: 'lime_dye', name: 'Alice 看到：已准备', nameColor: '#55ff55'} : {icon: 'gray_dye', name: 'Alice 看到：点击准备'},
+    B: s.bob ? {icon: 'lime_dye', name: 'Bob 看到：已准备', nameColor: '#55ff55'} : {icon: 'gray_dye', name: 'Bob 看到：点击准备'},
+  })}
+  steps={[
+    {lines: '1-2', state: {alice: false, bob: false}, note: '每名玩家的准备状态默认是 false，退出时自动清理。'},
+    {lines: '5-16', state: {alice: false, bob: false}, note: '按钮用渲染上下文里的查看者 UUID 选择分区，Provider 也用它读取。'},
+    {lines: '18-21', state: {alice: false, bob: false}, refresh: ['A', 'B'], note: 'Alice 和 Bob 各自打开大厅。同一个按钮在两扇窗口里分别绑定了两人的分区。'},
+    {lines: '13-15', state: {alice: true, bob: false}, notified: ['alice'], quiet: ['bob'], refresh: ['A'],
+      note: 'Alice 点击，只更新她自己的分区，只有她看到的按钮刷新。'},
+    {lines: '13-15', state: {alice: true, bob: true}, notified: ['bob'], quiet: ['alice'], refresh: ['B'], note: 'Bob 也点了准备。'},
+    {lines: '13-15', state: {alice: false, bob: true}, notified: ['alice'], quiet: ['bob'], refresh: ['A'], note: 'Alice 取消准备，Bob 不受影响。'},
+  ]}
 />
 
-```java
-MutablePlayerKeyedSignal<Integer> quantities = PlayerKeyedSignal.of(uuid -> 1);
-Item amountButton = Item.builder()
-        .dependsOn(quantities)
-        .setItemProvider(context -> named(Material.DIAMOND,
-                "购买数量：" + quantities.get(context.player())))
-        .addClickHandler(click -> quantities.update(click.player(), value -> value + 1))
-        .build();
+## 按业务 key 绑定
 
-Pane pane = Pane.builder("####Q####")
-        .addIngredient('Q', amountButton)
-        .build();
-Window.builder(pane).setTitle("选择数量").open(viewer);
-```
-
-`dependsOn(PlayerKeyedSignal)` 会按每个查看者的 UUID 绑定分区。Alice 改变数量时，只通知使用她的分区的显示位置，Bob 的按钮仍读取一件。不要在共用 Provider 里捕获创建菜单时的某个 `viewer`，应使用 `context.player()`。
-
-### 按其他业务 key 绑定
-
-若一个共用按钮显示的是钻石库存，可以使用 `KeyedSignal` 的重载。这里 `stock` 是商店持有的库存来源，演示初始库存为十件；所有查看者都绑定商品编号 `"diamond"`。
+key 不一定来自玩家。竞技场入口按钮显示沙漠竞技场的人数，所有查看者都绑定同一个分区 `"desert"`。
 
 ```java
-MutableKeyedSignal<String, Integer> stock = KeyedSignal.of(productId -> 10);
-Item stockButton = Item.builder()
-        .dependsOn(stock, player -> "diamond")
-        .setItemProvider(context -> named(Material.DIAMOND,
-                "剩余库存：" + stock.get("diamond")))
+MutableKeyedSignal<String, Integer> arenaPlayers = KeyedSignal.of(arena -> 0);
+
+Item desertButton = Item.builder()
+        .dependsOn(arenaPlayers, context -> "desert")  // 所有查看者都绑定 desert 分区
+        .setItemProvider(context -> {
+            String name = "沙漠竞技场：" + arenaPlayers.get("desert") + " 人";
+            return named(Material.SAND, name);
+        })
         .build();
 ```
 
-将 `stockButton` 放进 Pane 后，业务代码调用 `stock.set("diamond", 9)`，所有查看它的人都会看到新库存。`keyOf` 也可以根据玩家计算队伍编号等业务 key，但它在挂载时求值；玩家中途切换队伍，不会仅因函数的返回值变了就自动重新绑定。需要动态切换来源时，可以使用 [`switching`](/signal/derive)。
+业务代码调用 `arenaPlayers.update("desert", count -> count + 1)` 后，所有看着这个按钮的人都会看到新人数；森林竞技场的变化不会惊动它。
+
+## 注意事项
+
+:::warning[不要捕获创建菜单时的 viewer]
+共用的 Provider 和点击处理器里，查看者用 `context.player()`，点击者用 `click.player()`。捕获创建菜单时的某个 `viewer`，所有人看到的都会是那个人的数据。
+:::
+
+:::warning[keyOf 在挂载时求值]
+取 key 的函数在物品挂到格子上时执行一次。玩家中途换了队伍，函数现在会返回别的 key，但已经挂上的格子不会自动改绑。需要跟着选择切换来源时，用 [switching](/signal/derive/switching)。
+:::
 
 <Details summary="示例共用的物品命名方法" previewHeight={0}>
 
@@ -57,17 +94,18 @@ Item stockButton = Item.builder()
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](/item/render)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](/item/render) 中的写法相同。
 
 </Details>
 
 <NextStep
   to="/signal-ui/list"
   title="列表内容"
-  description="把不断增删的商品列表映射到菜单格子。"
+  description="把会增减的列表映射到一组格子上。"
 />

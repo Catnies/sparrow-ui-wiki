@@ -88,12 +88,62 @@ const sidebars: SidebarsConfig = {
       label: '⚡ Signal (Optional)',
       items: [
         'signal/why',
-        'signal/basics',
-        'signal/derive',
-        'signal/async',
-        'signal/polling',
-        'signal/collections',
-        'signal/partitions',
+        {
+          type: 'category',
+          label: 'Getting started',
+          items: [
+            'signal/basics/mutable',
+            'signal/basics/subscribe',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Derivation',
+          items: [
+            'signal/derive/map',
+            'signal/derive/map-distinct',
+            'signal/derive/combine',
+            'signal/derive/lens',
+            'signal/derive/switching',
+            'signal/derive/merging',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Timing',
+          items: [
+            'signal/time/debounce',
+            'signal/time/throttle',
+            'signal/time/clock',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Data sources',
+          items: [
+            'signal/source/async',
+            'signal/source/polling',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Collections',
+          items: [
+            'signal/collection/list',
+            'signal/collection/set',
+            'signal/collection/map',
+            'signal/collection/read-only',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Partitions',
+          items: [
+            'signal/keyed/basics',
+            'signal/keyed/async',
+            'signal/keyed/player',
+          ],
+        },
         {
           type: 'category',
           label: 'Binding Signals to Menus',

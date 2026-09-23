@@ -1,0 +1,106 @@
+---
+title: async 异步加载
+sidebar_label: async 异步加载
+---
+
+玩家打开个人资料菜单，要看到自己的击杀数和死亡数。这些战绩存在数据库里。
+
+在玩家线程里直接查数据库，查询要多久，服务器就卡多久。放到异步线程查询，结果回来时又得自己判断菜单还开没开着、该刷新哪个格子。
+
+## Signal.async 做什么
+
+`Signal.async` 在你指定的执行器上执行查询。查询完成前，读取得到占位值；查询完成后保存结果，并通知依赖它的地方。
+
+它接收三个参数，依次是占位值、执行查询的执行器、查询函数。创建时就会提交第一次查询，需要重新查询时调用 `dirty()`。
+
+## 读取战绩，打完一局后刷新
+
+假设插件里已经有一个 `statsRepository`，`load(UUID)` 查询数据库并返回 `PlayerStats`，`addKills(UUID, int)` 写入新增的击杀。这是你自己项目的代码，Sparrow UI 不负责连接数据库。`ioExecutor` 是插件复用的后台 I/O 执行器，`viewer` 是打开菜单的玩家。
+
+<SignalStepDemo
+  code={`
+    record PlayerStats(int kills, int deaths) {}
+
+    UUID playerId = viewer.getUniqueId();  // 后台任务只捕获 UUID，不持有玩家对象
+    AsyncSignal<PlayerStats> stats = Signal.async(
+            (PlayerStats) null,                   // 占位值，查询完成前 get() 返回它
+            ioExecutor,                           // 在哪里执行查询
+            () -> statsRepository.load(playerId)
+    );
+    Signal<String> killsText = stats.map(value ->
+            value == null ? "读取中…" : "击杀：" + value.kills()
+    );
+
+    System.out.println(killsText.get());  // 读取中…
+    // 查询完成后，依赖 killsText 的菜单自动刷新，显示「击杀：12」
+
+    // 对局结束，又多了 3 次击杀
+    ioExecutor.execute(() -> {
+        statsRepository.addKills(playerId, 3);
+        stats.dirty();  // 写入成功后再刷新，重新查询期间 get() 仍返回旧结果
+    });
+    // 新的查询完成后，菜单显示「击杀：15」
+  `}
+  title="个人资料"
+  layout={['###K#D###']}
+  signals={[{id: 'query', label: '查询'}, {id: 'stats', label: 'stats'}, {id: 'text', label: 'killsText'}]}
+  items={(s) => ({
+    K: s.stats ? {icon: 'diamond_sword', name: s.text} : {icon: 'gray_dye', name: '读取中…', nameColor: '#aaaaaa'},
+    D: s.stats ? {icon: 'book', name: '死亡：4'} : {icon: 'gray_dye', name: '读取中…', nameColor: '#aaaaaa'},
+  })}
+  steps={[
+    {lines: '3-8', state: {query: '执行中', stats: null, text: '读取中…'}, note: '创建时就把查询提交给执行器。'},
+    {lines: '9-11', state: {query: '执行中', stats: null, text: '读取中…'}, note: '占位值是 null，派生出「读取中…」。菜单先显示占位内容。'},
+    {lines: '13', state: {query: '执行中', stats: null, text: '读取中…'}, output: '读取中…', note: '查询还没完成。查询很快的话，这里也可能已经是「击杀：12」。'},
+    {lines: '14', state: {query: '空闲', stats: 'kills=12, deaths=4', text: '击杀：12'}, notified: ['stats', 'text'], refresh: ['K', 'D'],
+      note: '数据库返回了结果。stats 保存它并通知，菜单刷新。'},
+    {lines: '17-20', state: {query: '执行中', stats: 'kills=12, deaths=4', text: '击杀：12'},
+      note: '写入后调用 dirty()，开始重新查询。这期间继续显示上一次的结果，不会退回「读取中…」。'},
+    {lines: '21', state: {query: '空闲', stats: 'kills=15, deaths=4', text: '击杀：15'}, notified: ['stats', 'text'], refresh: ['K', 'D'],
+      note: '新结果替换旧结果，菜单显示 15。'},
+  ]}
+/>
+
+占位值用 `null`，是为了区分「还没查到」和「战绩为零」。能接受先显示零的话，传 `new PlayerStats(0, 0)` 也行。
+
+`AsyncSignal` 的值只能由查询函数提供，它没有 `set` 和 `update`，刷新就是调用 `dirty()`。
+
+## 连续刷新会合并
+
+同一个 `AsyncSignal` 的查询不会同时执行多份。查询还没结束时再调用 `dirty()`，它只记下「完成后再查一次」；连续调用好几次，也只补查一次。
+
+| 时刻 | 操作 | `get()` |
+|---|---|---|
+| 已加载 | 上次查到 12 | 12 |
+| 刷新 | `dirty()` 开始查询 A | 12 |
+| A 还没完成 | 又调用两次 `dirty()`，登记一次补查 | 12 |
+| A 完成 | 发布 15，开始查询 B | 15 |
+| B 完成 | 发布 18 | 18 |
+
+登记了补查的那一轮，结果照常发布，不会被当成过期数据丢掉。
+
+## 注意事项
+
+:::warning[不要在查询函数里刷新自己]
+查询函数不能直接或间接调用自己的 `dirty()`，否则抛出 `IllegalStateException`。刷新应由写入完成、玩家操作或 [轮询](/signal/source/polling) 触发。
+:::
+
+:::warning[查询与通知的线程]
+查询函数在执行器的线程里运行，只访问数据库、网络或线程安全的数据，不要读玩家背包、改世界。
+
+查询完成后的通知也从这个线程发出。手动订阅的 `onDirty` 回调不会自动回到玩家线程，要操作玩家得自己调度。在菜单里使用时，刷新由 Sparrow UI 处理。
+:::
+
+:::warning[相等判断与异常]
+新结果和旧结果相同时不通知，默认用 `Objects.equals` 比较。需要其他规则，把比较函数作为第四个参数传入。
+
+查询抛出 `RuntimeException` 或执行器拒绝任务时，异常交给 Sparrow UI 的异常处理器，已有的值保持不变。第一次查询就失败的话，会一直停在占位值，可以再次 `dirty()` 重试。想显示「加载失败」，就让查询函数返回一个表示失败的业务值。
+:::
+
+每名玩家一份、多个菜单共用的战绩，更适合按 UUID 分区保存，见 [玩家分区](/signal/keyed/player)。
+
+<NextStep
+  to="/signal/source/polling"
+  title="polling 定期轮询"
+  description="数据会被其他服务修改时，在有人查看期间定期重新查询。"
+/>

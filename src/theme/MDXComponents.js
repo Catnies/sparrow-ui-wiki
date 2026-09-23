@@ -24,6 +24,7 @@ import SessionStructureDemo from '@site/src/components/SessionStructureDemo';
 import VisualLayerDemo from '@site/src/components/VisualLayerDemo';
 import AnimationPreview from '@site/src/components/AnimationPreview';
 import SignalFlowDemo from '@site/src/components/SignalFlowDemo';
+import SignalStepDemo from '@site/src/components/SignalStepDemo';
 import SignalHint from '@site/src/components/SignalHint';
 import ThreadBadge from '@site/src/components/ThreadBadge';
 import VersionBadge from '@site/src/components/VersionBadge';
@@ -57,6 +58,7 @@ export default {
   VisualLayerDemo,
   AnimationPreview,
   SignalFlowDemo,
+  SignalStepDemo,
   SignalHint,
   ThreadBadge,
   VersionBadge,

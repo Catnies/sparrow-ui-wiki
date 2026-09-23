@@ -1,0 +1,129 @@
+---
+title: 玩家分区
+sidebar_label: 玩家分区
+---
+
+技能点由技能树菜单、属性菜单和升级提示共同使用，每名玩家一份。Alice 升级拿到技能点，Bob 的菜单不应该跟着刷新。
+
+每名玩家一份状态，最直接的做法是 `Map<Player, ...>`。可 `Player` 对象和这次连接绑定，玩家退出后它还留在表里，时间一长就是内存泄漏，退出时的清理也得自己写。
+
+## 玩家分区做什么
+
+用 UUID 作为 [KeyedSignal](/signal/keyed/basics) 的 key，每名玩家就有自己独立的分区。再调用一次 `Signals.evictOnQuit(signal)`，之后任何玩家退出服务器，Sparrow UI 都会对它调用 `remove(uuid)`，清掉这名玩家的分区。
+
+同步、异步、轮询三种分区来源都可以这样登记。
+
+## 每名玩家的技能点
+
+技能点在插件启动时创建一次，放在一个服务类里，多个菜单共用。
+
+```java
+public final class SkillPoints {
+    private final MutableKeyedSignal<UUID, Integer> points = KeyedSignal.of(playerId -> 0);
+
+    public SkillPoints() {
+        Signals.evictOnQuit(this.points);  // 玩家退出时清理他的分区
+    }
+
+    public MutableSignal<Integer> of(Player player) {
+        return this.points.at(player.getUniqueId());
+    }
+
+    public MutableKeyedSignal<UUID, Integer> points() {
+        return this.points;
+    }
+}
+```
+
+下面的演示里，`alice` 和 `bob` 是两名玩家的 UUID，菜单里的两个物品分别依赖他们的分区。
+
+<SignalStepDemo
+  code={`
+    MutableKeyedSignal<UUID, Integer> points = KeyedSignal.of(playerId -> 0);
+    Signals.evictOnQuit(points);
+
+    MutableSignal<Integer> alicePoints = points.at(alice);
+    alicePoints.update(value -> value + 2);  // Alice 升级，获得两个技能点
+
+    System.out.println(alicePoints.get());   // 2
+    System.out.println(points.get(bob));     // 0，Bob 的分区不受影响
+
+    // Alice 退出服务器，她的分区被移除
+    // Alice 重新登录后再读取，分区用初始化函数重建
+  `}
+  title="技能点"
+  layout={['###A#B###']}
+  signals={[{id: 'alice', label: 'points[alice]'}, {id: 'bob', label: 'points[bob]'}, {id: 'online', label: '在线'}]}
+  items={(s) => ({
+    A: s.online.includes('Alice')
+      ? {icon: 'emerald', name: `Alice 的技能点：${s.alice}`, count: Math.max(1, s.alice)}
+      : {icon: 'gray_dye', name: 'Alice 已离线', nameColor: '#aaaaaa'},
+    B: {icon: 'emerald', name: `Bob 的技能点：${s.bob}`},
+  })}
+  steps={[
+    {lines: '1-2', state: {alice: 0, bob: 0, online: 'Alice, Bob'}, note: '创建来源并登记退出清理。'},
+    {lines: '4-5', state: {alice: 2, bob: 0, online: 'Alice, Bob'}, notified: ['alice'], quiet: ['bob'], refresh: ['A'],
+      note: '只有 Alice 的物品刷新。Bob 看着的是自己的分区。'},
+    {lines: '7-8', state: {alice: 2, bob: 0, online: 'Alice, Bob'}, output: ['2', '0']},
+    {lines: '10', state: {alice: '（已移除）', bob: 0, online: 'Bob'}, refresh: ['A'],
+      note: 'Alice 退出，Sparrow UI 调用 remove(alice)。移除分区不会通知订阅者。'},
+    {lines: '11', state: {alice: 0, bob: 0, online: 'Alice, Bob'}, refresh: ['A'],
+      note: '重建后回到初始值 0。只在线期间有意义的状态适合这样清理；需要持久保存的技能点，应在修改时写入数据库。'},
+  ]}
+/>
+
+## 按玩家异步加载
+
+每名玩家的战绩存在数据库里，用 `KeyedSignal.async` 按 UUID 加载，退出时清理。
+
+```java
+KeyedSignal<UUID, PlayerStats> stats = KeyedSignal.async(
+        (PlayerStats) null, ioExecutor, statsRepository::load
+);
+Signals.evictOnQuit(stats);
+
+Signal<PlayerStats> own = stats.at(viewer.getUniqueId());
+```
+
+`statsRepository.load(UUID)` 和 `PlayerStats` 与 [async](/signal/source/async) 页相同。资料页和排行榜页对同一名玩家调用 `at`，共用一份查询结果。战绩写入数据库后，调用 `stats.dirty(playerId)` 刷新那名玩家。
+
+需要同步其他子服的修改时，把 `async` 换成 `polling` 或 `pollingMillis`，只有正在被查看的玩家分区才会轮询。
+
+## 在菜单里使用
+
+一个共用的按钮要显示「当前查看者」的技能点，就在 `dependsOn` 里从渲染上下文取出查看者的 UUID。
+
+```java
+Item pointsButton = Item.builder()
+        .dependsOn(points, context -> context.player().getUniqueId())
+        .setItemProvider(context -> {
+            int value = points.get(context.player().getUniqueId());
+            return new ItemStack(Material.EXPERIENCE_BOTTLE, Math.max(1, value));
+        })
+        .addClickHandler(click -> {
+            points.update(click.player().getUniqueId(), value -> value + 1);
+        })
+        .build();
+```
+
+Alice 和 Bob 看着同一个按钮，各自绑定自己的分区，Alice 点击后只刷新她看到的那一个。完整说明见 [玩家与分区显示](/signal-ui/player)。
+
+## 注意事项
+
+:::warning[来源要由你保存]
+Sparrow UI 只弱引用登记过的来源，来源本身要由你持有，比如上面的 `points` 字段。来源被回收后，登记也随之失效。重复登记同一个对象只算一次，插件关闭时所有登记自动解除。
+:::
+
+:::warning[清理只是移除缓存]
+退出后再访问这名玩家的分区，会用初始化函数重建，离线玩家的 UUID 也可以照常读写。需要持久保存的数据，要自己写入数据库。使用前要先完成 Sparrow UI 的 [初始化](/getting-started/installation#初始化)。
+:::
+
+:::tip[什么时候用不着玩家分区]
+状态只属于某一扇窗口时，比如确认框里的勾选项、这次打开时的页码，直接为这扇窗口创建一个普通的 `MutableSignal` 就够了，窗口关闭，状态也就不要了。需要在多个菜单之间共享，或者菜单关闭后还要保留的每名玩家状态，才放进玩家分区。
+:::
+
+<NextStep
+  to="/signal-ui/item"
+  title="Signal 在 UI 中的使用"
+  description="把前面介绍的各种 Signal 绑定到物品、列表、分页、标题和视觉映射上。"
+/>

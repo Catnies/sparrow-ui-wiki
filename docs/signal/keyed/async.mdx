@@ -1,0 +1,101 @@
+---
+title: Async and polling partitions
+sidebar_label: Async and polling partitions
+---
+
+The guild menu shows each guild's name and level, stored in a database. The server has hundreds of guilds, and a player looks at one or two at a time.
+
+Writing a [Signal.async](/signal/source/async) per guild is tedious, and each one queries as soon as it is created: hundreds of guilds, hundreds of queries. A network menu showing each server's player count has the same problem.
+
+## What async partitions do
+
+`KeyedSignal.async` and `KeyedSignal.polling` load each partition on its own in the background. They amount to an async or polling Signal per key, but **only partitions that are actually used get queried**.
+
+They take a placeholder, an executor, and a query function. The query receives the partition's key and returns that partition's value.
+
+| Moment | Queries? |
+|---|---|
+| Creating `KeyedSignal.async(...)` | No |
+| Calling `at(key)` for a handle | No |
+| First read of a partition | Submits that partition's query |
+
+## Loading guild info by guild id
+
+Suppose `guildRepository.load(String)` queries by guild id and returns a `GuildInfo`, and `ioExecutor` is a background I/O executor.
+
+<SignalStepDemo
+  code={`
+    record GuildInfo(String name, int level, int members) {}
+
+    KeyedSignal<String, GuildInfo> guilds = KeyedSignal.async(
+            (GuildInfo) null, ioExecutor, guildRepository::load
+    );
+
+    Signal<GuildInfo> moon = guilds.at("moon");  // just a handle, no query yet
+    Signal<String> moonTitle = moon.map(info ->
+            info == null ? "Loading…" : info.name() + " Lv." + info.level()
+    );
+
+    System.out.println(moonTitle.get());  // Loading…, the first read submits the query
+    // once the query finishes, the menu shows "Moonshade Lv.5"
+
+    guilds.dirty("moon");  // after the guild levels up, re-query only this guild
+    // the new result arrives and the menu shows "Moonshade Lv.6"
+  `}
+  title="Guilds"
+  layout={['###G#####']}
+  signals={[{id: 'query', label: 'queried guilds'}, {id: 'moon', label: 'moon'}, {id: 'title', label: 'moonTitle'}]}
+  items={(s) => ({G: s.moon === null
+    ? {icon: 'gray_dye', name: 'Loading…', nameColor: '#aaaaaa'}
+    : {icon: 'book', name: s.title, nameColor: '#55ffff'}})}
+  steps={[
+    {lines: '1-5', state: {query: 'none', moon: null, title: 'Loading…'}, note: 'Creating it queries no guild.'},
+    {lines: '7-10', state: {query: 'none', moon: null, title: 'Loading…'}, note: 'Getting a handle and deriving text still queries nothing.'},
+    {lines: '12', state: {query: 'moon (running)', moon: null, title: 'Loading…'}, output: 'Loading…', note: 'The first read of the moon partition submits its query. The other hundreds of guilds are untouched.'},
+    {lines: '13', state: {query: 'moon', moon: 'Lv.5', title: 'Moonshade Lv.5'}, notified: ['moon', 'title'], refresh: ['G'], note: 'The result arrives and the menu refreshes. Another menu calling at("moon") shares this result.'},
+    {lines: '15', state: {query: 'moon (running)', moon: 'Lv.5', title: 'Moonshade Lv.5'}, note: 'The old result stays while re-querying, and repeated refreshes merge into one extra query.'},
+    {lines: '16', state: {query: 'moon', moon: 'Lv.6', title: 'Moonshade Lv.6'}, notified: ['moon', 'title'], refresh: ['G']},
+  ]}
+/>
+
+An async partition's value comes only from its query function, so the handle returned by `at(key)` is a read-only `Signal` with no `set`.
+
+## Polling player counts by server id
+
+A network menu shows each server's player count, which every server writes to Redis. Suppose `servers.onlineCount(String)` queries one server's count.
+
+```java
+KeyedSignal<String, Integer> serverOnline = KeyedSignal.polling(
+        (Integer) null, ioExecutor, servers::onlineCount, 100L
+);
+
+Signal<Integer> survival = serverOnline.at("survival");
+```
+
+Each partition polls on its own, and only partitions whose handles have subscribers poll. When a player opens the menu to view the survival server, only `survival` queries every 100 ticks; servers nobody looks at are not queried. When all subscriptions to a partition close, it stops polling on its own without affecting the others.
+
+To poll by real time, use `pollingMillis`.
+
+```java
+KeyedSignal<String, Integer> serverOnline = KeyedSignal.pollingMillis(
+        (Integer) null, ioExecutor, servers::onlineCount, 5000L
+);
+```
+
+## Caveats
+
+:::warning[Same rules as a single async or polling]
+The old result stays while re-querying, and repeated refreshes merge into one extra query; see [async](/signal/source/async#repeated-refreshes-are-merged). Periods, shared clocks, and extra queries follow [polling](/signal/source/polling#caveats).
+
+The query only touches the database, the network, or thread-safe data, and the loaded notification comes from the thread that ran it.
+:::
+
+:::warning[Removing partitions]
+Async and polling partitions support `remove(key)`, `clear()`, and `keys()` too, with the rules from [KeyedSignal](/signal/keyed/basics#removing-partitions). Reading after a removal submits a new query.
+:::
+
+<NextStep
+  to="/signal/keyed/player"
+  title="Player partitions"
+  description="Keep state per player by UUID and clean it up automatically when they quit."
+/>

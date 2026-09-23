@@ -1,0 +1,136 @@
+---
+title: mapDistinct
+sidebar_label: mapDistinct
+---
+
+The status menu has an icon that shows "Healthy", "Wounded", or "Dying" depending on health. In a fight, health drops almost every second, but the icon only changes once in a while.
+
+Deriving this status with [map](/signal/derive/map) redraws the icon on every lost point of health, and nearly all of those redraws look exactly the same.
+
+## What mapDistinct does
+
+`mapDistinct` computes a new value from the original, just like `map`. The extra step is a comparison: when this result equals the previous one, downstream is not notified.
+
+Results are compared with `Objects.equals` by default, or with a comparison function you pass in.
+
+## Refresh only when the condition changes
+
+Above 10 health is healthy, above 4 is wounded, and anything lower is dying. Click "Next" to run the code line by line and see when the icon refreshes.
+
+<SignalStepDemo
+  code={`
+    MutableSignal<Integer> health = Signal.of(20);
+    Signal<String> condition = health.mapDistinct(value ->
+            value > 10 ? "Healthy" : value > 4 ? "Wounded" : "Dying"
+    );
+
+    Subscription subscription = condition.onDirty(() -> {
+        System.out.println("Now: " + condition.get());
+    });
+
+    health.set(16);  // still healthy, prints nothing
+    health.set(8);   // prints "Now: Wounded"
+    health.set(6);   // still wounded, prints nothing
+    health.set(3);   // prints "Now: Dying"
+    health.set(2);   // still dying, prints nothing
+
+    subscription.close();
+  `}
+  title="Status"
+  layout={['####C####']}
+  signals={[{id: 'health', label: 'health'}, {id: 'condition', label: 'condition'}]}
+  items={(s) => ({C: s.condition === 'Healthy'
+    ? {icon: 'lime_dye', name: 'Healthy', nameColor: '#55ff55'}
+    : s.condition === 'Wounded'
+      ? {icon: 'orange_stained_glass_pane', name: 'Wounded', nameColor: '#ffaa00'}
+      : {icon: 'red_stained_glass_pane', name: 'Dying', nameColor: '#ff5555'}})}
+  steps={[
+    {lines: '1-4', state: {health: 20, condition: 'Healthy'}, note: 'Full health, the condition is healthy.'},
+    {lines: '6-8', state: {health: 20, condition: 'Healthy'}, note: 'Subscribe to condition changes. Subscribing does not replay the current value.'},
+    {lines: '10', state: {health: 16, condition: 'Healthy'}, notified: ['health'], quiet: ['condition'], note: 'Recomputed, still healthy. Same result, so the icon does not refresh.'},
+    {lines: '11', state: {health: 8, condition: 'Wounded'}, notified: ['health', 'condition'], output: 'Now: Wounded', refresh: ['C'], note: 'The result becomes wounded, downstream is notified, and the icon refreshes.'},
+    {lines: '12', state: {health: 6, condition: 'Wounded'}, notified: ['health'], quiet: ['condition'], note: 'Still wounded, no notification.'},
+    {lines: '13', state: {health: 3, condition: 'Dying'}, notified: ['health', 'condition'], output: 'Now: Dying', refresh: ['C'], note: 'Dying now, the icon refreshes.'},
+    {lines: '14', state: {health: 2, condition: 'Dying'}, notified: ['health'], quiet: ['condition'], note: 'Five writes, two refreshes. With map it would be five.'},
+  ]}
+/>
+
+## Update only when entering a new chunk
+
+A land-claim hint only cares which chunk the player stands in, not the exact coordinates. Shifting block coordinates right by 4 gives chunk coordinates, and records implement `equals`, so two `ChunkPos` with the same coordinates count as the same result.
+
+<SignalStepDemo
+  code={`
+    record BlockPos(int x, int z) {}
+    record ChunkPos(int x, int z) {}
+
+    MutableSignal<BlockPos> position = Signal.of(new BlockPos(3, 3));
+    Signal<ChunkPos> chunk = position.mapDistinct(pos ->
+            new ChunkPos(pos.x() >> 4, pos.z() >> 4)
+    );
+
+    Subscription subscription = chunk.onDirty(() -> {
+        System.out.println("Entered chunk " + chunk.get());
+    });
+
+    position.set(new BlockPos(9, 3));    // still chunk (0, 0), prints nothing
+    position.set(new BlockPos(15, 12));  // still chunk (0, 0), prints nothing
+    position.set(new BlockPos(16, 12));  // prints "Entered chunk ChunkPos[x=1, z=0]"
+    position.set(new BlockPos(20, -1));  // prints "Entered chunk ChunkPos[x=1, z=-1]"
+
+    subscription.close();
+  `}
+  title={(s) => `Claims · chunk ${s.chunk}`}
+  layout={['####M####']}
+  signals={[{id: 'pos', label: 'position'}, {id: 'chunk', label: 'chunk'}]}
+  items={(s) => ({M: {icon: 'map', name: `Chunk ${s.chunk}`, lore: [`Position ${s.pos}`]}})}
+  steps={[
+    {lines: '4-7', state: {pos: '(3, 3)', chunk: '(0, 0)'}, note: 'The player is in chunk (0, 0).'},
+    {lines: '13', state: {pos: '(9, 3)', chunk: '(0, 0)'}, notified: ['pos'], quiet: ['chunk'], note: 'The position changed, the chunk did not.'},
+    {lines: '14', state: {pos: '(15, 12)', chunk: '(0, 0)'}, notified: ['pos'], quiet: ['chunk']},
+    {lines: '15', state: {pos: '(16, 12)', chunk: '(1, 0)'}, notified: ['pos', 'chunk'], output: 'Entered chunk ChunkPos[x=1, z=0]', refresh: ['M'], note: 'x reaches 16, crossing into chunk (1, 0).'},
+    {lines: '16', state: {pos: '(20, -1)', chunk: '(1, -1)'}, notified: ['pos', 'chunk'], output: 'Entered chunk ChunkPos[x=1, z=-1]', refresh: ['M'], note: 'z goes negative, entering chunk (1, -1).'},
+  ]}
+/>
+
+## Custom result comparison
+
+Chat channel names ignore case, and surrounding spaces do not count. Pass a comparison function as the second argument.
+
+```java
+MutableSignal<String> input = Signal.of("moon");
+Signal<String> channel = input.mapDistinct(String::strip, String::equalsIgnoreCase);
+
+Subscription subscription = channel.onDirty(() -> {
+    System.out.println("Switched to channel: " + channel.get());
+});
+
+input.set(" MOON ");   // equal to moon once trimmed, prints nothing
+input.set(" trade ");  // prints "Switched to channel: trade"
+
+subscription.close();
+```
+
+The input box's own `input` still holds `" MOON "`; only the derived `channel` ignores that change.
+
+## Caveats
+
+:::tip[Choosing between map and mapDistinct]
+`mapDistinct` has to compute the result before it can compare, so while subscribed, it computes on every source change. `map` can wait until the value is read.
+
+Use `map` when the result changes almost every time, such as health text or countdown seconds. Use `mapDistinct` when it often stays the same, such as a condition, the current chunk, or a "can afford" boolean.
+:::
+
+:::warning[The function runs on the writing thread]
+While subscribed, the function runs on the thread that wrote the source, to decide whether to notify. Keep it short and compute only from its argument.
+:::
+
+:::warning[Rules for the comparison function]
+The comparison follows the same rules as [Signal.of](/signal/basics/mutable#caveats): an equivalence relation, short, no side effects.
+:::
+
+<NextStep
+  to="/signal/derive/combine"
+  title="combine"
+  description="Compute one result from several Signals, such as mana, cost, and silence deciding whether a skill can be cast."
+/>

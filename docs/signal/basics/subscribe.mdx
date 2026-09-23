@@ -1,0 +1,106 @@
+---
+title: "Subscribing: onDirty"
+sidebar_label: Subscribing onDirty
+---
+
+Once the boss fight starts, the BossBar at the top of the screen has to follow the boss's health. Health changes in the damage event; the BossBar lives somewhere else. The two need a way to talk.
+
+When a menu uses a Signal, Sparrow UI subscribes for you and you never need this page. For things outside menus, such as BossBars, logs, or scoreboards, you subscribe yourself.
+
+## What onDirty does
+
+`onDirty(listener)` registers a listener that is called whenever the Signal's value may have changed. It returns a `Subscription`: keep it and the notifications keep coming, call `close()` and they stop.
+
+The listener takes no arguments. Call `get()` inside it when you need the new value.
+
+## Making a BossBar follow health
+
+```java
+public final class BossHealthBar {
+    private final BossBar bar;
+    private final Subscription subscription;
+
+    public BossHealthBar(Signal<Integer> health, int maxHealth) {
+        this.bar = BossBar.bossBar(
+                Component.text("Ancient Guardian"), 1f,
+                BossBar.Color.RED, BossBar.Overlay.PROGRESS
+        );
+        // Every health change updates the bar proportionally
+        this.subscription = health.onDirty(() -> {
+            float progress = health.get() / (float) maxHealth;
+            this.bar.progress(Math.clamp(progress, 0f, 1f));
+        });
+    }
+
+    public BossBar bar() {
+        return this.bar;
+    }
+
+    // Call when the boss dies or is removed
+    public void close() {
+        this.subscription.close();
+    }
+}
+```
+
+`BossBar` and `Component` come from Adventure. The `Subscription` sits in a field and stays valid for as long as the boss lives.
+
+## When notifications fire
+
+A shorter piece of code makes the timing clear. The boss starts at 500 health and takes a few hits after the subscription.
+
+<SignalStepDemo
+  code={`
+    MutableSignal<Integer> bossHealth = Signal.of(500);
+
+    Subscription subscription = bossHealth.onDirty(() -> {
+        System.out.println("Boss health: " + bossHealth.get());
+    });
+
+    bossHealth.set(420);                       // prints "Boss health: 420"
+    bossHealth.set(420);                       // unchanged, prints nothing
+    bossHealth.update(health -> health - 70);  // prints "Boss health: 350"
+
+    subscription.close();
+    bossHealth.set(0);                         // subscription closed, prints nothing
+  `}
+  title="Boss fight"
+  layout={['####B####']}
+  signals={[{id: 'hp', label: 'bossHealth'}, {id: 'sub', label: 'subscription'}]}
+  items={(s) => ({B: {icon: 'netherite_sword', name: `Ancient Guardian ${s.hp} / 500`, nameColor: '#ff5555'}})}
+  steps={[
+    {lines: '1', state: {hp: 500, sub: 'none'}, note: 'The boss appears with 500 health.'},
+    {lines: '3-5', state: {hp: 500, sub: 'open'}, note: 'Subscribing does not replay the current 500, so the console stays empty. Call get() once if you need the initial value.'},
+    {lines: '7', state: {hp: 420, sub: 'open'}, notified: ['hp'], output: 'Boss health: 420', refresh: ['B'], note: 'The value changed, and the listener runs right away on the writing thread.'},
+    {lines: '8', state: {hp: 420, sub: 'open'}, quiet: ['hp'], note: 'Writing the same value is skipped, so the listener does not run.'},
+    {lines: '9', state: {hp: 350, sub: 'open'}, notified: ['hp'], output: 'Boss health: 350', refresh: ['B'], note: 'get() inside the listener reads the latest value, 350.'},
+    {lines: '11', state: {hp: 350, sub: 'closed'}, note: 'Close the subscription. Later changes have nothing to do with this listener.'},
+    {lines: '12', state: {hp: 0, sub: 'closed'}, notified: ['hp'], refresh: ['B'], note: 'The write still happens and menus depending on it still refresh; only the console stays quiet.'},
+  ]}
+/>
+
+## Caveats
+
+:::warning[Keep the Subscription]
+A Signal only holds its subscribers weakly. If nothing holds the `Subscription` returned by `onDirty`, it may be garbage collected and the listener quietly stops, with no error.
+:::
+
+:::warning[A notification only means "may have changed"]
+Notifications carry no value. `get()` in the listener reads whatever is current, so with several threads writing in a row, an intermediate value may never be seen, and two notifications may read the same value.
+
+So do not use the listener for bookkeeping. To record every hit the boss takes, record it where the damage is dealt, not by working backwards from health changes.
+:::
+
+:::warning[The listener runs on the writing thread]
+Whichever thread changes the health runs the listener. With several writing threads, the listener may run concurrently.
+
+Listeners should be thread safe and return quickly, and must not change the same Signal again.
+:::
+
+For keeping and cleaning up subscriptions, see [Lifecycle and cleanup](/advanced/lifecycle). For how menus manage subscriptions automatically, see [Signals in the UI](/signal-ui/item).
+
+<NextStep
+  to="/signal/derive/map"
+  title="map"
+  description="Compute one value from another Signal, such as turning health into health bar text."
+/>

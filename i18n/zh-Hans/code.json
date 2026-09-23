@@ -754,5 +754,41 @@
   "llmsMenu.llmsFullTxt.description": {
     "message": "全部文档合并成的单个文件",
     "description": "llms-full.txt 菜单项的说明"
+  },
+  "signalStepDemo.notified": {
+    "message": "已通知",
+    "description": "SignalStepDemo 这一步发出了通知"
+  },
+  "signalStepDemo.quiet": {
+    "message": "不通知",
+    "description": "SignalStepDemo 这一步没有发出通知"
+  },
+  "signalStepDemo.stale": {
+    "message": "待计算",
+    "description": "SignalStepDemo 已过期、还没重新计算的派生值"
+  },
+  "signalStepDemo.restart": {
+    "message": "从头开始",
+    "description": "SignalStepDemo 回到第一步"
+  },
+  "signalStepDemo.previous": {
+    "message": "上一步",
+    "description": "SignalStepDemo 上一步按钮"
+  },
+  "signalStepDemo.next": {
+    "message": "下一步",
+    "description": "SignalStepDemo 下一步按钮"
+  },
+  "signalStepDemo.counter": {
+    "message": "第 {current} / {total} 步",
+    "description": "SignalStepDemo 步骤计数"
+  },
+  "signalStepDemo.console": {
+    "message": "控制台输出",
+    "description": "SignalStepDemo 控制台的无障碍标签"
+  },
+  "signalStepDemo.consoleEmpty": {
+    "message": "（还没有输出）",
+    "description": "SignalStepDemo 控制台占位文字"
   }
 }

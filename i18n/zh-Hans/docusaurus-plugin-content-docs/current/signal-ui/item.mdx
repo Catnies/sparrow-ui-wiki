@@ -3,37 +3,70 @@ title: 物品显示
 sidebar_label: 物品显示
 ---
 
-玩家在购买菜单中点击钻石，每次把购买数量加一。按钮名称初始为「购买数量：1」，点击后应变为「购买数量：2」。这个数量只属于本次打开的菜单，所以在创建菜单时新建一个普通 Signal。
+属性加点菜单里有一个「力量」按钮，名字写着当前等级和剩余技能点。玩家每点一次，力量加一级，技能点少一点，按钮名字跟着变；技能点用完后，再点也没反应。
 
-示例共用的 `named` 辅助方法见页尾。
+按钮的外观取决于两个 Signal。点击后得有人告诉菜单去重新显示这个格子，还要确保只刷新这一格。
 
-## 数量变了，按钮跟着变
+## dependsOn 做什么
 
-<MinecraftSlotGrid
-  title="选择数量"
-  rows={['####Q####']}
-  legend={{Q: '数量按钮'}}
-  items={{Q: {icon: 'diamond', name: '购买数量：1'}}}
-  caption="初始数量为 1。点击后改变的是名称中的数量，钻石堆叠数保持为 1。"
+`Item.builder().dependsOn(signals...)` 声明这个物品的外观依赖哪些 Signal。其中任何一个发出通知，显示这个物品的格子就会在下一 tick 重新执行 Provider，取得新的外观。
+
+订阅由 Sparrow UI 管理。物品显示在窗口里时自动订阅，窗口关闭时自动退订，不用自己保存 `Subscription`。
+
+## 属性加点按钮
+
+逐步执行，看按钮名字怎样随点击变化。
+
+<SignalStepDemo
+  code={`
+    MutableSignal<Integer> strength = Signal.of(1);
+    MutableSignal<Integer> points = Signal.of(2);  // 剩余技能点
+
+    Item strengthButton = Item.builder()
+            .dependsOn(strength, points)  // 外观取决于这两个 Signal
+            .setItemProvider(context -> {
+                String name = "力量 Lv." + strength.get() + "（剩余 " + points.get() + " 点）";
+                return named(Material.DIAMOND_SWORD, name);
+            })
+            .addClickGuard((item, click) -> points.get() > 0)  // 没有技能点就不响应
+            .addClickHandler(click -> {
+                points.update(value -> value - 1);
+                strength.update(value -> value + 1);
+            })
+            .build();
+
+    Pane pane = Pane.builder("####S####")
+            .addIngredient('S', strengthButton)
+            .build();
+    Window.builder(pane).setTitle("属性加点").open(viewer);
+  `}
+  title="属性加点"
+  layout={['####S####']}
+  signals={[{id: 'strength', label: 'strength'}, {id: 'points', label: 'points'}]}
+  items={(s) => ({S: {icon: 'diamond_sword', name: `力量 Lv.${s.strength}（剩余 ${s.points} 点）`}})}
+  steps={[
+    {lines: '1-2', state: {strength: 1, points: 2}, note: '力量 1 级，还有 2 点技能点。'},
+    {lines: '4-15', state: {strength: 1, points: 2}, note: '按钮声明依赖 strength 和 points。守卫在没有技能点时拦下点击。'},
+    {lines: '17-20', state: {strength: 1, points: 2}, refresh: ['S'], note: '打开窗口，Provider 执行一次，显示初始名字。'},
+    {lines: '11-14', state: {strength: 2, points: 1}, notified: ['strength', 'points'], refresh: ['S'],
+      note: '玩家点了一下。两个 Signal 都变了，但同一 tick 里的多次通知只会让这一格重新显示一次。'},
+    {lines: '11-14', state: {strength: 3, points: 0}, notified: ['strength', 'points'], refresh: ['S'], note: '再点一下，技能点用完。'},
+    {lines: '10', state: {strength: 3, points: 0}, quiet: ['strength', 'points'],
+      note: '第三次点击被守卫拦下，处理器不执行，数据不变，按钮也不刷新。'},
+  ]}
 />
 
-```java
-MutableSignal<Integer> quantity = Signal.of(1);
-Item amountButton = Item.builder()
-        .dependsOn(quantity)
-        .setItemProvider(context -> named(Material.DIAMOND, "购买数量：" + quantity.get()))
-        .addClickHandler(click -> quantity.update(value -> value + 1))
-        .build();
+点击处理器只修改数据，不需要调用 `updateOnClick()`。刷新哪个格子，由 `dependsOn` 的依赖关系决定。
 
-Pane pane = Pane.builder("####Q####")
-        .addIngredient('Q', amountButton)
-        .build();
-Window.builder(pane).setTitle("选择数量").open(viewer);
-```
+## 注意事项
 
-`dependsOn(quantity)` 声明这个 Item 的显示依赖数量。点击只更新数据，Sparrow UI 会刷新显示这个 Item 的格子，再次执行 Provider 取得新名称，不用调用 `updateOnClick()`。
+:::warning[只在 Provider 里读取不会建立依赖]
+Provider 里调用 `strength.get()` 只是读一次值。忘了写 `dependsOn(strength)`，数据变了按钮也不会刷新。外观取决于几个 Signal，就把它们都传给 `dependsOn`；已经用 [combine](/signal/derive/combine) 组合好的，依赖组合结果就行。
+:::
 
-只在 Provider 中读取 `quantity.get()` 不会自动建立依赖。外观同时取决于多个独立状态时，可以传入 `dependsOn(quantity, price)`；如果已用 `combine` 派生出总价，也可以直接依赖总价 Signal。
+:::warning[点击守卫要和外观读同一份数据]
+按钮看起来能点，守卫却拦下，或者反过来，玩家会困惑。让守卫和 Provider 读取同一个 Signal，两边的判断就不会对不上。
+:::
 
 <Details summary="示例共用的物品命名方法" previewHeight={0}>
 
@@ -41,17 +74,18 @@ Window.builder(pane).setTitle("选择数量").open(viewer);
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](/item/render)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](/item/render) 中的写法相同。
 
 </Details>
 
 <NextStep
   to="/signal-ui/player"
   title="玩家与分区显示"
-  description="让多个窗口共用按钮，同时显示各自玩家的数据。"
+  description="多个窗口共用一个按钮，各自显示查看者自己的数据。"
 />

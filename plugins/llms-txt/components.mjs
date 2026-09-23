@@ -66,6 +66,22 @@ export const COMPONENTS = {
     ])]))),
   ],
 
+  // 分步演示只保留代码和每一步的说明，菜单预览与状态表都是交互内容。
+  SignalStepDemo: (props, ctx) => [
+    code('java', dedent(ctx.string(props.code, 'code'))),
+    list(true, props.steps.map((step) => {
+      const outputs = step.output === undefined ? [] : [].concat(step.output);
+      const parts = [
+        ...(step.note ? [ctx.string(step.note, 'steps[].note')] : []),
+        ...(outputs.length > 0 ? [ctx.t('llms.signalStepDemo.output', {output: outputs.join(ctx.t('llms.listSeparator'))})] : []),
+      ];
+      return listItem([paragraph([
+        strong([text(ctx.t('llms.codeSteps.lines', {lines: step.lines}))]),
+        ...(parts.length > 0 ? [text(ctx.t('llms.colon') + parts.join(ctx.t('llms.sentenceSeparator')))] : []),
+      ])]);
+    })),
+  ],
+
   // 页面上三选一，Markdown 里三份都写出来。
   BuildTabs: (props) => BUILD_VARIANTS
     .filter((variant) => props[variant.prop] !== undefined)
