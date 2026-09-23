@@ -1,0 +1,112 @@
+# 可写状态：Signal.of
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics/mutable>
+
+竞技场菜单上有一个积分物品。每击杀一名对手，积分加一，菜单上的数字也要跟着变。
+
+如果积分只是一个 `int` 字段，改完之后还得自己去找到每一扇打开着的菜单，挨个刷新。忘了刷新哪一处，玩家看到的就是旧分数。
+
+## Signal.of 做什么
+
+`Signal.of(initial)` 把一个值包装成可读可写的状态，类型是 `MutableSignal<T>`。它提供三个基本操作。
+
+| 方法 | 作用 |
+| - | - |
+| `get()` | 读取当前值 |
+| `set(value)` | 直接写入新值 |
+| `update(fn)` | 根据当前值算出新值再写入 |
+
+值变了，依赖它的菜单会自动刷新。值没变，什么都不会发生。
+
+## 记录竞技场积分
+
+菜单里有一个依赖 `score` 的积分物品。点「下一步」逐行执行，看积分和物品怎样变化。
+
+```java
+MutableSignal<Integer> score = Signal.of(0);
+
+score.set(3);
+score.update(value -> value + 1);  // 又击杀了一名对手
+score.set(4);                      // 和当前值相同，这次写入被跳过
+
+System.out.println(score.get());   // 4
+```
+
+1. **第 1 行**：创建积分，初始值为 0。
+2. **第 3 行**：直接写入 3。值变了，积分物品在下一 tick 重新显示。
+3. **第 4 行**：update 在当前值 3 的基础上加一，得到 4。
+4. **第 5 行**：新值和旧值都是 4，写入被跳过，菜单也不刷新。
+5. **第 7 行**：读取当前值。输出「4」。
+
+加分这种先读后写的操作要用 `update`。两名玩家同时击杀时，分开调用 `get()` 和 `set()`，后写的会覆盖先写的，丢掉一分。`update` 每次都在最新值上计算，不会丢。
+
+## 只让对局逻辑修改积分
+
+积分应该只由对局逻辑修改，菜单和其他模块只负责显示。字段声明为 `MutableSignal`，对外返回 `Signal`。
+
+```java
+public final class ArenaMatch {
+    private final MutableSignal<Integer> score = Signal.of(0);
+
+    // 调用方拿到的 Signal 没有 set 和 update，只能读取和订阅
+    public Signal<Integer> score() {
+        return this.score;
+    }
+
+    public void recordKill() {
+        this.score.update(value -> value + 1);
+    }
+}
+```
+
+所有加分都经过 `recordKill()`。以后想加连杀奖励，改这一个方法就够了。
+
+## 保存多个字段
+
+副本设置有难度和人数上限两个字段。把它们放进一个 record，改的时候整体换成新对象。
+
+```java
+record DungeonSettings(String difficulty, int maxPlayers) {}
+
+MutableSignal<DungeonSettings> settings = Signal.of(new DungeonSettings("普通", 4));
+settings.update(current -> new DungeonSettings("困难", current.maxPlayers()));
+
+System.out.println(settings.get());  // DungeonSettings[difficulty=困难, maxPlayers=4]
+```
+
+只想读写其中一个字段时，可以用 [lens](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/lens.md)。
+
+## 自定义相等规则
+
+写入时，Signal 用 `Objects.equals` 比较新旧值。业务上的「相同」和 `equals` 不一样时，把比较函数作为第二个参数传入。
+
+公会标签不区分大小写，`MOON` 和 `moon` 是同一个公会。
+
+```java
+MutableSignal<String> guildTag = Signal.of("MOON", String::equalsIgnoreCase);
+
+guildTag.set("moon");
+System.out.println(guildTag.get());  // MOON，被判为相同，写入跳过
+guildTag.set("SUN");
+System.out.println(guildTag.get());  // SUN
+```
+
+## 注意事项
+
+> **注意：状态对象要不可变**
+>
+> Signal 保存的是对象引用。直接改对象里的字段，Signal 察觉不到；再把同一个对象传给 `set`，也会被判为没变。所以要创建新对象替换旧的。
+
+> **注意：update 的函数只计算新值**
+>
+> 多个线程同时写入时，`update` 的函数可能被执行多次。函数里只根据参数返回新值，发奖励、扣物品、发消息都不要放进去。
+>
+> Signal 本身可以在任意线程读写。它保存的对象如果是可变的，线程安全要你自己负责。
+
+> **注意：比较函数的约定**
+>
+> 比较函数返回 `true` 表示相同。它应满足等价关系，保持简短，没有副作用。两个 `null` 视为相同，只有一边是 `null` 视为不同，函数本身只会收到非 `null` 的值。
+>
+> Signal 会一直持有这个函数，不要在里面捕获 `Player`、`World` 或 `Window`。
+
+**下一步**：[订阅变化](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics/subscribe.md) — 用 onDirty 在值变化时收到通知，并管理订阅的寿命。

@@ -2,46 +2,68 @@
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list>
 
-管理员上架钻石时，已打开的目录应多出一个物品。此时变化的是一组格子的内容，用 `addIngredient` 绑定列表就行。
+队伍菜单的第一行显示每名队员的头颅。有人入队，后面多出一个；有人离队，后面的人向前补位，末尾空出来。
 
-示例共用的 `named` 辅助方法见页尾。
+变化的是一整组格子。给每个格子单独写物品再挨个更新太麻烦，队伍人数一变，格子和人的对应关系也全乱了。
 
-## 商品增删后，重新填充格子
+## 用列表填充格子做什么
 
-下面初始只有苹果和面包，九个 `M` 从左到右接收列表中的商品。点击右下角的钻石按钮可以模拟上架，最多添加到九组。
+`addIngredient(identifier, list, toElement)` 把一个列表 Signal 绑定到模板里某个标志符的全部格子上。列表的第 n 项，经 `toElement` 转换后放进这个标志符第 n 次出现的格子。
 
-```text title="商品目录"
-AB#######
-########D
-```
+列表变化时，格子内容跟着更新。新增的补到后面，删除的让后面的向前补位，多出来的格子清空。`ListSignal`、`Signal<List<T>>` 都能直接传入。
 
-- `A`：苹果（`apple`）
-- `B`：面包（`bread`）
-- `D`：上架一组钻石（`diamond`）
+## 队伍成员列表
 
-预览为初始内容：第一行只有苹果和面包，右下角是上架按钮。
+示例里队伍存的是名字；实际项目中应存 UUID，在 `toElement` 里再取名字。
 
 ```java
-ListSignal<Material> products = ListSignal.of();
-products.addAll(List.of(Material.APPLE, Material.BREAD));
+MutableListSignal<String> party = ListSignal.of();
+party.add("Alice");
 
-Pane pane = Pane.builder("MMMMMMMMM", "########A")
-        .addIngredient('M', products,
-                material -> Element.item(Item.simple(new ItemStack(material))))
-        .addIngredient('A', Item.builder()
-                .setItemProviderConstant(named(Material.DIAMOND, "上架一组钻石"))
-                .addClickGuard((item, click) -> products.size() < 9)
-                .addClickHandler(click -> products.add(Material.DIAMOND))
-                .build())
+Pane pane = Pane.builder("MMMMM####")
+        .addIngredient('M', party, name ->
+                Element.item(Item.simple(named(Material.PLAYER_HEAD, name)))
+        )
         .build();
-Window.builder(pane).setTitle("商品目录").open(viewer);
+Window.builder(pane).setTitle("我的队伍").open(viewer);
+
+// 之后队伍变化时，只改列表
+party.add("Bob");       // 第二格出现 Bob
+party.add("Carol");     // 第三格出现 Carol
+party.remove("Alice");  // 后面的人向前补位，第三格清空
 ```
 
-首次显示时，第一、二格分别是苹果和面包，后面为空。点击上架按钮后，第三格出现钻石。删除列表第一项时，后面的商品向前补位，末尾空出来的格子会清空。
+1. **第 1-2 行**：队伍里只有 Alice。
+2. **第 4-9 行**：五个 M 从左到右接收列表内容。打开窗口时第一格是 Alice，其余为空。
+3. **第 12 行**：只改列表，第二格出现 Bob。
+4. **第 13 行**
+5. **第 14 行**：Alice 离队，Bob 和 Carol 向前补位，第三格清空。
 
-`toElement` 把一条业务数据转换成放进格子的 `Element`，不能返回 `null`。默认首次转换在 `build()` 的调用线程执行，后续更新在 Paper 全局异步调度器执行；转换函数应只处理准备好的数据。列表超出九项时，只能显示前九项，更多内容应使用分页或滚动。
+## 显示在线玩家
 
-若业务已提供合适的 `Executor`，也可以将它作为第四个参数传给 `addIngredient('M', products, toElement, executor)`。它决定后续转换在哪个执行器上运行，首次仍在构建线程完成。异步查询结果只要是 `Signal<List<T>>`，也能使用相同入口。
+[Signals.onlinePlayers()](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/read-only.md#显示在线玩家) 也是一个列表 Signal，可以直接填进格子，玩家进出服务器时格子自动更新。
+
+```java
+Pane pane = Pane.builder("MMMMMMMMM")
+        .addIngredient('M', Signals.onlinePlayers(), player ->
+                Element.item(Item.simple(named(Material.PLAYER_HEAD, player.getName())))
+        )
+        .build();
+```
+
+在线人数超过九个时只显示前九个，更多的用 [分页](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/page.md) 或 [滚动](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/scroll.md)。
+
+## 注意事项
+
+> **注意：toElement 的线程**
+>
+> `toElement` 把一条数据转换成放进格子的 `Element`，不能返回 `null`。第一次转换在 `build()` 的调用线程执行，之后的更新在 Sparrow UI 的异步工作执行器上执行。函数里只处理已经准备好的数据，不要读取玩家背包、世界这类需要所属线程的状态。
+>
+> 业务已有合适的 `Executor` 时，可以作为第四个参数传入 `addIngredient('M', party, toElement, executor)`，之后的转换就在它上面执行，第一次仍在构建线程完成。
+
+> **注意：格子数量有限**
+>
+> 列表超出格子数量时，只显示前面放得下的部分。
 
 **示例共用的物品命名方法**
 
@@ -49,11 +71,12 @@ Window.builder(pane).setTitle("商品目录").open(viewer);
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md) 中的写法相同。
 
 **下一步**：[分页与筛选](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/page.md) — 让分页内容、箭头和页码一起跟随数据更新。

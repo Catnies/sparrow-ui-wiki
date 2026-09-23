@@ -159,7 +159,7 @@ public final class PointsItem {
 >
 > `setItemProviderAsync` 不会自动把回调搬到异步线程。上例由 `delayedExecutor` 延迟一秒执行任务，没有阻塞渲染线程。实际异步任务中不要访问玩家、世界或 Bukkit 容器状态；需要玩家 UUID 等参数时，在提交异步任务前读取并传入。
 >
-> 也可以使用 `ItemProvider.async(renderer)`，它会在 Paper 的全局异步调度器执行整个 renderer。采用这种写法时，renderer 内同样不能读取 Bukkit 玩家或世界状态。
+> 也可以使用 `ItemProvider.async(renderer)`，它会在 Sparrow UI 的异步工作执行器上执行整个 renderer。采用这种写法时，renderer 内同样不能读取 Bukkit 玩家或世界状态。
 
 Future 完成后不用手动刷新窗口。窗口关闭或显示来源已更换时，旧任务的结果不会再应用到原显示位置；这不代表数据库查询本身会被取消。
 

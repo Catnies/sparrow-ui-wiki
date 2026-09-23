@@ -79,7 +79,7 @@ rewards.subscribeClick(event -> {
 });
 ```
 
-事件提供 `player()`、`slot()`、`clickType()`、`hotbarButton()` 和 `action()`。`slot()` 是容器自己的格子序号；`action()` 是这次点击最终的效果，点了之后什么都没有变化时为 `NOTHING`。
+事件提供 `player()`、`slot()`、`clickType()`、`hotbarButton()` 和 `action()`。`slot()` 是容器自己的格子序号；`action()` 是这次点击最终的效果，类型为 Sparrow UI 自己的 `InventoryClickAction` 枚举，点了之后什么都没有变化时为 `NOTHING`。它包含 `PICKUP_ALL`、`PLACE_ONE`、`MOVE_TO_OTHER_INVENTORY` 等常见操作，还单独区分了收纳袋的存入和取出，例如 `PLACE_ALL_INTO_BUNDLE`、`PICKUP_FROM_BUNDLE`。
 
 只有被点击的那个容器收到点击事件。Shift 转移时，接收物品的容器收不到点击事件，只收到下文的提交前、提交后事件。拖拽和点击按钮格不派发这个事件，按钮的点击看 [点击与守卫](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/click.md)。
 

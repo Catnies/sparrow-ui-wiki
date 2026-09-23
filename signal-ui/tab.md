@@ -2,64 +2,79 @@
 
 Source: <https://catnies.github.io/sparrow-ui-wiki/signal-ui/tab>
 
-A category menu has to switch content and mark the active category. `Tab.selected()` exposes a Signal for the selected key, and buttons that depend on it can change their names.
+The skill menu has a class tab on each side, Warrior and Mage, with the current class's skill in the middle. When the player switches to Mage, the middle should show the Mage skill and the Mage tab should get a "▶" in front of it.
 
-`viewer` in the examples is the player opening the menu, and Sparrow UI initialization must have completed beforehand. `named` builds an item with a name; drop the method below into your menu class.
+[Tab](https://catnies.github.io/sparrow-ui-wiki/pagination/tab.md) handles switching the middle contents, but the two tab buttons do not know which one is selected, so they never change.
 
-**The item naming helper shared by the examples**
+## What Tab.selected() does
+
+`Tab.selected()` is a Signal of the selected key. Tab buttons that depend on it refresh when the tab changes, and each button compares `selected().get()` with its own key to decide how to look.
+
+The content area follows the selection through `addIngredient(identifier, tabs)`, with no extra binding.
+
+## Class tabs
+
+```java
+Pane warrior = Pane.builder("S")
+        .addIngredient('S', Item.simple(named(Material.DIAMOND_SWORD, "Whirlwind")))
+        .build();
+Pane mage = Pane.builder("S")
+        .addIngredient('S', Item.simple(named(Material.BLAZE_POWDER, "Fireball")))
+        .build();
+Tab<String> tabs = Tab.of(Map.of("warrior", warrior, "mage", mage), "warrior");
+
+Item warriorButton = Item.builder()
+        .dependsOn(tabs.selected())
+        .setItemProvider(context -> {
+            boolean selected = tabs.selected().get().equals("warrior");
+            return named(Material.DIAMOND_SWORD, selected ? "▶ Warrior" : "Warrior");
+        })
+        .addClickHandler(click -> tabs.select("warrior"))
+        .build();
+Item mageButton = Item.builder()
+        .dependsOn(tabs.selected())
+        .setItemProvider(context -> {
+            boolean selected = tabs.selected().get().equals("mage");
+            return named(Material.BLAZE_POWDER, selected ? "▶ Mage" : "Mage");
+        })
+        .addClickHandler(click -> tabs.select("mage"))
+        .build();
+
+Pane pane = Pane.builder("W###C###M")
+        .addIngredient('W', warriorButton)
+        .addIngredient('C', tabs)  // the content area follows the selected tab
+        .addIngredient('M', mageButton)
+        .build();
+Window.builder(pane).setTitle("Skills").open(viewer);
+```
+
+1. **lines 1-7**: Each class has a sub-Pane; Warrior is selected by default.
+2. **lines 9-24**: Both buttons depend on selected() and each checks whether it is the selected one.
+3. **lines 26-31**: Open the menu; the middle shows the Warrior's Whirlwind.
+4. **lines 23**: Click the Mage tab. The middle switches to Fireball and both button names refresh.
+5. **lines 23**: Clicking Mage again changes nothing, so nothing refreshes.
+6. **lines 15**: Back to Warrior.
+
+`Tab.lazy`, which creates sub-Panes on demand, uses the same binding.
+
+## Caveats
+
+> **Warning: The selection belongs to this Tab**
+>
+> The selected tab lives in the `Tab` object. Each player needs their own `Tab` to switch independently; the class sub-Panes can be shared.
+
+**The naming helper used in the examples**
 
 ```java
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching the style in [Item rendering](https://catnies.github.io/sparrow-ui-wiki/item/render.md).
+It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching [Item rendering](https://catnies.github.io/sparrow-ui-wiki/item/render.md).
 
-## Switching categories and updating buttons
-
-The food category below shows an apple and the materials category a diamond, with the center `C` holding the current child Pane. Food starts selected; clicking materials swaps the center to the diamond and adds "(selected)" to the materials button.
-
-```text title="Pick a category"
-F###C###M
-```
-
-- `F`: food category (`apple`)
-- `C`: current category content (`apple`)
-- `M`: materials category (`diamond`)
-
-Food starts selected with an apple in the center. Switching to materials shows the diamond and marks the materials button as selected.
-
-```java
-Pane food = Pane.builder("X")
-        .addIngredient('X', Item.simple(new ItemStack(Material.APPLE))).build();
-Pane material = Pane.builder("X")
-        .addIngredient('X', Item.simple(new ItemStack(Material.DIAMOND))).build();
-Tab<String> tabs = Tab.of(Map.of("food", food, "material", material), "food");
-
-Item foodButton = Item.builder()
-        .dependsOn(tabs.selected())
-        .setItemProvider(context -> named(Material.APPLE,
-                tabs.selected().get().equals("food") ? "Food (selected)" : "Food"))
-        .addClickHandler(click -> tabs.select("food"))
-        .build();
-Item materialButton = Item.builder()
-        .dependsOn(tabs.selected())
-        .setItemProvider(context -> named(Material.DIAMOND,
-                tabs.selected().get().equals("material") ? "Materials (selected)" : "Materials"))
-        .addClickHandler(click -> tabs.select("material"))
-        .build();
-Pane pane = Pane.builder("F###C###M")
-        .addIngredient('F', foodButton)
-        .addIngredient('C', tabs)
-        .addIngredient('M', materialButton)
-        .build();
-Window.builder(pane).setTitle("Pick a category").open(viewer);
-```
-
-The content area follows the selection through `addIngredient('C', tabs)`, and the two category buttons each depend on `selected()`. `Tab.lazy` uses the same binding style.
-
-**Next**: [Window titles](https://catnies.github.io/sparrow-ui-wiki/signal-ui/title.md) — Wire a quantity change into the Window's title refresh.
+**Next**: [Window titles](https://catnies.github.io/sparrow-ui-wiki/signal-ui/title.md) — Update the window title automatically when data changes.

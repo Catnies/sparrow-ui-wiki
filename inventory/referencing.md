@@ -27,13 +27,14 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 
 This is usually called from the handler for the player's right-click event on the barrel; the threading rules are under [Thread requirements](https://catnies.github.io/sparrow-ui-wiki/inventory/referencing.md#thread-requirements). The player inventory shows below the Window by default, and players can shift transfer and double-click collect between the barrel and their inventory.
 
-There are three mapping factories, differing in which slots they map:
+There are four mapping factories, differing in which slots they map:
 
 | Method | Mapped slots |
 | - | - |
 | `fromContents(inventory)` | All slots, matching `getContents()`. For player inventories this includes armor and off-hand |
 | `fromStorageContents(inventory)` | Storage slots only, matching `getStorageContents()`. 36 for a player inventory |
 | `fromPlayerStorageContents(playerInventory)` | The player inventory's 36 slots, rearranged as main storage 27 first, hotbar 9 last |
+| `fromMountContents(mount)` | The full inventory of a horse, donkey, llama, or similar mount: slot 0 is the saddle, slot 1 the body armor, then storage slots |
 
 The library picks the read/write path by container kind. These containers map directly:
 
@@ -41,9 +42,11 @@ The library picks the read/write path by container kind. These containers map di
 | - | - | - |
 | Block containers such as chests, barrels, hoppers, furnaces | The block's position; each half of a double chest tracks its own block | The block is broken, or its chunk unloads |
 | Entity containers such as chest minecarts and storage boats | The entity | The entity is removed or unloaded |
-| Mount inventories of horses, donkeys, llamas, and friends | The mount. Slot 0 is the saddle, slot 1 the armor, then storage slots | The mount is removed or unloaded |
+| Mount inventories of horses, donkeys, llamas, and friends | The mount. Created with `fromMountContents`, slot 0 is the saddle, slot 1 the armor, then storage slots | The mount is removed or unloaded |
 | Player inventories | That player; after respawning it still tracks the same player's current inventory | The player goes offline |
 | Inventories created with `Bukkit.createInventory` | That inventory object | Never retires automatically |
+
+For mounts, prefer `fromMountContents(mount)`. On Paper it matches `fromContents(mount.getInventory())`; on Spigot a mount's equipment is not part of the Bukkit contents array, and only this factory gives the slot layout above.
 
 Other plugins' custom `Inventory` implementations are read and written through Bukkit's `getItem` and `setItem` and never retire automatically. What retiring means is covered under [Retirement](https://catnies.github.io/sparrow-ui-wiki/inventory/referencing.md#retirement).
 

@@ -10,7 +10,7 @@
 
 ## 什么是 Sparrow UI
 
-Sparrow UI 是一个**基于数据包的响应式 UI 库**，支持 **Paper / Folia**。你可以用 Item 做按钮，用 Pane 排布局，用 Inventory 存放物品，再通过 Window 把菜单打开给玩家。同一组组件可以供多个窗口和多名玩家共用。
+Sparrow UI 是一个**基于数据包的响应式 UI 库**，支持 **Paper / Folia**，Spigot 为实验性支持。你可以用 Item 做按钮，用 Pane 排布局，用 Inventory 存放物品，再通过 Window 把菜单打开给玩家。同一组组件可以供多个窗口和多名玩家共用。
 
 > **信息**
 >
@@ -52,9 +52,13 @@ Sparrow UI 是一个**基于数据包的响应式 UI 库**，支持 **Paper / Fo
 
 | 项目 | 要求 |
 | - | - |
-| 服务端 | Paper 或 Folia |
+| 服务端 | Paper 或 Folia；Spigot 为实验性支持 |
 | Minecraft | `1.21.4` \~ `26.3`，**同一个构件覆盖全部版本**，不需要按版本分别引入依赖 |
-| Java | Sparrow UI 以 Java 21 编译；运行时用对应 Paper 或 Folia 版本要求的 Java 环境就行 |
+| Java | Sparrow UI 以 Java 21 编译；运行时用对应服务端版本要求的 Java 环境就行 |
+
+> **备注：在 Spigot 上使用**
+>
+> Spigot 支持仍处于实验阶段。本 wiki 的示例使用了 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component` 等 Paper API，在 Spigot 上需要换成 `ItemMeta` 等 Spigot 提供的写法。
 
 ## 添加依赖
 
@@ -154,7 +158,7 @@ public final class MyPlugin extends JavaPlugin {
 }
 ```
 
-这一步会安装反射代理、创建窗口管理器与网络管理器，并让 Sparrow UI 的调度器使用你的插件实例。
+这一步会安装反射代理、创建窗口管理器与网络管理器，开始跟踪在线玩家，并让 Sparrow UI 的调度器使用你的插件实例。Sparrow UI 不会自动推断所属插件，没有调用 `setUp` 就使用它的调度器、窗口或 Signal 定时功能，会抛出 `IllegalStateException`。
 
 插件禁用时，Sparrow UI 会监听禁用事件，关闭窗口管理器、网络管理器和自己的调度器。你不需要额外调用 Sparrow UI 的关闭方法。
 
@@ -746,7 +750,7 @@ public final class PointsItem {
 >
 > `setItemProviderAsync` 不会自动把回调搬到异步线程。上例由 `delayedExecutor` 延迟一秒执行任务，没有阻塞渲染线程。实际异步任务中不要访问玩家、世界或 Bukkit 容器状态；需要玩家 UUID 等参数时，在提交异步任务前读取并传入。
 >
-> 也可以使用 `ItemProvider.async(renderer)`，它会在 Paper 的全局异步调度器执行整个 renderer。采用这种写法时，renderer 内同样不能读取 Bukkit 玩家或世界状态。
+> 也可以使用 `ItemProvider.async(renderer)`，它会在 Sparrow UI 的异步工作执行器上执行整个 renderer。采用这种写法时，renderer 内同样不能读取 Bukkit 玩家或世界状态。
 
 Future 完成后不用手动刷新窗口。窗口关闭或显示来源已更换时，旧任务的结果不会再应用到原显示位置；这不代表数据库查询本身会被取消。
 
@@ -4679,13 +4683,14 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 
 这个方法一般在玩家右键木桶的事件处理器中调用，线程方面的要求看 [线程要求](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/referencing.md#线程要求)。窗口下方默认显示玩家背包，玩家可以在木桶与背包之间 Shift 转移、双击收集。
 
-创建映射有三种写法，区别在于映射容器的哪些格子：
+创建映射有四种写法，区别在于映射容器的哪些格子：
 
 | 方法 | 映射的格子 |
 | - | - |
 | `fromContents(inventory)` | 全部格子，与 `getContents()` 相同。玩家背包包括盔甲栏和副手 |
 | `fromStorageContents(inventory)` | 只含存储格，与 `getStorageContents()` 相同。玩家背包为 36 格 |
 | `fromPlayerStorageContents(playerInventory)` | 玩家背包的 36 格，重新排成主背包 27 格在前、快捷栏 9 格在后 |
+| `fromMountContents(mount)` | 马、驴、羊驼等坐骑的完整背包：第 0 格为鞍，第 1 格为身体装备，之后是储物格 |
 
 Sparrow UI 会按容器的种类选择读写方式，下列容器可以直接映射：
 
@@ -4693,9 +4698,11 @@ Sparrow UI 会按容器的种类选择读写方式，下列容器可以直接映
 | - | - | - |
 | 箱子、木桶、漏斗、熔炉等方块的容器 | 方块所在的位置，大箱子的两半各自对应自己的方块 | 方块被破坏，或所在区块卸载 |
 | 运输矿车、运输船等实体的容器 | 这个实体 | 实体被移除或卸载 |
-| 马、驴、羊驼等坐骑的背包 | 这只坐骑。第 0 格为鞍，第 1 格为护甲，之后是储物格 | 坐骑被移除或卸载 |
+| 马、驴、羊驼等坐骑的背包 | 这只坐骑。用 `fromMountContents` 创建时，第 0 格为鞍，第 1 格为护甲，之后是储物格 | 坐骑被移除或卸载 |
 | 玩家背包 | 这名玩家，重生后仍对应这名玩家当前的背包 | 玩家离线 |
 | `Bukkit.createInventory` 创建的容器 | 这个容器 | 不会自动退役 |
+
+映射坐骑时建议使用 `fromMountContents(mount)`。在 Paper 上它与 `fromContents(mount.getInventory())` 相同；Spigot 的坐骑装备不在 Bukkit 的内容数组里，只有这个方法能得到上表的格子布局。
 
 其他插件自己实现的 `Inventory` 通过 Bukkit 的 `getItem`、`setItem` 读写，不会自动退役。退役的含义看 [退役](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/referencing.md#退役)。
 
@@ -4966,7 +4973,7 @@ rewards.subscribeClick(event -> {
 });
 ```
 
-事件提供 `player()`、`slot()`、`clickType()`、`hotbarButton()` 和 `action()`。`slot()` 是容器自己的格子序号；`action()` 是这次点击最终的效果，点了之后什么都没有变化时为 `NOTHING`。
+事件提供 `player()`、`slot()`、`clickType()`、`hotbarButton()` 和 `action()`。`slot()` 是容器自己的格子序号；`action()` 是这次点击最终的效果，类型为 Sparrow UI 自己的 `InventoryClickAction` 枚举，点了之后什么都没有变化时为 `NOTHING`。它包含 `PICKUP_ALL`、`PLACE_ONE`、`MOVE_TO_OTHER_INVENTORY` 等常见操作，还单独区分了收纳袋的存入和取出，例如 `PLACE_ALL_INTO_BUNDLE`、`PICKUP_FROM_BUNDLE`。
 
 只有被点击的那个容器收到点击事件。Shift 转移时，接收物品的容器收不到点击事件，只收到下文的提交前、提交后事件。拖拽和点击按钮格不派发这个事件，按钮的点击看 [点击与守卫](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/click.md)。
 
@@ -5883,19 +5890,21 @@ CompletableFuture.supplyAsync(() -> database.loadCoins(uuid), executor)
 
 ```java
 // 每名玩家一份金币, 第一次读取时在 executor 上查询, 查询完成前显示 0
-PlayerKeyedSignal<Long> coins = PlayerKeyedSignal.async(0L, executor, database::loadCoins);
+KeyedSignal<UUID, Long> coins = KeyedSignal.async(0L, executor, database::loadCoins);
+// 玩家退出时丢弃这名玩家的缓存
+Signals.evictOnQuit(coins);
 
 // 按查看者读取各自的金币
 Item coinsItem = Item.builder()
-        .setItemProvider(context -> coinsIcon(coins.get(context.player())))
-        .dependsOn(coins)
+        .setItemProvider(context -> coinsIcon(coins.get(context.player().getUniqueId())))
+        .dependsOn(coins, context -> context.player().getUniqueId())
         .build();
 
 // 金币在别处改了: 标记过期, 后台重新查询, 查完后正在显示的菜单自动更新
 coins.dirty(uuid);
 ```
 
-上面的手动写法每次打开菜单都会查询，还要在结果返回后检查窗口。使用 `PlayerKeyedSignal` 的示例会按玩家缓存结果。
+上面的手动写法每次打开菜单都会查询，还要在结果返回后检查窗口。使用 Signal 的示例会按玩家缓存结果。
 
 - 查询完成时如果菜单已经关闭，结果仍会存入缓存，下次打开可以使用
 - 重新查询期间，菜单继续显示上一次的结果，查完再更新，不会出现空白
@@ -5908,7 +5917,7 @@ Signal 是一个会变化的值，值变化时通知依赖它的地方。使用 
 
 | 角色 | 是什么 | 例子 |
 | - | - | - |
-| 数据源 | 保存值，可以写入 | `Signal.of`、`Signal.async`、`PlayerKeyedSignal` |
+| 数据源 | 保存值，可以写入 | `Signal.of`、`Signal.async`、`KeyedSignal` |
 | 派生 | 由其他 Signal 计算出来，上游变化时跟着变化 | `map`、`Signals.combine` |
 | 消费者 | 读取 Signal 并更新界面 | Item 的 `dependsOn`，Window、Pane、容器的 `bind` |
 
@@ -5920,855 +5929,1836 @@ Signal 是一个会变化的值，值变化时通知依赖它的地方。使用 
 
 Item 的显示订阅由 Sparrow UI 管理，关闭菜单后会解除对应订阅。没有其他订阅者时，自动轮询会停止，派生结果也只在被读取时计算。
 
-**下一步**：[Signal 基础](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics.md) — 创建、读取和写入 Signal，派生新的值，并订阅它的变化。
+**下一步**：[可写状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics/mutable.md) — 用 Signal.of 创建一个能读能写的状态。
 
-# Signal 基础
+# 可写状态：Signal.of
 
-原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics>
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics/mutable>
 
-Signal 保存会变化的数据，也可以根据这些数据计算新的值。它可以独立用于业务代码，再由菜单读取和显示。
+竞技场菜单上有一个积分物品。每击杀一名对手，积分加一，菜单上的数字也要跟着变。
 
-## 创建、读取与更新
+如果积分只是一个 `int` 字段，改完之后还得自己去找到每一扇打开着的菜单，挨个刷新。忘了刷新哪一处，玩家看到的就是旧分数。
 
-用 `Signal.of(initial)` 创建一个 `MutableSignal<T>`，再通过 `get()` 读取、`set(value)` 写入。需要在原值上加一时，可以用 `update`：
+## Signal.of 做什么
+
+`Signal.of(initial)` 把一个值包装成可读可写的状态，类型是 `MutableSignal<T>`。它提供三个基本操作。
+
+| 方法 | 作用 |
+| - | - |
+| `get()` | 读取当前值 |
+| `set(value)` | 直接写入新值 |
+| `update(fn)` | 根据当前值算出新值再写入 |
+
+值变了，依赖它的菜单会自动刷新。值没变，什么都不会发生。
+
+## 记录竞技场积分
+
+菜单里有一个依赖 `score` 的积分物品。点「下一步」逐行执行，看积分和物品怎样变化。
 
 ```java
-MutableSignal<Integer> quantity = Signal.of(1);
+MutableSignal<Integer> score = Signal.of(0);
 
-quantity.set(3);
-quantity.update(value -> value + 1);
+score.set(3);
+score.update(value -> value + 1);  // 又击杀了一名对手
+score.set(4);                      // 和当前值相同，这次写入被跳过
 
-System.out.println(quantity.get());
+System.out.println(score.get());   // 4
 ```
 
-最后输出 `4`。`set` 和 `update` 是 `MutableSignal` 的方法；对外提供只读接口时，可以把返回类型写成 `Signal<Integer>`。
+1. **第 1 行**：创建积分，初始值为 0。
+2. **第 3 行**：直接写入 3。值变了，积分物品在下一 tick 重新显示。
+3. **第 4 行**：update 在当前值 3 的基础上加一，得到 4。
+4. **第 5 行**：新值和旧值都是 4，写入被跳过，菜单也不刷新。
+5. **第 7 行**：读取当前值。输出「4」。
 
-新旧值默认用 `Objects.equals` 比较。此时再调用 `set(4)` 或 `update(value -> value)`，值没有变化，就会跳过写入和通知。Signal 也允许保存 `null`，例如 `MutableSignal<String> selection = Signal.of(null)`。
+加分这种先读后写的操作要用 `update`。两名玩家同时击杀时，分开调用 `get()` 和 `set()`，后写的会覆盖先写的，丢掉一分。`update` 每次都在最新值上计算，不会丢。
 
-多个线程同时修改数量时，`update` 能保证这次加一基于最新值完成。若分开调用 `get()` 和 `set()`，读取之后可能已有别的线程写入，随后再写回就会覆盖它的结果。
+## 只让对局逻辑修改积分
 
-> **注意：更新函数只计算新值**
->
-> 多个线程同时写入时，`update` 的函数可能重试。函数里只计算并返回新值，不要发放物品、扣款、发送消息或修改旧对象。
->
-> Signal 支持任意线程读写；它所保存的对象若可变，线程安全仍由调用方负责。
-
-多个字段可以放进一个 record，每次更新创建一份新状态：
+积分应该只由对局逻辑修改，菜单和其他模块只负责显示。字段声明为 `MutableSignal`，对外返回 `Signal`。
 
 ```java
-record OrderOptions(int quantity, boolean giftWrap) {}
+public final class ArenaMatch {
+    private final MutableSignal<Integer> score = Signal.of(0);
 
-MutableSignal<OrderOptions> options = Signal.of(new OrderOptions(1, false));
-options.update(value -> new OrderOptions(value.quantity() + 1, value.giftWrap()));
+    // 调用方拿到的 Signal 没有 set 和 update，只能读取和订阅
+    public Signal<Integer> score() {
+        return this.score;
+    }
 
-System.out.println(options.get());
-```
-
-结果为 `OrderOptions[quantity=2, giftWrap=false]`。Signal 保存的是对象引用，直接修改对象字段不会触发通知，再把同一个引用传给 `set` 通常也会被判为相同。所以这里用新对象替换旧状态。列表等集合的更新方式看 [集合状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collections.md)。
-
-## 订阅变化
-
-用 `onDirty` 注册变化回调。回调没有参数，需要当前值时调用 `get()`；返回的 `Subscription` 用于保留和关闭这次订阅。
-
-```java
-MutableSignal<Integer> coins = Signal.of(100);
-
-try (Subscription subscription = coins.onDirty(() -> System.out.println("当前金币：" + coins.get()))) {
-    coins.set(120);
-    coins.set(120);
-    coins.update(value -> value + 30);
-}
-
-coins.set(200);
-```
-
-回调依次输出 `当前金币：120` 和 `当前金币：150`。注册时不会补发初始值 `100`，重复写入 `120` 也不会通知。离开 `try` 块后，订阅自动关闭；最后一次写入 `200` 仍然生效，只是不再触发这个回调。
-
-示例用 `try` 限定订阅范围。需要持续监听时，把 `Subscription` 保存为字段，结束监听时调用 `close()`，也可以用 `isClosed()` 检查是否已关闭。初始值需要单独用 `get()` 读取。
-
-> **注意：订阅的持有与线程**
->
-> 必须保存 `onDirty` 返回的 `Subscription`。如果没有任何地方持有它，订阅可能随垃圾回收消失。
->
-> 回调就在触发通知的线程上执行，多个写入线程可能同时调用它。回调需要线程安全、尽快返回，也不能直接或间接让正在通知的同一个 Signal 再次变化。
-
-通知只表示值可能变了，不保存触发通知时的那份值。并发写入时，回调里的 `get()` 可能已读到后一次写入的结果。若要逐笔记录金币收支，应在业务操作处记录。
-
-菜单通过 `dependsOn` 等方式绑定 Signal 时，Sparrow UI 会管理订阅，不用自己保存 `Subscription`。具体用法看 [Signal 在 UI 中的使用](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)，订阅的保留和关闭方式看 [生命周期与清理](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/advanced/lifecycle.md)。
-
-## 用 map 派生值
-
-`map` 根据一个 Signal 的当前值生成另一个 Signal。例如，购买数量决定总价：
-
-```java
-MutableSignal<Integer> quantity = Signal.of(2);
-Signal<Integer> total = quantity.map(amount -> amount * 30);
-
-System.out.println(total.get());
-quantity.set(3);
-quantity.set(4);
-System.out.println(total.get());
-```
-
-两次输出分别是 `60` 和 `120`。`total` 在被读取时才计算，并缓存结果；`quantity` 变化后，下一次读取才重新计算。上例跳过了数量为 `3` 时的读取，所以也跳过了总价 `90` 的计算。
-
-`map` 会转发上游的变化通知，不检查派生结果是否相同。若只关心结果有没有变化，可以用 `mapDistinct`。
-
-> **注意：派生函数只依赖输入值**
->
-> 调用 `get()` 触发计算时，函数就在该线程执行。并发读取可能让同一份输入被计算多次，函数中应只根据参数计算结果，不修改状态或执行业务操作。
->
-> 在函数里读取另一个 Signal，不会自动建立对它的订阅。结果依赖多个数据源时，使用 [派生与组合](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive.md) 中的 `Signals.combine`。
-
-## 用 mapDistinct 过滤重复结果
-
-商品售价为 `50`，余额从 `100` 增加到 `120`，玩家仍然买得起，购买按钮也不需要改变外观。用 `mapDistinct` 派生这个布尔值，就能跳过结果相同时的通知：
-
-```java
-MutableSignal<Integer> coins = Signal.of(100);
-Signal<Boolean> affordable = coins.mapDistinct(value -> value >= 50);
-
-System.out.println("初始状态：" + affordable.get());
-try (Subscription subscription = affordable.onDirty(() ->
-        System.out.println("能否购买：" + affordable.get()))) {
-    coins.set(120);
-    coins.set(40);
-    coins.set(30);
-    coins.set(60);
+    public void recordKill() {
+        this.score.update(value -> value + 1);
+    }
 }
 ```
 
-初始状态为 `true`，回调只输出 `false`、`true` 两次：
+所有加分都经过 `recordKill()`。以后想加连杀奖励，改这一个方法就够了。
 
-| 余额变化 | 能否购买 | 是否通知订阅者 |
-| - | - | - |
-| 100 → 120 | true → true | 否 |
-| 120 → 40 | true → false | 是 |
-| 40 → 30 | false → false | 否 |
-| 30 → 60 | false → true | 是 |
+## 保存多个字段
 
-`mapDistinct` 默认用 `Objects.equals` 比较结果。首次订阅时先算出当前结果，随后每次收到上游通知，都重新计算并与前一次比较，结果不同才通知订阅者。没有订阅者时，仍然等到 `get()` 才计算。
+副本设置有难度和人数上限两个字段。把它们放进一个 record，改的时候整体换成新对象。
 
-这次比较需要先计算结果，所以 `mapDistinct` 的函数也可能在写入上游时执行，应尽量简短。如果每次数量变化都会改变总价，直接用 `map` 就行。
+```java
+record DungeonSettings(String difficulty, int maxPlayers) {}
+
+MutableSignal<DungeonSettings> settings = Signal.of(new DungeonSettings("普通", 4));
+settings.update(current -> new DungeonSettings("困难", current.maxPlayers()));
+
+System.out.println(settings.get());  // DungeonSettings[difficulty=困难, maxPlayers=4]
+```
+
+只想读写其中一个字段时，可以用 [lens](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/lens.md)。
 
 ## 自定义相等规则
 
-如果业务上的相等规则与 `Objects.equals` 不同，可以给 `Signal.of` 传入 `sameValue` 比较函数，返回 `true` 表示两个值相同。例如，分类编号可以忽略大小写：
+写入时，Signal 用 `Objects.equals` 比较新旧值。业务上的「相同」和 `equals` 不一样时，把比较函数作为第二个参数传入。
+
+公会标签不区分大小写，`MOON` 和 `moon` 是同一个公会。
 
 ```java
-MutableSignal<String> category = Signal.of("books", String::equalsIgnoreCase);
+MutableSignal<String> guildTag = Signal.of("MOON", String::equalsIgnoreCase);
 
-try (Subscription subscription = category.onDirty(() ->
-        System.out.println("分类：" + category.get()))) {
-    category.set("BOOKS");
-    System.out.println("当前值：" + category.get());
-    category.set("tools");
-}
+guildTag.set("moon");
+System.out.println(guildTag.get());  // MOON，被判为相同，写入跳过
+guildTag.set("SUN");
+System.out.println(guildTag.get());  // SUN
 ```
 
-写入 `"BOOKS"` 时，比较结果为相同，这次写入会被跳过，`get()` 仍返回 `"books"`。改为 `"tools"` 后才触发回调。
+## 注意事项
 
-如果需要保留原始输入，只让某个派生结果忽略大小写，把判等规则放在 `mapDistinct` 上：
+> **注意：状态对象要不可变**
+>
+> Signal 保存的是对象引用。直接改对象里的字段，Signal 察觉不到；再把同一个对象传给 `set`，也会被判为没变。所以要创建新对象替换旧的。
 
-```java
-MutableSignal<String> input = Signal.of("books");
-Signal<String> keyword = input.mapDistinct(String::strip, String::equalsIgnoreCase);
-
-try (Subscription subscription = keyword.onDirty(() ->
-        System.out.println("搜索词：" + keyword.get()))) {
-    input.set(" BOOKS ");
-    System.out.println("原始输入：" + input.get());
-    input.set(" tools ");
-}
-```
-
-这里的 `input` 会保留 `" BOOKS "`，也会通知自己的订阅者。`keyword` 去掉两端空格后再忽略大小写比较，结果相同就不继续通知；输入改为 `" tools "` 时，回调才输出 `搜索词：tools`。
+> **注意：update 的函数只计算新值**
+>
+> 多个线程同时写入时，`update` 的函数可能被执行多次。函数里只根据参数返回新值，发奖励、扣物品、发消息都不要放进去。
+>
+> Signal 本身可以在任意线程读写。它保存的对象如果是可变的，线程安全要你自己负责。
 
 > **注意：比较函数的约定**
 >
-> `sameValue` 应满足等价关系，同一个值必须与自身相同，函数也应简短且无副作用。它只会收到两个非 `null` 值；两个 `null` 由 Sparrow UI 判为相同，只有一侧为 `null` 则判为不同。
+> 比较函数返回 `true` 表示相同。它应满足等价关系，保持简短，没有副作用。两个 `null` 视为相同，只有一边是 `null` 视为不同，函数本身只会收到非 `null` 的值。
 >
-> Signal 会长期持有比较函数，不要在其中捕获 `Player`、`World` 或 `Window`。如果比较时忽略某个字段，仅修改这个字段的写入就会被跳过。
+> Signal 会一直持有这个函数，不要在里面捕获 `Player`、`World` 或 `Window`。
 
-**下一步**：[派生与组合](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive.md) — 组合多个数据源，切换依赖，并用防抖、节流和时钟控制更新。
+**下一步**：[订阅变化](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics/subscribe.md) — 用 onDirty 在值变化时收到通知，并管理订阅的寿命。
 
-# Signal 派生
+# 订阅变化：onDirty
 
-原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive>
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics/subscribe>
 
-购买按钮可能同时依赖数量、单价和余额；切换分类后，菜单又要改为读取另一份数据。派生 Signal 可以组合这些来源，也可以控制变化通知的时机。
+Boss 战开始后，屏幕顶部的 BossBar 要一直跟着 Boss 的血量走。血量在伤害事件里被修改，BossBar 在另一个地方，两边得有个办法联系起来。
 
-## 组合多个值
+在菜单里用 Signal 时，Sparrow UI 会替你订阅，用不着这一页的内容。BossBar、日志、计分板这些菜单以外的东西，就要自己订阅。
 
-`Signals.combine` 接受两个或三个 Signal。任意来源变化，组合结果就会通知下游；真正读取结果时，再取各来源的当前值进行计算。
+## onDirty 做什么
 
-下面用两个来源计算总价，再用三个来源判断能否购买：
+`onDirty(listener)` 注册一个回调。Signal 的值可能变化时，回调就会被调用。它返回一个 `Subscription`，保存它就能一直收到通知，调用 `close()` 就停止。
+
+回调没有参数。需要新值时，在回调里调用 `get()` 读取。
+
+## 让 BossBar 跟随血量
 
 ```java
-MutableSignal<Integer> quantity = Signal.of(2);
-MutableSignal<Integer> price = Signal.of(30);
-MutableSignal<Integer> coins = Signal.of(100);
+public final class BossHealthBar {
+    private final BossBar bar;
+    private final Subscription subscription;
 
-Signal<Integer> total = Signals.combine(quantity, price,
-        (amount, unitPrice) -> amount * unitPrice);
-Signal<Boolean> affordable = Signals.combine(quantity, price, coins,
-        (amount, unitPrice, balance) -> (long) amount * unitPrice <= balance);
+    public BossHealthBar(Signal<Integer> health, int maxHealth) {
+        this.bar = BossBar.bossBar(
+                Component.text("远古守卫者"), 1f,
+                BossBar.Color.RED, BossBar.Overlay.PROGRESS
+        );
+        // 血量每次变化，按比例更新进度条
+        this.subscription = health.onDirty(() -> {
+            float progress = health.get() / (float) maxHealth;
+            this.bar.progress(Math.clamp(progress, 0f, 1f));
+        });
+    }
 
-System.out.println(total.get());
-System.out.println(affordable.get());
-quantity.set(4);
-System.out.println(total.get());
-System.out.println(affordable.get());
-```
+    public BossBar bar() {
+        return this.bar;
+    }
 
-初始总价为 `60`，余额足够；数量改成 `4` 后，总价变成 `120`，余额不足。下面的演示使用同样的初始值。修改余额时，总价不受影响；修改数量或单价时，两项结果都需要重新计算。
-
-`combine` 与 `map` 一样按需计算并缓存结果，不比较新旧结果是否相同。余额从 `100` 变成 `150` 时，即使仍然买得起，`affordable` 也会通知下游。需要过滤重复结果，可以再接 `.mapDistinct(value -> value)`。
-
-> **注意：多个来源分别读取**
->
-> 组合函数可能在任意读取线程执行，应只计算结果。多个来源的读取不构成一次原子快照；依次修改数量和单价时，读取方可能看到其中一项已更新、另一项尚未更新。
->
-> 如果两个字段必须一起变化，把它们放进同一个不可变对象，用一次 `update` 替换，随后通过 `map` 或 `lens` 读取字段。
-
-## 单独读写一个字段
-
-`MutableSignal.lens` 从一个对象中取出字段，返回可读写的 `MutableSignal`。第一个函数读取字段，第二个函数用新字段值创建新的完整对象。
-
-```java
-record Settings(boolean sound, int volume) {}
-
-MutableSignal<Settings> settings = Signal.of(new Settings(true, 5));
-MutableSignal<Integer> volume = settings.lens(
-        Settings::volume,
-        (current, value) -> new Settings(current.sound(), value));
-
-volume.set(8);
-System.out.println(settings.get());
-
-settings.update(current -> new Settings(false, current.volume()));
-System.out.println(volume.get());
-```
-
-写入 `volume` 后，完整设置变为 `Settings[sound=true, volume=8]`。随后关闭声音，`volume.get()` 仍然是 `8`，依赖音量的订阅者也不会因为声音开关变化而收到通知。
-
-写入 lens 会调用原 Signal 的原子更新，第二个函数应保留当前对象中未修改的字段。`volume.update(value -> value + 1)` 也可以使用。需要自定义字段的相等规则时，将 `sameValue` 作为第三个参数传入。
-
-> **注意：字段转换函数可能重试**
->
-> 两个函数都应无副作用，写入函数返回新对象，不修改传入对象。它们可能在不同线程执行，也可能因为并发更新而重试。不要在函数中捕获玩家、世界或窗口对象。
-
-## 跟随当前选择
-
-武器和护甲各有一份库存，菜单只显示当前分类。用 `Signals.switching` 将分类 Signal 作为选择条件，返回值就会跟随选中的来源。
-
-```java
-MutableSignal<Integer> weapons = Signal.of(5);
-MutableSignal<Integer> armor = Signal.of(8);
-MutableSignal<String> category = Signal.of("weapons");
-
-Signal<Integer> currentStock = Signals.switching(
-        Map.of("weapons", weapons, "armor", armor), category);
-
-System.out.println("初始库存：" + currentStock.get());
-try (Subscription subscription = currentStock.onDirty(() ->
-        System.out.println("当前库存：" + currentStock.get()))) {
-    armor.set(7);
-    category.set("armor");
-    weapons.set(4);
-    armor.set(6);
+    // Boss 死亡或被移除时调用
+    public void close() {
+        this.subscription.close();
+    }
 }
 ```
 
-初始库存为 `5`，回调依次输出 `7`、`6`。选中武器时，护甲的变化不向下游传递；切到护甲后，武器的变化也不再影响当前结果。切换分类会读取新来源的最新值。
+`BossBar` 和 `Component` 来自 Adventure。`Subscription` 存在字段里，Boss 活着的时候一直有效。
 
-传入的 Map 会被复制，之后修改原 Map 不会增加可选来源。Map 必须非空，分类值必须对应其中的 key；找不到来源时会抛出 `IllegalArgumentException`。
+## 通知在什么时候发出
 
-已有 `KeyedSignal` 时，也可以写成 `Signals.switching(source, category)`，读取当前 key 对应的分区。分区的创建与管理看 [分区状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions.md)。
-
-## 跟随会增减的成员
-
-统计多个仓库的库存时，仓库本身的数量也可能变化。`Signals.merging` 同时跟踪成员列表和列表中每个成员的 Signal，新增成员后开始监听，移除后解除监听。
-
-下面用三个独立库存演示。`members` 决定哪些库存参与统计：
+用一段更短的代码看清通知的时机。Boss 初始血量 500，订阅后连续受到几次伤害。
 
 ```java
-MutableSignal<Integer> apples = Signal.of(5);
-MutableSignal<Integer> books = Signal.of(3);
-MutableSignal<Integer> gems = Signal.of(10);
-MutableSignal<List<MutableSignal<Integer>>> members = Signal.of(List.of(apples, books));
+MutableSignal<Integer> bossHealth = Signal.of(500);
 
-Signal<Long> changed = Signals.merging(members, member -> member);
-Signal<Integer> total = changed.map(ignored ->
-        members.get().stream().mapToInt(Signal::get).sum());
+Subscription subscription = bossHealth.onDirty(() -> {
+    System.out.println("Boss 剩余血量：" + bossHealth.get());
+});
 
-System.out.println("初始总数：" + total.get());
-try (Subscription subscription = total.onDirty(() ->
-        System.out.println("当前总数：" + total.get()))) {
-    apples.set(4);
-    members.set(List.of(books, gems));
-    apples.set(0);
-    gems.set(9);
-}
+bossHealth.set(420);                       // 打印「Boss 剩余血量：420」
+bossHealth.set(420);                       // 值没变，不打印
+bossHealth.update(health -> health - 70);  // 打印「Boss 剩余血量：350」
+
+subscription.close();
+bossHealth.set(0);                         // 订阅已关闭，不打印
 ```
 
-初始总数为 `8`，回调依次输出 `7`、`13`、`12`。苹果库存移出列表后，再修改它不会触发统计更新。
+1. **第 1 行**：Boss 出场，血量 500。
+2. **第 3-5 行**：订阅时不会补发当前值 500，控制台还是空的。需要初始值就自己 get() 一次。
+3. **第 7 行**：值变了，回调在写入的这个线程里立刻执行。输出「Boss 剩余血量：420」。
+4. **第 8 行**：写入相同的值，被跳过，回调不执行。
+5. **第 9 行**：回调里 get() 读到的是最新值 350。输出「Boss 剩余血量：350」。
+6. **第 11 行**：关闭订阅。之后的变化与这个回调无关。
+7. **第 12 行**：写入照常生效，依赖它的菜单也会刷新，只是控制台不再打印。
 
-`merging` 返回的 `Long` 只是递增的变化标记，不是成员数量，也不是库存合计。这里用 `map` 在标记变化后重新求和，成员的依赖关系已由 `merging` 建立。
+## 注意事项
 
-如果列表中放的是业务对象，第二个参数改为读取该对象的 Signal，例如 `Warehouse::stock`。应返回成员已有的 Signal，成员集合的遍历顺序也应保持稳定。普通 `MutableSignal<List<T>>` 要通过 `set` 发布新列表；`ListSignal`、`SetSignal` 也可以直接作为成员来源，用法看 [集合状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collections.md)。
-
-## 等输入停下来再更新
-
-搜索框里连续输入 `d`、`di`、`diamond` 时，通常只需要处理最后一个完整搜索词。`debounce(5)` 会从最后一次变化起等待 5 tick，期间再次变化就重新等待。
-
-下面的方法接收输入 Signal，返回这次监听的 `Subscription`：
-
-```java
-public static Subscription watchSearch(Signal<String> input) {
-    Signal<String> settled = input.debounce(5).mapDistinct(String::strip);
-    return settled.onDirty(() -> System.out.println("搜索词：" + settled.get()));
-}
-```
-
-将输入框的文本写入原始 Signal，`settled` 就会在输入停顿后更新。保存返回的订阅，并在搜索结束时关闭。空格由 `strip` 去掉，处理后的文本相同则不重复通知。
-
-有订阅期间，等待中的 `settled.get()` 仍返回上一次通知时的值。需要立即取得输入框内容时，读取原始 `input`。如果持续输入而没有停顿，防抖也会持续等待。
-
-用毫秒计时则改为 `input.debounceMillis(250)`。tick 版跟随服务器 tick，5 tick 只在 20 TPS 时约等于 250 毫秒。
-
-> **注意：定时派生需要订阅**
+> **注意：一定要保存 Subscription**
 >
-> 防抖和节流只有在存在订阅者时才安排定时任务。仅创建派生 Signal 再调用 `get()`，会直接读到上游当前值，不会等待。最后一个订阅关闭后，待执行的延时任务也会取消。
+> Signal 只弱引用订阅者。`onDirty` 返回的 `Subscription` 没有被任何地方持有时，可能被垃圾回收，回调就悄悄停了，也不会报错。
+
+> **注意：通知只说明「可能变了」**
 >
-> 使用定时 API 前应已完成 Sparrow UI 初始化。tick 版的延时回调在全局区域调度线程执行，毫秒版在 Paper 异步调度线程执行；不要在回调里直接操作玩家或方块。异步查询的用法看 [异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md)。
+> 通知不带值。回调里的 `get()` 读的是当下的值，多个线程连续写入时，中间的某个值可能读不到，两次通知也可能读到同一个值。
+>
+> 所以别拿回调记账。要记录 Boss 受到的每一次伤害，就在造成伤害的地方记，不要从血量变化里倒推。
 
-## 限制连续更新的频率
+> **注意：回调在写入的线程执行**
+>
+> 谁修改血量，回调就在谁的线程里跑。多个线程写入时，回调可能被同时调用。
+>
+> 回调要线程安全，尽快返回，也不要在回调里再去修改同一个 Signal。
 
-进度持续变化时，如果用防抖，可能一直等不到停顿。`throttle(5)` 会先通知一次，之后两次通知之间至少间隔 5 tick；期间的变化合并到下一次通知，读取当时的最新值。
+订阅的保留与清理还可以看 [生命周期与清理](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/advanced/lifecycle.md)。菜单里的订阅怎样自动管理，见 [Signal 在 UI 中的使用](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
+
+**下一步**：[map 转换](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/map.md) — 从一个 Signal 算出另一个值，例如把血量显示成血条文字。
+
+# map 转换
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/map>
+
+玩家的血量存在一个 `Signal<Integer>` 里，菜单上要显示的却是「❤ 14 / 20」这样的文字，还想再画一条十格的血条。
+
+每次改血量时顺手把文字也改一遍，当然可以。可文字和血条只是血量换了个样子，没必要单独保存，更不该让每个修改血量的地方都记得去更新它们。
+
+## map 做什么
+
+`map` 接收一个转换函数，从原 Signal 派生出一个新 Signal。原 Signal 变了，新 Signal 跟着变。
+
+派生出来的 Signal 只能读，不能写。原值变了它也不急着算，等有人读取时才算一次，算完缓存起来。
+
+## 显示血量文字和血条
+
+`map` 返回的还是 Signal，可以接着 `map`。下面从血量派生出文字，再换算成百分比，画成十格血条。菜单里的两个物品分别依赖 `healthText` 和 `bar`。
+
+逐步执行时留意「待计算」。血量变了，派生值只是被标记为过期，直到有人读取才真正计算。
 
 ```java
-public static Subscription watchProgress(Signal<Integer> progress) {
-    Signal<Integer> limited = progress.throttle(5);
-    return limited.onDirty(() -> System.out.println("进度：" + limited.get()));
-}
+MutableSignal<Integer> health = Signal.of(20);
+Signal<String> healthText = health.map(value -> "❤ " + value + " / 20");
+Signal<Integer> percent = health.map(value -> value * 100 / 20);
+Signal<String> bar = percent.map(value ->
+        "■".repeat(value / 10) + "□".repeat(10 - value / 10)
+);
+
+health.set(14);
+health.set(9);
+
+System.out.println(healthText.get());  // ❤ 9 / 20
+System.out.println(bar.get());         // ■■■■□□□□□□
 ```
 
-假设初始值为 `0`，已经建立订阅，随后发生以下变化，且延时任务按期执行：
+1. **第 1-6 行**：满血。菜单读取两个派生值并显示。
+2. **第 8 行**：血量变成 14。两个派生值收到通知，只是标记为过期，此刻并不计算。
+3. **第 9 行**：又变成 9。「❤ 14 / 20」从头到尾没有被计算过。
+4. **第 11-12 行**：读取时才用最新的血量 9 计算一次。菜单也是一样，下一 tick 重新显示时才读取。输出「❤ 9 / 20，■■■■□□□□□□」。
 
-| 时间 | 操作 | `debounce(5)` | `throttle(5)` |
+## 注意事项
+
+> **注意：结果没变也会通知**
+>
+> 原 Signal 每通知一次，`map` 就向下游通知一次，不管算出来的结果变没变。血量从 13 降到 12，血条还是六格，依赖 `bar` 的物品照样会刷新一次。
+>
+> 多刷新一次通常无所谓。结果经常不变、刷新代价又高时，改用 [mapDistinct](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/map-distinct.md)。
+
+> **注意：转换函数只看参数**
+>
+> 函数在调用 `get()` 的线程执行，并发读取时同一个输入可能被算好几次。函数里只根据参数算出结果，不要改状态、发消息或查数据库。
+>
+> 在函数里读另一个 Signal，不会建立依赖，那个 Signal 变了结果也不会更新。依赖多个 Signal 时用 [combine](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/combine.md)。
+
+**下一步**：[mapDistinct 去重](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/map-distinct.md) — 结果没变就不通知，例如只在玩家进入新区块时更新。
+
+# mapDistinct 去重
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/map-distinct>
+
+状态菜单上有一个图标，按血量显示「健康」「受伤」「濒死」三种样子。战斗中血量几乎每秒都在掉，图标却很久才换一次。
+
+用 [map](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/map.md) 派生这个状态，每掉一滴血图标就刷新一次，其中绝大多数刷新前后完全一样。
+
+## mapDistinct 做什么
+
+`mapDistinct` 和 `map` 一样根据原值算出新值。多出来的一步是比较，这次的结果和上次相同，就不通知下游。
+
+默认用 `Objects.equals` 比较结果，也可以传入自己的比较函数。
+
+## 只在状态阶段变化时刷新
+
+血量高于 10 为健康，高于 4 为受伤，其余为濒死。点「下一步」逐行执行，看图标什么时候刷新。
+
+```java
+MutableSignal<Integer> health = Signal.of(20);
+Signal<String> condition = health.mapDistinct(value ->
+        value > 10 ? "健康" : value > 4 ? "受伤" : "濒死"
+);
+
+Subscription subscription = condition.onDirty(() -> {
+    System.out.println("状态变为：" + condition.get());
+});
+
+health.set(16);  // 仍是健康，不打印
+health.set(8);   // 打印「状态变为：受伤」
+health.set(6);   // 仍是受伤，不打印
+health.set(3);   // 打印「状态变为：濒死」
+health.set(2);   // 仍是濒死，不打印
+
+subscription.close();
+```
+
+1. **第 1-4 行**：满血，状态为健康。
+2. **第 6-8 行**：订阅状态变化。订阅时不会补发当前值。
+3. **第 10 行**：重新计算后还是健康，结果相同，图标不刷新。
+4. **第 11 行**：结果变成受伤，通知下游，图标刷新。输出「状态变为：受伤」。
+5. **第 12 行**：还是受伤，不通知。
+6. **第 13 行**：进入濒死，图标刷新。输出「状态变为：濒死」。
+7. **第 14 行**：五次写入，图标只刷新了两次。换成 map 就是五次。
+
+## 只在进入新区块时更新
+
+领地提示只关心玩家站在哪个区块，不关心具体坐标。方块坐标右移 4 位就是区块坐标，record 自带 `equals`，坐标相同的 `ChunkPos` 会被判为相同。
+
+```java
+record BlockPos(int x, int z) {}
+record ChunkPos(int x, int z) {}
+
+MutableSignal<BlockPos> position = Signal.of(new BlockPos(3, 3));
+Signal<ChunkPos> chunk = position.mapDistinct(pos ->
+        new ChunkPos(pos.x() >> 4, pos.z() >> 4)
+);
+
+Subscription subscription = chunk.onDirty(() -> {
+    System.out.println("进入区块 " + chunk.get());
+});
+
+position.set(new BlockPos(9, 3));    // 还在区块 (0, 0)，不打印
+position.set(new BlockPos(15, 12));  // 还在区块 (0, 0)，不打印
+position.set(new BlockPos(16, 12));  // 打印「进入区块 ChunkPos[x=1, z=0]」
+position.set(new BlockPos(20, -1));  // 打印「进入区块 ChunkPos[x=1, z=-1]」
+
+subscription.close();
+```
+
+1. **第 4-7 行**：玩家在区块 (0, 0)。
+2. **第 13 行**：换了坐标，区块没变。
+3. **第 14 行**
+4. **第 15 行**：x 到了 16，跨进区块 (1, 0)。输出「进入区块 ChunkPos\[x=1, z=0]」。
+5. **第 16 行**：z 变成负数，进入区块 (1, -1)。输出「进入区块 ChunkPos\[x=1, z=-1]」。
+
+## 自定义结果的比较方式
+
+聊天频道名不区分大小写，首尾空格也不算数。把比较函数作为第二个参数传入。
+
+```java
+MutableSignal<String> input = Signal.of("moon");
+Signal<String> channel = input.mapDistinct(String::strip, String::equalsIgnoreCase);
+
+Subscription subscription = channel.onDirty(() -> {
+    System.out.println("切换到频道：" + channel.get());
+});
+
+input.set(" MOON ");   // 去掉空格后和 moon 相同，不打印
+input.set(" trade ");  // 打印「切换到频道：trade」
+
+subscription.close();
+```
+
+输入框本身的 `input` 仍然保存着 `" MOON "`，只有派生出来的 `channel` 忽略了这次变化。
+
+## 注意事项
+
+> **提示：和 map 怎么选**
+>
+> `mapDistinct` 得先算出结果才能比较，所以有订阅者时，原值每变一次它就算一次。`map` 可以拖到读取时再算。
+>
+> 结果几乎每次都会变，比如血量文字、倒计时秒数，用 `map`。结果经常不变，比如状态阶段、所在区块、能否购买这种布尔值，用 `mapDistinct`。
+
+> **注意：函数会在写入线程执行**
+>
+> 有订阅者时，函数在原值被写入的线程上执行，用来判断要不要通知。函数要短，只根据参数计算。
+
+> **注意：比较函数的约定**
+>
+> 比较函数的规则与 [Signal.of](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics/mutable.md#注意事项) 相同。满足等价关系，保持简短，没有副作用。
+
+**下一步**：[combine 组合](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/combine.md) — 由多个 Signal 共同算出一个结果，例如法力、消耗和沉默决定技能能否释放。
+
+# combine 组合
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/combine>
+
+技能栏上的火球术按钮，能释放时是亮的，不能释放时是灰的。能不能释放看三件事，法力够不够、法力消耗是多少、有没有被沉默。
+
+[map](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/map.md) 只能跟随一个 Signal。在它的函数里去读另外两个 Signal 不会建立依赖，玩家被沉默了按钮也不会变灰。
+
+## combine 做什么
+
+`Signals.combine` 把两个或三个 Signal 组合成一个结果。任何一个来源变化，组合结果都会通知下游。读取时，再拿各来源的当前值算出结果。
+
+组合函数的参数顺序和传入 Signal 的顺序一致。
+
+## 判断技能能否释放
+
+菜单里的法力物品依赖 `mana`，火球术按钮依赖 `castable`。逐步执行，看哪一步会让哪个物品刷新。
+
+```java
+MutableSignal<Integer> mana = Signal.of(40);
+MutableSignal<Integer> manaCost = Signal.of(30);
+MutableSignal<Boolean> silenced = Signal.of(false);
+
+Signal<Boolean> castable = Signals.combine(mana, manaCost, silenced,
+        (current, cost, muted) -> !muted && current >= cost
+);
+
+System.out.println(castable.get());  // true
+silenced.set(true);
+System.out.println(castable.get());  // false，被沉默
+silenced.set(false);
+mana.update(value -> value - 30);
+System.out.println(castable.get());  // false，只剩 10 点法力
+```
+
+1. **第 1-7 行**：法力 40 不少于消耗 30，也没被沉默，按钮是亮的。
+2. **第 9 行**：输出「true」。
+3. **第 10 行**：沉默变了，castable 收到通知，按钮变灰。法力物品不依赖沉默，不刷新。
+4. **第 11 行**：输出「false」。
+5. **第 12 行**：沉默解除。
+6. **第 13 行**：释放一次后只剩 10 点法力。两个物品都依赖法力，都会刷新。
+7. **第 14 行**：法力不足，按钮保持灰色。输出「false」。
+
+下面的演示可以自己动手。点「切换沉默」时只有技能按钮重新显示，点「法力 +20」时两个物品都会重新显示。
+
+## 两个来源的写法
+
+两个来源时，组合函数接收两个参数。当前经验和升级所需经验决定进度百分比。
+
+```java
+MutableSignal<Integer> experience = Signal.of(30);
+MutableSignal<Integer> required = Signal.of(120);
+
+Signal<String> progress = Signals.combine(experience, required,
+        (current, needed) -> current * 100 / needed + "%"
+);
+
+System.out.println(progress.get());  // 25%
+experience.set(90);
+System.out.println(progress.get());  // 75%
+
+// 升级后经验清零，下一级需要更多经验
+experience.set(0);
+required.set(200);
+System.out.println(progress.get());  // 0%
+```
+
+## 注意事项
+
+> **注意：结果没变也会通知**
+>
+> `combine` 和 `map` 一样不比较前后结果。法力从 40 回复到 60，`castable` 还是 `true`，下游照样收到通知。按钮只关心能不能释放的话，在后面接一个 `mapDistinct`。
+>
+> ```java
+> Signal<Boolean> castableDistinct = castable.mapDistinct(value -> value);
+> ```
+
+> **注意：多个来源是分别读取的**
+>
+> 组合结果读取来源时一个一个读，拿到的不是同一时刻的快照。先改 `mana` 再改 `manaCost`，别的线程可能恰好在两次写入之间读到新法力和旧消耗。
+>
+> 两项数据必须一起变时，放进同一个不可变对象，用一次 `update` 整体替换，再用 `map` 或 [lens](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/lens.md) 取字段。
+
+> **注意：组合函数只做计算**
+>
+> 函数可能在任意读取线程执行，同一组输入也可能被算好几次。只根据参数算结果，不改状态，不查数据库。
+>
+> `combine` 最多接收三个来源。更多的话，先把其中几项组合成中间结果，或者把相关字段合并进一个 record。
+
+**下一步**：[lens 字段读写](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/lens.md) — 从一个设置对象里取出单个字段，单独读写和订阅。
+
+# lens 字段读写
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/lens>
+
+玩家的 HUD 设置存在一个 record 里，有「显示坐标」和「界面缩放」两个字段。设置菜单上一个按钮切换坐标显示，另一个按钮调缩放。
+
+每个按钮都得写 `hud.update(current -> new HudSettings(...))`，把另一个字段原样抄一遍。字段一多，抄漏一个就把玩家的设置改乱了。更麻烦的是，只调了缩放，显示坐标开关的那个按钮也会跟着刷新，因为它们依赖同一个 `hud`。
+
+## lens 做什么
+
+`MutableSignal.lens` 从对象状态里取出一个字段，得到一个可以单独读写的 `MutableSignal`。
+
+它需要两个函数。
+
+| 参数 | 作用 |
+| - | - |
+| 读取函数 | 从完整对象里取出字段 |
+| 写入函数 | 拿到当前的完整对象和新的字段值，返回新的完整对象 |
+
+往 lens 里写值，它会用写入函数造出新对象，写回原来的 Signal。字段值没变时，lens 不通知，所以只调缩放不会惊动坐标按钮。
+
+## 每个按钮只管一个字段
+
+坐标按钮依赖 `showCoords`，缩放按钮依赖 `scale`。逐步执行，看每次点击只刷新哪个按钮。
+
+```java
+record HudSettings(boolean showCoords, int scale) {}
+
+MutableSignal<HudSettings> hud = Signal.of(new HudSettings(true, 2));
+
+MutableSignal<Boolean> showCoords = hud.lens(
+        HudSettings::showCoords,
+        (current, value) -> new HudSettings(value, current.scale())
+);
+MutableSignal<Integer> scale = hud.lens(
+        HudSettings::scale,
+        (current, value) -> new HudSettings(current.showCoords(), value)
+);
+
+showCoords.update(value -> !value);             // 坐标按钮刷新，缩放按钮不动
+scale.update(value -> Math.min(value + 1, 4));  // 缩放变成 3
+scale.update(value -> Math.min(value + 1, 4));  // 缩放变成 4
+scale.update(value -> Math.min(value + 1, 4));  // 已经是 4，写入被跳过
+
+System.out.println(hud.get());  // HudSettings[showCoords=false, scale=4]
+```
+
+1. **第 1-3 行**：完整的设置对象只有这一份。
+2. **第 5-12 行**：给两个字段各建一个 lens，两个按钮分别依赖它们。
+3. **第 14 行**：hud 换成了新对象，但缩放字段没变，缩放按钮不刷新。
+4. **第 15 行**：lens 用写入函数造出新对象写回 hud，坐标字段原样保留。
+5. **第 16 行**
+6. **第 17 行**：已经到上限 4，新值与旧值相同，什么都没发生。
+7. **第 19 行**：保存到数据库时，直接取 hud.get()。输出「HudSettings\[showCoords=false, scale=4]」。
+
+## 注意事项
+
+> **注意：两个函数都可能重试**
+>
+> 写入 lens 时会调用原 Signal 的 `update`，并发时写入函数可能被执行多次。两个函数都不要有副作用。写入函数返回新对象，保留当前对象的其他字段，也不要修改传进来的对象。
+>
+> 函数里不要捕获玩家、世界或窗口对象。
+
+> **提示：自定义字段的比较方式**
+>
+> 字段是否变化默认用 `Objects.equals` 判断。需要其他规则时，把比较函数作为第三个参数传入，规则与 [Signal.of](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics/mutable.md#注意事项) 相同。
+
+**下一步**：[switching 切换来源](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/switching.md) — 根据当前选择读取不同的 Signal，例如切换职业后显示对应职业的技能点。
+
+# switching 切换来源
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/switching>
+
+技能菜单顶部有两个职业标签，战士和法师，下面显示当前职业的剩余技能点。两个职业的技能点各存在一个 Signal 里。
+
+用 [combine](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/combine.md) 把职业和两份技能点组合起来，结果能对，但依赖也多了。玩家正在看战士页，法师的技能点一变，这个物品照样刷新。职业越多，白白刷新的次数越多。
+
+## switching 做什么
+
+`Signals.switching` 接收一个「选择」Signal 和一组来源。它只跟随当前被选中的那个来源，其他来源怎么变都与它无关。
+
+选择变了，它就改为跟随新的来源，并立刻读取新来源的当前值。
+
+## 切换职业时显示对应的技能点
+
+第一个参数是「选择值 → 来源」的 Map，第二个参数是选择 Signal。菜单里的技能点物品依赖 `skillPoints`。
+
+```java
+MutableSignal<Integer> warriorPoints = Signal.of(5);
+MutableSignal<Integer> magePoints = Signal.of(2);
+MutableSignal<String> job = Signal.of("warrior");
+
+Signal<Integer> skillPoints = Signals.switching(
+        Map.of("warrior", warriorPoints, "mage", magePoints),
+        job
+);
+
+Subscription subscription = skillPoints.onDirty(() -> {
+    System.out.println("当前技能点：" + skillPoints.get());
+});
+
+magePoints.set(3);     // 法师没被选中，不打印
+job.set("mage");       // 打印「当前技能点：3」
+warriorPoints.set(6);  // 战士已不是当前来源，不打印
+magePoints.set(4);     // 打印「当前技能点：4」
+
+subscription.close();
+```
+
+1. **第 1-8 行**：当前是战士，skillPoints 跟随 warriorPoints。
+2. **第 10-12 行**：订阅技能点的变化。
+3. **第 14 行**：法师技能点变了，可法师没被选中，技能点物品不刷新。
+4. **第 15 行**：切到法师，改为跟随 magePoints，读到 3。输出「当前技能点：3」。
+5. **第 16 行**：战士已经不是当前来源，这次变化被忽略。
+6. **第 17 行**：输出「当前技能点：4」。
+
+实际项目里选择值通常用枚举，比如 `Map.of(Job.WARRIOR, warriorPoints, Job.MAGE, magePoints)`。
+
+## 在分区之间切换
+
+竞技场有很多个，而且会新增，没法一个个写进 Map。每个竞技场的人数存在一个按编号分区的 [KeyedSignal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/basics.md) 里，`switching` 可以直接接收它。
+
+```java
+MutableKeyedSignal<String, Integer> arenaPlayers = KeyedSignal.of(arena -> 0);
+MutableSignal<String> selectedArena = Signal.of("desert");
+Signal<Integer> shown = Signals.switching(arenaPlayers, selectedArena);
+
+arenaPlayers.set("desert", 6);
+arenaPlayers.set("forest", 2);
+System.out.println(shown.get());  // 6
+
+selectedArena.set("forest");      // 玩家在列表里点了森林竞技场
+System.out.println(shown.get());  // 2
+```
+
+分区是异步加载的时候，切到一个新分区后，第一次读取才开始加载，加载期间读到占位值，见 [异步与轮询分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/async.md)。
+
+## 注意事项
+
+> **注意：Map 与选择值**
+>
+> 传入的 Map 会被复制，之后改原来的 Map 不会增加可选来源。Map 不能为空；读取时当前选择在 Map 里找不到对应来源，会抛出 `IllegalArgumentException`。
+>
+> 选择 Signal 的值不能是 `null`。
+
+**下一步**：[merging 汇合成员](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/merging.md) — 跟踪一组会增减的成员，例如队伍成员的血量总和。
+
+# merging 汇合成员
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/merging>
+
+队伍菜单要显示全队的总血量。每名队员的血量各是一个 Signal，队员还会随时加入和离开。
+
+[combine](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/combine.md) 的来源在创建时就定死了，最多三个，应付不了人数会变的队伍。自己监听又得在每次有人进队时订阅他的血量、离队时取消订阅，很容易漏掉。
+
+## merging 做什么
+
+`Signals.merging` 同时监听两样东西，成员名单本身，以及名单里每个成员的 Signal。名单变了，或者任何一个成员的 Signal 变了，它都会通知下游。
+
+新成员加入后自动开始监听，离开后自动停止。
+
+它的返回值是 `Signal<Long>`，一个每次变化都会增加的数字。这个数字没有业务含义，只表示「有东西变了」。真正的结果要接一个 `map` 自己算。
+
+## 统计队伍总血量
+
+队伍名单用 [ListSignal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/list.md) 保存，可以直接增删成员。菜单里显示每名队员，最右边是总血量。
+
+```java
+record Member(String name, MutableSignal<Integer> health) {}
+
+Member alice = new Member("Alice", Signal.of(20));
+Member bob = new Member("Bob", Signal.of(14));
+Member carol = new Member("Carol", Signal.of(20));
+
+MutableListSignal<Member> party = ListSignal.of();
+party.addAll(List.of(alice, bob));
+
+// 第二个参数告诉 merging 怎样从成员取出它的 Signal
+Signal<Long> changed = Signals.merging(party, Member::health);
+Signal<Integer> totalHealth = changed.map(ignored ->
+        party.stream().mapToInt(member -> member.health().get()).sum()
+);
+
+Subscription subscription = totalHealth.onDirty(() -> {
+    System.out.println("队伍总血量：" + totalHealth.get());
+});
+
+System.out.println(totalHealth.get());  // 34
+alice.health().set(15);  // 打印「队伍总血量：29」
+party.remove(bob);       // 打印「队伍总血量：15」
+bob.health().set(0);     // Bob 已经离队，不再监听他，不打印
+party.add(carol);        // 打印「队伍总血量：35」
+
+subscription.close();
+```
+
+1. **第 1-8 行**：Alice 和 Bob 组成队伍，Carol 还没加入。
+2. **第 10-14 行**：merging 监听名单，以及 Alice、Bob 两人的血量。map 负责把血量加起来。
+3. **第 16-18 行**：订阅总血量。
+4. **第 20 行**：输出「34」。
+5. **第 21 行**：成员的 Signal 变了。输出「队伍总血量：29」。
+6. **第 22 行**：名单变了。merging 同时取消了对 Bob 血量的监听。输出「队伍总血量：15」。
+7. **第 23 行**：Bob 已经不在名单里，他的变化与队伍无关。
+8. **第 24 行**：Carol 加入，merging 开始监听她的血量。输出「队伍总血量：35」。
+
+同样的写法也能算平均血量、存活人数，或者找出血量最低的队员，只要换掉 `map` 里的计算。
+
+## 用普通 Signal 保存名单
+
+成员名单也可以是 `MutableSignal<List<Member>>`。这时要用 `set` 发布一个新列表，比如 `members.set(List.of(alice, carol))`。直接改旧列表不会通知任何人。
+
+`ListSignal` 和 `SetSignal` 能就地增删，也能直接作为成员来源，一般更顺手。
+
+## 注意事项
+
+> **注意：成员与遍历顺序**
+>
+> 取 Signal 的函数应返回成员已有的那个 Signal，不要每次调用都新建一个。成员名单的遍历顺序要稳定。
+
+> **注意：成员里不要放 Player**
+>
+> 名单会被长期持有。成员对象里用 UUID 或名字标识玩家，不要存 `Player`。
+
+**下一步**：[debounce 防抖](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/debounce.md) — 等输入停下来再处理，例如玩家打完字之后才开始搜索。
+
+# debounce 防抖
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/debounce>
+
+物品搜索菜单里，玩家在铁砧输入框打字，下方列出匹配的物品。输入框每变一个字符，Signal 就变一次。
+
+玩家输入 `diamond` 的过程中，`d`、`di`、`dia` 都会各触发一次搜索。这些中间结果玩家根本来不及看，服务器却要把整个物品表过滤好几遍。
+
+## debounce 做什么
+
+`debounce(ticks)` 返回一个延迟通知的 Signal。原 Signal 变化后，它先等一段时间；等待期间又有变化，就重新开始等。直到安静了指定的 tick 数，才通知一次。
+
+等待期间读取它，拿到的还是上一次通知时的值。
+
+## 打完字再搜索
+
+输入框的原始文本写进 `input`，搜索结果只依赖防抖后的 `keyword`。假设玩家在 tick 0、3、6 各输入一次，然后停手。
+
+```java
+MutableSignal<String> input = Signal.of("");  // 输入框的原始文本
+// 停顿 10 tick 后才更新，strip 去掉首尾空格，多敲一个空格不会重复搜索
+Signal<String> keyword = input.debounce(10).mapDistinct(String::strip);
+
+Subscription subscription = keyword.onDirty(() -> {
+    System.out.println("搜索：" + keyword.get());
+});
+
+input.set("d");        // tick 0，开始等待
+input.set("dia");      // tick 3，重新等待
+input.set("diamond");  // tick 6，重新等待
+// tick 16，已经安静了 10 tick，打印「搜索：diamond」
+```
+
+1. **第 1-3 行**：输入框为空，没有搜索结果。
+2. **第 5-7 行**：订阅搜索词。有了订阅，防抖才会安排定时任务。
+3. **第 9 行**：开始等待 10 tick。keyword 仍是旧值，不搜索。
+4. **第 10 行**：等待期间又有输入，重新计时。
+5. **第 11 行**：再次重新计时，最早要到 tick 16 才会通知。
+6. **第 12 行**：三次输入只搜索了一次。输出「搜索：diamond」。
+
+[GitHub 仓库](https://github.com/Catnies/sparrow-ui) 的 `example` 模块里有一个完整的实时搜索菜单 `LiveSearchMenu`，用的就是这种写法。
+
+## 按毫秒计时
+
+`debounce(10)` 按服务器 tick 计时，20 TPS 时约等于 500 毫秒，服务器卡顿时等待也会变长。要按现实时间计时，用 `debounceMillis`。
+
+```java
+Signal<String> keyword = input.debounceMillis(500).mapDistinct(String::strip);
+```
+
+## 注意事项
+
+> **注意：一直输入就一直不通知**
+>
+> 玩家不停手，防抖就一直等下去。值持续变化、又想定期看到结果时，用 [throttle](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/throttle.md)。
+
+> **注意：没有订阅时不会延迟**
+>
+> 防抖只在有订阅者时才安排定时任务。只创建 `keyword` 然后调用 `get()`，读到的就是原 Signal 的当前值，不会等待。最后一个订阅关闭后，还没执行的延时任务也会取消。
+
+> **注意：通知来自调度线程**
+>
+> tick 版的通知在 Bukkit 主线程执行，Folia 上是全局区域线程；毫秒版在 Sparrow UI 的异步工作线程执行。两者都不是玩家所在的区域线程，回调里不要直接操作玩家或方块。
+>
+> 通知时会读取原 Signal，上游的 `map` 也可能在这个线程计算，整条派生链都要简短，不做耗时 I/O。
+
+> **注意：间隔与初始化**
+>
+> 间隔必须大于 0，否则抛出 `IllegalArgumentException`。使用前要先完成 Sparrow UI 的 [初始化](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/getting-started/installation.md#初始化)。
+
+**下一步**：[throttle 节流](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/throttle.md) — 限制刷新频率，例如建筑粘贴进度每半秒最多刷新一次。
+
+# throttle 节流
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/throttle>
+
+粘贴一座建筑时，每放下一个方块，已放置数量就加一。进度菜单要显示「已放置 800 / 5000」，可数量每秒会变上千次。
+
+每次变化都刷新菜单太浪费。[防抖](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/debounce.md) 也不行，粘贴过程中数量一直在变，防抖要等到粘贴结束才会通知，玩家在这之前看不到任何进度。
+
+## throttle 做什么
+
+`throttle(ticks)` 返回一个限制通知频率的 Signal。第一次变化立刻通知，之后两次通知之间至少隔指定的 tick 数。间隔内的变化会合并起来，间隔结束时补发一次，读到的是那一刻的最新值。
+
+间隔内读取它，拿到的是上一次通知时的值。
+
+## 限制进度刷新的频率
+
+粘贴逻辑不停写入 `placedBlocks`，进度物品只依赖节流后的 `limited`。
+
+```java
+MutableSignal<Integer> placedBlocks = Signal.of(0);
+Signal<Integer> limited = placedBlocks.throttle(10);
+
+Subscription subscription = limited.onDirty(() -> {
+    System.out.println("已放置 " + limited.get() + " / 5000");
+});
+
+placedBlocks.set(100);  // tick 0，立刻打印「已放置 100 / 5000」
+placedBlocks.set(400);  // tick 4，还在间隔内，暂不通知
+placedBlocks.set(800);  // tick 8，暂不通知
+// tick 10，间隔结束，打印「已放置 800 / 5000」
+// tick 20，这段间隔里没有新变化，不打印
+```
+
+1. **第 1-6 行**：订阅节流后的进度。
+2. **第 8 行**：第一次变化立刻通知，同时开始 10 tick 的间隔。输出「已放置 100 / 5000」。
+3. **第 9 行**：还在间隔内，先记下有变化，暂不通知。limited 仍返回 100。
+4. **第 10 行**
+5. **第 11 行**：补发一次，读到最新的 800。两次变化合并成了一次刷新。输出「已放置 800 / 5000」。
+6. **第 12 行**：没有新变化，就不再通知。
+
+同样的写入交给防抖和节流，结果对比如下。
+
+| 时间 | 写入 | `debounce(10)` | `throttle(10)` |
 | - | - | - | - |
-| tick 0 | 写入 10 | 等待 | 通知 10 |
-| tick 2 | 写入 20 | 重新等待 | 暂不通知 |
-| tick 4 | 写入 30 | 重新等待 | 暂不通知 |
-| tick 5 | 没有新写入 | 继续等待 | 通知 30 |
-| tick 9 | 没有新写入 | 通知 30 | 不通知 |
+| tick 0 | 100 | 开始等待 | 立刻通知 100 |
+| tick 4 | 400 | 重新等待 | 暂不通知 |
+| tick 8 | 800 | 重新等待 | 暂不通知 |
+| tick 10 | 没有写入 | 继续等待 | 补发，读到 800 |
+| tick 18 | 没有写入 | 通知，读到 800 | 不通知 |
 
-节流在间隔内仍返回上次通知时的值，原始 Signal 则可以读到最新值。补发通知也会开启下一个间隔；期间没有新变化，就不会继续通知。毫秒版写作 `progress.throttleMillis(250)`。
+## 按毫秒限制
 
-> **注意：节流回调可能来自不同线程**
+要按现实时间限制频率，用 `throttleMillis`。
+
+```java
+Signal<Integer> limited = placedBlocks.throttleMillis(500);
+```
+
+## 注意事项
+
+> **注意：通知可能来自不同线程**
 >
-> 立即通知发生在上游变化的线程，延迟补发发生在对应的调度线程。`debounce`、`throttle` 及其毫秒版本的间隔都必须大于 0，否则抛出 `IllegalArgumentException`。
+> 立刻发出的通知在写入原 Signal 的线程上执行。补发的通知在调度线程执行，tick 版是 Bukkit 主线程或 Folia 全局区域线程，毫秒版是 Sparrow UI 的异步工作线程。同一个订阅的回调可能先后来自不同线程，要线程安全。
+
+> **注意：没有订阅时不会限流**
 >
-> 定时回调会读取上游。若上游包含 `map`，它的计算也可能在这个线程执行，所以整段计算都应简短，不做耗时 I/O。
+> 和防抖一样，只有存在订阅者时才安排定时任务，最后一个订阅关闭后取消。间隔必须大于 0，否则抛出 `IllegalArgumentException`。
 
-## 用时钟驱动倒计时
+**下一步**：[时钟](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/clock.md) — 用定期通知的时钟驱动倒计时和冷却显示。
 
-时钟 Signal 定期通知依赖它的地方，适合倒计时、冷却显示等需要持续刷新的内容。
+# 时钟
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/clock>
+
+小游戏房间满员后，菜单上要显示「10 秒后开始」，然后每秒减一。技能冷却也一样，要每秒刷新剩余时间。
+
+这段时间里没有任何数据发生变化，只是时间在走。没有东西通知菜单刷新，数字就一直停在 10。
+
+## 时钟做什么
+
+时钟是按固定间隔自动通知的 Signal，用它来驱动这类只跟时间有关的刷新。
 
 | API | 通知间隔 | `get()` 的值 |
 | - | - | - |
-| `Signals.ticking()` | 每 tick | 时钟运行期间累计的 tick 数 |
-| `Signals.everyTicks(20)` | 每 20 tick | 累计经过的 20 tick 周期数 |
-| `Signals.everyMillis(1000)` | 每 1000 毫秒 | 该毫秒时钟累计经过的周期数 |
+| `Signals.ticking()` | 每 tick | 时钟运行以来经过的 tick 数 |
+| `Signals.everyTicks(20)` | 每 20 tick | 经过了多少个 20 tick 周期 |
+| `Signals.everyMillis(1000)` | 每 1000 毫秒 | 经过了多少个 1000 毫秒周期 |
 
-下面在当前计数的基础上，倒数 10 个周期。初始剩余值为 `10`，每经过一个周期减一：
+时钟的值只是一个计数，不代表当前时间。它的用处是告诉依赖它的地方，到点了，该刷新了。
+
+## 开局倒计时
+
+记下订阅时的计数作为起点，每经过一个 20 tick 周期，剩余秒数减一。倒计时物品依赖 `remaining`。
 
 ```java
-public static Subscription watchCountdown() {
-    Signal<Long> clock = Signals.everyTicks(20);
-    long start = clock.get();
-    Signal<Long> remaining = clock.mapDistinct(value -> Math.max(0L, 10L - (value - start)));
+Signal<Long> clock = Signals.everyTicks(20);
+long start = clock.get();  // 记下起点，时钟可能早就在运行
+Signal<Long> remaining = clock.mapDistinct(value ->
+        Math.max(0L, 10L - (value - start))
+);
 
-    System.out.println("剩余：" + remaining.get());
-    return remaining.onDirty(() -> System.out.println("剩余：" + remaining.get()));
+Subscription subscription = remaining.onDirty(() -> {
+    System.out.println("距离开局：" + remaining.get());
+});
+// 之后每 20 tick 打印一次，从 9 数到 0
+
+// 开局或房间解散时关闭，时钟不会因为数到 0 自己停下
+subscription.close();
+```
+
+1. **第 1-5 行**：时钟早就在运行，计数不是 0。记下 37 作为起点，剩余 10 秒。
+2. **第 7-9 行**：订阅后开始接收时钟的通知。
+3. **第 10 行**：过了 20 tick。输出「距离开局：9」。
+4. **第 10 行**：又过了 20 tick。输出「距离开局：8」。
+5. **第 10 行**：第 10 个周期，倒数结束。输出「距离开局：0」。
+6. **第 10 行**：时钟还在走，但剩余秒数一直是 0，mapDistinct 不再通知。
+7. **第 12-13 行**：关闭订阅。
+
+## 按现实时间显示冷却
+
+服务器卡顿时 tick 时钟会变慢。技能冷却这类按现实时间算的东西，应该保存截止时间，时钟只负责触发刷新。
+
+```java
+static Signal<Long> cooldownSeconds(Signal<Long> readyAt) {
+    return Signals.combine(Signals.everyMillis(1000), readyAt, (ignored, deadline) -> {
+        long left = deadline - System.currentTimeMillis();
+        return Math.max(0L, (left + 999) / 1000);  // 向上取整成秒
+    }).mapDistinct(value -> value);
 }
 ```
 
-计数到 `0` 后，`mapDistinct` 会过滤重复的 `0`。结束使用时仍需关闭返回的订阅，时钟不会因为倒计时到零而自动退订。
+`readyAt` 是技能可以再次释放的时间戳，单位毫秒。释放技能时写入 `System.currentTimeMillis() + 8000`，冷却显示就从 8 开始每秒减一。时钟的计数在这里没用上，只借它的通知重新计算。
 
-同周期的时钟由多个使用者共享。第一个订阅者到来时启动，最后一个离开时停止；重新订阅后从原计数继续。所以 `get()` 不是当前时间，也不是当前玩家打开菜单的时长。若时钟已经运行，新订阅会使用现有计时，第一次通知可能不到 20 tick 就到达。
+重新写入 `readyAt` 时，`combine` 立刻通知，不用等下一秒。
 
-> **注意：计时单位与线程**
+## 注意事项
+
+> **注意：时钟是共享的**
 >
-> tick 时钟在服务器变慢时也会变慢。需要按现实时间判断是否到期时，应保存独立的截止时间，用时钟通知驱动显示刷新。
+> 相同周期的时钟全服只有一个。第一个订阅者到来时启动，最后一个离开时停止，再有人订阅时从原来的计数接着走。
 >
-> `everyTicks` 的周期必须为正数，`everyMillis` 至少为 50 毫秒。tick 时钟从全局区域调度线程通知，毫秒时钟从异步线程通知，都不代表当前玩家的实体线程。
+> 所以 `get()` 不代表玩家打开菜单多久了，倒计时要自己记起点。时钟已经在运行时，第一次通知可能不到一个完整周期就来了，倒计时的第一秒可能偏短。
 
-**下一步**：[异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md) — 在打开商店时查询余额，并在发放奖励后重新读取结果。
+> **注意：线程与限制**
+>
+> tick 时钟在 Bukkit 主线程通知，Folia 上是全局区域线程。毫秒时钟在 Sparrow UI 的异步工作线程通知。手动订阅的回调里不要直接操作玩家或方块。在菜单里使用时钟时，刷新由 Sparrow UI 调度到正确的线程。
+>
+> `everyTicks` 的周期必须为正数，`everyMillis` 的周期不能小于 50 毫秒。
 
-# 异步加载
+**下一步**：[async 异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/async.md) — 在后台线程读取数据库，查询完成前先显示占位内容。
 
-原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async>
+# async 异步加载
 
-打开商店时，余额需要从数据库查询。菜单可以先显示「加载中」，查询完成后再显示余额，避免等待查询阻塞玩家线程。
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/async>
 
-`Signal.async` 在指定执行器上加载数据。首次查询完成前返回占位值，完成后保存结果并通知订阅者。菜单绑定方式见 [物品显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
+玩家打开个人资料菜单，要看到自己的击杀数和死亡数。这些战绩存在数据库里。
 
-## 打开商店时查询余额
+在玩家线程里直接查数据库，查询要多久，服务器就卡多久。放到异步线程查询，结果回来时又得自己判断菜单还开没开着、该刷新哪个格子。
 
-假设插件已经有一个经济服务 `economy`，它的 `loadBalance(UUID)` 会查询数据库并返回玩家余额，单位为金币。这是业务代码提供的方法，需要替换为项目实际使用的经济 API，Sparrow UI 不负责连接数据库。
+## Signal.async 做什么
 
-下面在打开商店时查询余额。`viewer` 是查看菜单的玩家，`ioExecutor` 是插件复用的后台 I/O 执行器，示例余额为 `100`。
+`Signal.async` 在你指定的执行器上执行查询。查询完成前，读取得到占位值；查询完成后保存结果，并通知依赖它的地方。
+
+它接收三个参数，依次是占位值、执行查询的执行器、查询函数。创建时就会提交第一次查询，需要重新查询时调用 `dirty()`。
+
+## 读取战绩，打完一局后刷新
+
+假设插件里已经有一个 `statsRepository`，`load(UUID)` 查询数据库并返回 `PlayerStats`，`addKills(UUID, int)` 写入新增的击杀。这是你自己项目的代码，Sparrow UI 不负责连接数据库。`ioExecutor` 是插件复用的后台 I/O 执行器，`viewer` 是打开菜单的玩家。
 
 ```java
-UUID playerId = viewer.getUniqueId();
-AsyncSignal<Long> balance = Signal.async(
-        (Long) null,
-        ioExecutor,
-        () -> economy.loadBalance(playerId)
+record PlayerStats(int kills, int deaths) {}
+
+UUID playerId = viewer.getUniqueId();  // 后台任务只捕获 UUID，不持有玩家对象
+AsyncSignal<PlayerStats> stats = Signal.async(
+        (PlayerStats) null,                   // 占位值，查询完成前 get() 返回它
+        ioExecutor,                           // 在哪里执行查询
+        () -> statsRepository.load(playerId)
+);
+Signal<String> killsText = stats.map(value ->
+        value == null ? "读取中…" : "击杀：" + value.kills()
 );
 
-Signal<String> balanceText = balance.map(value ->
-        value == null ? "加载中…" : "余额：" + value);
+System.out.println(killsText.get());  // 读取中…
+// 查询完成后，依赖 killsText 的菜单自动刷新，显示「击杀：12」
 
-Subscription subscription = balanceText.onDirty(() ->
-        System.out.println(balanceText.get()));
-System.out.println(balanceText.get());
-```
-
-`Signal.async` 创建时就把查询提交给执行器。它的三个参数分别是首次结果返回前的占位值、执行查询的执行器，以及实际查询函数。函数捕获的是 UUID，后台任务不用保留玩家对象。
-
-查询还没完成时，`balance.get()` 返回 `null`，`balanceText.get()` 返回「加载中…」。查到余额后，Signal 保存 `100` 并通知依赖者，回调读取的文字变成「余额：100」。查询如果已经完成，首次读取就会直接得到余额；不能依赖程序一定先输出「加载中…」。
-
-`onDirty` 注册时不会立即触发回调，所以示例在订阅后调用一次 `get()`，读取当前结果。示例中的控制台订阅只用于观察变化，结束观察时应调用 `subscription.close()`；实际菜单的绑定方式看[绑定到 UI](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。
-
-用 `null` 作占位值，是为了区分「还没查到」和「余额为零」。如果业务允许先显示零，也可以传 `0L`。占位值和查询结果都允许为 `null`，含义由业务决定。
-
-默认使用 `Objects.equals` 比较新旧余额，相同的结果不会再次通知。需要自定义判等时，可在 `Signal.async` 的最后一个参数传入 `sameValue`，规则看[基础用法](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics.md)。
-
-## 发放奖励后刷新余额
-
-玩家领取 50 金币奖励后，数据库余额从 100 变为 150，但 `balance` 仍保存着上次查询的结果。写入成功后调用 `dirty()`，让菜单重新获取余额。
-
-下面接着使用上一节的 `playerId`、`balance` 和 `ioExecutor`。假设领取资格已经由业务层确认，`economy.deposit(playerId, 50L)` 会写入数据库，并在提交成功后返回。这段代码应放在奖励发放流程中。
-
-```java
+// 对局结束，又多了 3 次击杀
 ioExecutor.execute(() -> {
-    economy.deposit(playerId, 50L);
-    // 数据库提交成功后, 再读取新的余额.
-    balance.dirty();
+    statsRepository.addKills(playerId, 3);
+    stats.dirty();  // 写入成功后再刷新，重新查询期间 get() 仍返回旧结果
 });
+// 新的查询完成后，菜单显示「击杀：15」
 ```
 
-`AsyncSignal` 的值由查询函数提供，所以刷新时调用 `dirty()`，让它重新执行 `() -> economy.loadBalance(playerId)`。它不提供 `set` 或 `update`。
+1. **第 3-8 行**：创建时就把查询提交给执行器。
+2. **第 9-11 行**：占位值是 null，派生出「读取中…」。菜单先显示占位内容。
+3. **第 13 行**：查询还没完成。查询很快的话，这里也可能已经是「击杀：12」。输出「读取中…」。
+4. **第 14 行**：数据库返回了结果。stats 保存它并通知，菜单刷新。
+5. **第 17-20 行**：写入后调用 dirty()，开始重新查询。这期间继续显示上一次的结果，不会退回「读取中…」。
+6. **第 21 行**：新结果替换旧结果，菜单显示 15。
 
-重新查询期间，`get()` 继续返回上一次的结果，不会退回“加载中”。例如余额已经查到 `100`，刷新时仍显示 `100`，直到新结果替换它。
+占位值用 `null`，是为了区分「还没查到」和「战绩为零」。能接受先显示零的话，传 `new PlayerStats(0, 0)` 也行。
 
-同一个 Signal 的查询不会并行执行。如果查询还没结束就调用了 `dirty()`，它会记下“完成后再查一次”；这期间连续调用多次，也只补一次查询。
+`AsyncSignal` 的值只能由查询函数提供，它没有 `set` 和 `update`，刷新就是调用 `dirty()`。
 
-例如，第一笔奖励发放后正在查询余额，第二笔奖励又已提交。这时再次刷新，便会在本轮完成后补查。
+## 连续刷新会合并
 
-| 时刻 | 操作 | 可读取的值 |
+同一个 `AsyncSignal` 的查询不会同时执行多份。查询还没结束时再调用 `dirty()`，它只记下「完成后再查一次」；连续调用好几次，也只补查一次。
+
+| 时刻 | 操作 | `get()` |
 | - | - | - |
-| 已加载 | 上次查到余额 `100` | `100` |
-| 开始刷新 | 调用 `dirty()`，提交查询 A | `100` |
-| A 尚未完成 | 再调用两次 `dirty()`，登记一次补查 | `100` |
-| A 完成 | 发布结果 `150`，提交查询 B | `150`，直到 B 完成 |
-| B 完成 | 发布结果 `200` | `200` |
+| 已加载 | 上次查到 12 | 12 |
+| 刷新 | `dirty()` 开始查询 A | 12 |
+| A 还没完成 | 又调用两次 `dirty()`，登记一次补查 | 12 |
+| A 完成 | 发布 15，开始查询 B | 15 |
+| B 完成 | 发布 18 | 18 |
 
-本轮结果仍会发布，即使已经登记了补查。`dirty()` 不会取消本轮查询，也不会把它的结果当作过期数据丢掉。若正在按搜索词切换查询来源，可以结合上一页的 [`switching`](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive.md) 选择当前来源，避免把不同搜索词的结果写进同一个状态。
+登记了补查的那一轮，结果照常发布，不会被当成过期数据丢掉。
+
+## 注意事项
 
 > **注意：不要在查询函数里刷新自己**
 >
-> 查询函数不能直接或间接调用自身 Signal 的 `dirty()`，否则会抛出 `IllegalStateException`。刷新应由写入完成、用户操作或轮询触发。
+> 查询函数不能直接或间接调用自己的 `dirty()`，否则抛出 `IllegalStateException`。刷新应由写入完成、玩家操作或 [轮询](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/polling.md) 触发。
 
 > **注意：查询与通知的线程**
 >
-> 查询函数应只处理数据库、网络请求或线程安全的数据，避免在后台查询中读取玩家背包、操作世界等需要所属线程的 Bukkit 状态。
+> 查询函数在执行器的线程里运行，只访问数据库、网络或线程安全的数据，不要读玩家背包、改世界。
 >
-> 加载完成后的失效通知也从执行查询的线程发出。手动注册的 `onDirty` 回调不会自动切到玩家线程；回调需要操作玩家或世界时，应另行调度到相应线程。
+> 查询完成后的通知也从这个线程发出。手动订阅的 `onDirty` 回调不会自动回到玩家线程，要操作玩家得自己调度。在菜单里使用时，刷新由 Sparrow UI 处理。
 
-查询函数抛出 `RuntimeException`，或执行器拒绝任务时，异常会交给 Sparrow UI 的异常处理器，已保存的值保持不变。第一次查询失败时仍保留占位值；之后可以再次 `dirty()` 重试。占位值本身无法区分“加载中”和“加载失败”，需要展示错误状态时，应让业务层提供相应的状态值。
+> **注意：相等判断与异常**
+>
+> 新结果和旧结果相同时不通知，默认用 `Objects.equals` 比较。需要其他规则，把比较函数作为第四个参数传入。
+>
+> 查询抛出 `RuntimeException` 或执行器拒绝任务时，异常交给 Sparrow UI 的异常处理器，已有的值保持不变。第一次查询就失败的话，会一直停在占位值，可以再次 `dirty()` 重试。想显示「加载失败」，就让查询函数返回一个表示失败的业务值。
 
-**下一步**：[定期轮询](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/polling.md) — 当数据也会被其他服务修改时，在有人使用期间定期重新查询。
+每名玩家一份、多个菜单共用的战绩，更适合按 UUID 分区保存，见 [玩家分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/player.md)。
 
-# 定期轮询
+**下一步**：[polling 定期轮询](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/polling.md) — 数据会被其他服务修改时，在有人查看期间定期重新查询。
 
-原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/polling>
+# polling 定期轮询
 
-全服商店的库存保存在数据库中，其他子服也可能售出商品。本服收不到这些购买事件时，可以定期查询库存，更新当前菜单。`Signal.polling` 在有人订阅期间重复执行查询，最后一个订阅者离开后停止自动轮询。首次加载、占位值和异常处理与[异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md)相同。
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/polling>
 
-## 每隔一段时间查询库存
+大厅服的小游戏菜单上，起床战争图标写着「128 人游戏中」。这个人数存在 Redis 里，由各个游戏子服更新。
 
-假设商品服务 `catalog` 提供 `loadStock("diamond")`，从数据库读取钻石的剩余数量并返回整数。它是项目自己的业务方法；`ioExecutor` 是已有的后台 I/O 执行器，使用前也应已完成 Sparrow UI 初始化。
+大厅服收不到子服的任何事件，用 [async](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/async.md) 查一次，人数就停在打开菜单那一刻。自己开定时任务去查，又得操心没人看菜单时停掉它，免得一直白白访问 Redis。
 
-下面创建一个每 `100` tick 查询一次的库存来源。这个来源可以由多个商店菜单共同使用，所以应在商店服务初始化时创建并保存，菜单取用同一个对象。
+## Signal.polling 做什么
+
+`Signal.polling` 是会定期重新查询的 `Signal.async`。有人订阅期间，它每隔一段时间执行一次查询；最后一个订阅者离开后，自动停止。
+
+前三个参数和 `Signal.async` 相同，第四个参数是轮询周期。占位值、异常处理和补查规则也和 async 一样。
+
+## 定期查询在线人数
+
+假设 `network.onlineCount(String)` 从 Redis 读取某个游戏的在线人数，`ioExecutor` 是后台 I/O 执行器。这个来源可以被所有打开小游戏菜单的玩家共用，插件启动时创建一次就行。
 
 ```java
-AsyncSignal<Integer> diamondStock = Signal.polling(
+AsyncSignal<Integer> bedwarsOnline = Signal.polling(
         (Integer) null,
         ioExecutor,
-        () -> catalog.loadStock("diamond"),
-        100L
+        () -> network.onlineCount("bedwars"),
+        100L                                  // 每 100 tick 查询一次
 );
-Signal<String> stockText = diamondStock.map(value ->
-        value == null ? "库存加载中…" : "剩余 " + value + " 件");
-```
+Signal<String> onlineText = bedwarsOnline.map(value ->
+        value == null ? "正在获取人数…" : value + " 人游戏中"
+);
 
-创建时会立即提交第一次查询。假设初始库存为 20，其他子服售出两件后，下一次查询会将显示更新为「剩余 18 件」。
+// 玩家打开小游戏菜单，菜单订阅了 onlineText，轮询开始
+Subscription watching = onlineText.onDirty(() -> {
+    System.out.println(onlineText.get());
+});
+// 之后每 100 tick 查询一次，人数变了才打印
 
-轮询之间读到的是最近一次完成的结果，无法保证它与数据库时刻一致；实际购买仍需业务层检查并扣减库存。
-
-现在只是创建了来源和派生文字。**持续轮询还需要订阅**，单独调用 `get()` 或创建 `map` 都不会让它一直查询。
-
-## 开始观察与结束观察
-
-订阅上一节的 `stockText` 后，库存就会开始自动轮询。下面用控制台输出查询结果。
-
-```java
-Subscription watching = stockText.onDirty(() ->
-        System.out.println(stockText.get()));
-System.out.println(stockText.get());
-```
-
-首次输出取决于查询是否已经完成，可能是「库存加载中…」，也可能直接是「剩余 20 件」。之后查到 `18` 时，回调输出「剩余 18 件」。如果一直查到 `20`，则不会每隔 `100` tick 重复通知，默认判等会过滤相同的结果。
-
-结束这个控制台观察时，关闭保存的订阅。
-
-```java
+// 最后一个查看的玩家关闭菜单，轮询停止
 watching.close();
 ```
 
-实际菜单通过绑定持有订阅，使用方式看[绑定到 UI](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md)。如果还有另一个菜单订阅同一来源，轮询会继续；**最后一个订阅关闭后，自动轮询才会停止。** 下次有人订阅时恢复，若距离上次查询结束已超过一个周期，且当前没有查询在执行，还会立即补查一次。
+1. **第 1-9 行**：创建时提交第一次查询。现在只是创建了来源，还没有订阅，不会持续轮询。
+2. **第 11-14 行**：有了订阅，轮询开始。第一次查询返回 128。输出「128 人游戏中」。
+3. **第 15 行**：第二次查询还是 128，结果相同，不通知。
+4. **第 15 行**：有三名玩家进了游戏，人数变成 131。输出「131 人游戏中」。
+5. **第 17-18 行**：最后一个订阅关闭，轮询停止。值保留在 131。
 
-停止轮询不会取消已经提交的查询或已登记的补查，它们仍可能完成并更新值。创建时的首次查询、主动调用 `diamondStock.dirty()`，也不受有无订阅限制。
+菜单通过 `dependsOn` 等方式绑定时，打开菜单就订阅，关闭菜单就退订，不需要像上面这样手动管理。只要还有一个菜单开着，轮询就继续。
 
-## 选择 tick 或毫秒周期
+再次有人订阅时恢复轮询。距离上次查询已经超过一个周期、且当前没有查询在执行的话，会立刻补查一次，不会让玩家看到很久以前的人数。
 
-前面的 `100` tick 在服务器维持 20 TPS 时约为 5 秒，服务器变慢时，现实时间间隔也会变长。若希望按现实时间每 5 秒触发查询，可以把创建来源的那段代码替换为下面的毫秒版本。
+## 按现实时间轮询
+
+`100` tick 在 20 TPS 时约为 5 秒，服务器卡顿时间隔会变长。要按现实时间轮询，用 `pollingMillis`。
 
 ```java
-AsyncSignal<Integer> diamondStock = Signal.pollingMillis(
+AsyncSignal<Integer> bedwarsOnline = Signal.pollingMillis(
         (Integer) null,
         ioExecutor,
-        () -> catalog.loadStock("diamond"),
+        () -> network.onlineCount("bedwars"),
         5000L
 );
 ```
 
-`polling` 的周期必须为正数，`pollingMillis` 至少为 `50` 毫秒。两种写法的查询都交给传入的执行器，查询完成后的通知也从执行查询的线程发出。
+## 注意事项
 
-同周期的来源共享时钟，按时钟周期触发查询；新订阅也沿用已有计时，不会在每次查询完成后重新等待 5 秒。数据库响应慢于周期时，同一个 Signal 不会并行执行多份查询，而会[合并一次补查](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md#发放奖励后刷新余额)。
+> **注意：只创建不订阅，不会持续查询**
+>
+> 单独调用 `get()` 或 `map` 不会启动轮询，必须有订阅。停止轮询也不会取消已经提交的查询，它们完成后照样更新值。手动调用 `bedwarsOnline.dirty()` 刷新，不受有无订阅的限制。
 
-**下一步**：[集合状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collections.md) — 用商品上架、下架和重新加载的例子，学习如何更新集合中的内容。
+> **注意：周期与补查**
+>
+> 相同周期的轮询共用一个时钟，按时钟的节拍查询，不是「上次查完再等 5 秒」。查询比周期还慢时，同一个 Signal 不会并行查询，会 [合并成一次补查](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/async.md#连续刷新会合并)。
+>
+> `polling` 的周期必须为正数，`pollingMillis` 至少为 50 毫秒。
 
-# 集合状态
+> **注意：读到的是最近一次的结果**
+>
+> 轮询得到的只是最近一次查询的结果。玩家加入游戏时还有没有空位，仍要由游戏逻辑实时判断。
 
-原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collections>
+要轮询很多个游戏的人数，每个游戏写一个 `Signal.polling` 太繁琐。按游戏编号分区的 [KeyedSignal.polling](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/async.md) 只会轮询有人在看的那几个。
 
-一个商店菜单最初出售苹果和面包。管理员上架钻石后，商品列表和商品种类数都要更新；下架苹果时，两处也要保持一致。
+**下一步**：[ListSignal 列表](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/list.md) — 保存会增减的列表，例如小游戏房间的等待队列。
 
-集合 Signal 保留了 `List`、`Set`、`Map` 的操作方式，增删内容后会通知依赖者。下面分别用它们保存商品列表、选中项和价格表；显示到菜单中的用法见 [列表内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list.md)。
+# ListSignal 列表
 
-## 直接修改列表、集合和映射
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/list>
 
-下面用 `products` 保存商品列表，用 `count` 显示商品种类数。上架或下架时只修改列表，`count` 从列表派生，不需要另外维护。
+小游戏房间的等待菜单里，每个格子显示一名排队的玩家，角落里写着「等待中 3 / 8」。玩家随时加入、离开。
 
-`ListSignal` 同时实现 `List<E>` 和 `Signal<List<E>>`，可以直接增删元素，也可以派生其他 Signal。
+用 `MutableSignal<List<String>>` 保存队列也能做到，但每加一个人都得复制出一份新列表再 `set` 回去。直接改里面的列表，Signal 察觉不到，菜单不会刷新。
+
+## ListSignal 做什么
+
+`ListSignal` 既是一个 `List`，也是一个 `Signal`。`add`、`remove`、`clear` 这些操作和普通列表一样，每次修改都会通知依赖它的地方。
+
+`ListSignal.of()` 返回 `MutableListSignal`，它有全部修改方法，还有后面会讲到的 `batch` 和元素钩子。只想让别人读取时，对外返回 `ListSignal` 或 [只读视图](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/read-only.md)。
+
+## 玩家排队与离开
+
+房间状态文字从队列派生，不需要单独维护。示例为了输出好读，队列里存的是名字；实际项目中应存玩家的 UUID。
 
 ```java
-ListSignal<String> products = ListSignal.of();
-products.addAll(List.of("苹果", "面包"));
+MutableListSignal<String> queue = ListSignal.of();
+Signal<String> queueText = queue.mapDistinct(list ->
+        "等待中 " + list.size() + " / 8"
+);
 
-Signal<Integer> count = products.mapDistinct(List::size);
-System.out.println(count.get());
+queue.add("Alice");
+queue.add("Bob");
+queue.add("Carol");
+System.out.println(queueText.get());  // 等待中 3 / 8
 
-// 管理员上架钻石, 商品数随列表更新.
-products.add("钻石");
-System.out.println(count.get());
-
-// 管理员下架苹果.
-products.remove("苹果");
-System.out.println(products.get());
-System.out.println(count.get());
+queue.remove("Bob");
+System.out.println(queue.get());      // [Alice, Carol]
+System.out.println(queueText.get());  // 等待中 2 / 8
 ```
 
-商店中勾选商品进行比较时，可以用 `SetSignal` 保存选中的商品编号，并派生选中数量。下面重复选择同一件商品，观察数量是否变化。
+1. **第 1-4 行**：房间刚开，队列是空的。
+2. **第 6 行**：像普通列表一样 add，菜单跟着刷新。
+3. **第 7 行**
+4. **第 8 行**
+5. **第 9 行**：输出「等待中 3 / 8」。
+6. **第 11 行**：Bob 离开，后面的 Carol 向前补位，末尾空出来的格子清空。
+7. **第 12-13 行**：输出「\[Alice, Carol]，等待中 2 / 8」。
+
+在菜单格子里显示列表内容的写法见 [列表内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list.md)。
+
+## 用 batch 合并一批修改
+
+一局结束后重置房间，先清空队列，再放入下一批排队的玩家。逐条修改的话，订阅者会先看到一个空队列，紧接着又看到新队列，菜单闪一下。用 `batch` 包起来，只在结束时通知一次。
 
 ```java
-SetSignal<String> selected = SetSignal.of();
-Signal<Integer> selectedCount = selected.mapDistinct(Set::size);
-selected.add("apple");
-boolean addedAgain = selected.add("apple");
-System.out.println(addedAgain);
-System.out.println(selectedCount.get());
-```
+MutableListSignal<String> queue = ListSignal.of();
+queue.addAll(List.of("Alice", "Bob", "Carol"));
 
-重复添加已有元素不会触发通知。
-
-商品价格表可以用 `MapSignal` 保存。下面将苹果价格从 20 金币调整为 25 金币，价格文字随之更新。
-
-```java
-MapSignal<String, Integer> prices = MapSignal.of();
-prices.put("apple", 20);
-Signal<String> applePrice = prices.map(map -> "苹果 " + map.get("apple") + " 金币");
-System.out.println(applePrice.get());
-
-prices.compute("apple", (id, price) -> price + 5);
-System.out.println(applePrice.get());
-```
-
-`prices.get("apple")` 可以直接读取价格，无参数的 `prices.get()` 则返回整张映射。这里任意商品的价格变化都会让映射的依赖失效；需要按商品分别订阅时，看[分区状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions.md)。
-
-这些集合的 `get()` 返回当前集合的**活视图**，后续增删也会反映在这份引用上。需要保存某一刻的内容，或者派生一个集合值时，应复制为独立结果，例如 `products.map(List::copyOf)`。不要用 `products.map(list -> list)` 保留同一份可变集合；直接修改元素对象内部的字段，也不会自动通知集合的订阅者。
-
-## 包装已有集合
-
-如果配置加载器已经返回一份 `LinkedHashMap` 价格表，可以用 `wrap` 包装它，保留配置中的商品顺序。下面在苹果、面包之后加入钻石。
-
-```java
-Map<String, Integer> initialPrices = new LinkedHashMap<>();
-initialPrices.put("apple", 20);
-initialPrices.put("bread", 30);
-
-MapSignal<String, Integer> prices = MapSignal.wrap(initialPrices);
-Signal<List<String>> productIds = prices.map(map -> List.copyOf(map.keySet()));
-
-prices.put("diamond", 100);
-System.out.println(productIds.get());
-```
-
-`wrap` 不复制原集合，包装之后应统一通过 `prices` 修改它；绕过包装器调用 `initialPrices.put(...)`，数据虽然变了，却不会发送通知。
-
-`of()` 会创建一个空集合，其底层实现如下。
-
-| 类型 | `of()` 使用的集合 | 选择时需要注意 |
-| - | - | - |
-| `ListSignal` | `CopyOnWriteArrayList` | 允许并发迭代，每次写入会复制底层数组 |
-| `SetSignal` | `CopyOnWriteArraySet` | 同样采用写时复制，查找元素需要遍历 |
-| `MapSignal` | `ConcurrentHashMap` | 不保证迭代顺序，不接受 `null` key 或值 |
-
-`wrap` 后的线程安全和可修改性仍由原集合决定。上面的 `LinkedHashMap` 示例应在同一线程使用；包上一层 Signal 不会让它变成并发集合。集合较大或写入频繁时，可以按实际访问方式选择其他底层集合。
-
-## 用 batch 合并一批通知
-
-重载商店配置时，需要先清空旧商品，再填入新列表。用 `batch` 包住这两步，订阅者只会在更新结束后收到一次通知，不会因中间的空列表刷新菜单。
-
-```java
-ListSignal<String> products = ListSignal.of();
-products.add("旧商品");
-
-Subscription subscription = products.onDirty(() ->
-        System.out.println(products.get()));
-
-products.batch(() -> {
-    products.clear();
-    products.addAll(List.of("苹果", "面包", "钻石"));
+Subscription subscription = queue.onDirty(() -> {
+    System.out.println("队列：" + queue.get());
 });
 
-subscription.close();
-```
-
-回调只输出一次 `[苹果, 面包, 钻石]`，不会收到清空列表时的通知。`SetSignal` 和 `MapSignal` 也提供 `batch`。嵌套调用时，通知延后到最外层结束；期间没有变更，就不会通知。
-
-> **注意：batch 不提供回滚或隔离**
->
-> 每一步修改都会立即生效。回调中途抛出异常时，已经完成的修改会保留，并通知订阅者。`batch` 只合并当前线程对当前集合的通知，其他线程仍可能读到中间状态，或对它进行修改并单独发送通知。
-
-## 在元素加入和移除时处理数据
-
-管理员输入商品标签时，可以自动去除首尾空格，并在删除标签时记录日志。下面通过 `beforeAdd` 处理输入，通过 `afterRemove` 记录被删除的标签。
-
-```java
-ListSignal<String> tags = ListSignal.of();
-Subscription normalize = tags.beforeAdd(String::strip);
-Subscription removed = tags.afterRemove(tag ->
-        System.out.println("已移除 " + tag));
-
-tags.add("  限时商品  ");
-System.out.println(tags.get(0));
-tags.remove(0);
-
-normalize.close();
-removed.close();
-```
-
-`beforeAdd` 返回的元素才会真正存入集合，它不是返回布尔值的拦截器。多个加入钩子按注册顺序处理，前一个的返回值会传给后一个。
-
-`SetSignal` 使用同名方法；`MapSignal` 的加入钩子叫 `beforePut((key, value) -> ...)`，移除钩子为 `afterRemove((key, value) -> ...)`。替换已有元素也会经过移除旧值、处理新值的钩子流程，并非只有显式 `remove` 才会触发。
-
-**钩子返回的 `Subscription` 必须保存，结束使用时再关闭。** 集合只弱持有钩子，丢弃返回的订阅后，钩子可能被回收。它们在修改集合的线程同步执行，应在集合交给其他代码使用前配置好，避免在钩子中反过来修改同一个集合。
-
-> **提示：需要识别被删对象时**
->
-> List 按下标或迭代器移除时，`afterRemove` 收到的是原本存储的对象；`remove(Object)` 收到的是调用方传入的对象。如果 `beforeAdd` 曾替换对象，就不要依赖这两者具有相同身份。
->
-> 移除钩子抛出异常时，修改已经发生，不会撤销；异常会传给修改方，订阅者仍会收到变更通知。
-
-**下一步**：[分区状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions.md) — 按商品或玩家保存独立状态，分别管理读取、订阅和缓存。
-
-# 分区状态
-
-原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions>
-
-商店中的苹果和面包各有库存。苹果详情页只需要订阅苹果库存，面包售出时不应触发它的刷新。
-
-`KeyedSignal` 按 key 保存状态，各分区独立发送变更通知。按玩家划分状态时，使用 `PlayerKeyedSignal`。
-
-## 让不同 key 独立更新
-
-下面按商品编号保存库存，初始值都是 10。通过 `at("apple")` 获取苹果分区并订阅，再分别修改面包和苹果库存，观察哪些修改触发回调。
-
-```java
-MutableKeyedSignal<String, Integer> stock = KeyedSignal.of(id -> 10);
-MutableSignal<Integer> apples = stock.at("apple");
-
-System.out.println(apples.get());
-Subscription subscription = apples.onDirty(() ->
-        System.out.println("苹果库存 " + apples.get()));
-
-// 售出面包不会通知苹果详情页.
-stock.set("bread", 8);
-stock.update("apple", amount -> amount - 1);
-// 盘点后用实际数量修正苹果库存.
-apples.set(6);
+// 一局结束，换下一批玩家
+queue.batch(() -> {
+    queue.clear();
+    queue.addAll(List.of("Dave", "Eve"));
+});  // 只打印一次「队列：[Dave, Eve]」
 
 subscription.close();
 ```
 
-回调只输出苹果库存的两次变化：9 和 6。修改面包库存不会触发它。`apples.set(6)` 与 `stock.set("apple", 6)` 写入同一个分区。
+1. **第 1-6 行**：上一局的三名玩家。
+2. **第 9-10 行**：batch 里清空了队列，数据已经变了，但通知先压着不发，菜单还显示旧内容。
+3. **第 11 行**：放入新的两名玩家，仍然不通知。
+4. **第 12 行**：batch 结束，只通知一次。菜单直接从旧队列变成新队列，中间的空队列没有显示过。输出「队列：\[Dave, Eve]」。
 
-`KeyedSignal.of(initial)` 在分区首次读取时调用 `initial`，之后缓存结果。装载发生在读取线程，函数应当耗时短、无副作用，并允许重复执行；数据库查询应使用异步版本。`update` 的计算函数也可能因并发更新而重试，规则与普通 `MutableSignal.update` 一致。
+嵌套调用 `batch` 时，通知推迟到最外层结束。期间没有任何修改，就不通知。
 
-需要从来源重新读取时，调用 `dirty(key)`。同步分区会发送失效通知，在下次读取时重新执行装载函数；异步分区会提交重新查询。`dirtyAll()` 处理当前已有的所有分区，`dirty(key)` 不会创建新的分区。
+## 元素加入前后的钩子
 
-## 清理分区与保留句柄
-
-一个限时商品活动结束后，业务可能不再需要保留它的分区，可以用 `remove(key)` 清理缓存。其他代码之前取得的 `apples` 仍可使用，再次读取时会重建分区。
-
-```java
-MutableKeyedSignal<String, Integer> stock = KeyedSignal.of(id -> 10);
-MutableSignal<Integer> apples = stock.at("apple");
-
-apples.set(6);
-stock.remove("apple");
-System.out.println(stock.keys().get().isEmpty());
-
-System.out.println(apples.get());
-System.out.println(stock.keys().get().contains("apple"));
-```
-
-清理后通过原句柄读取，会重新执行初始化函数，恢复初始值 `10`，并将该 key 加回 `keys()`。
-
-`remove(key)` 不会删除数据库记录，也不会向该分区的订阅者发送通知。已有句柄的订阅与派生关系会保留，重建后继续跟随新分区。所以业务上的「商品下架」仍需要更新商品目录，不能只靠清理缓存表达。
-
-`clear()` 清理全部分区。`keys()` 返回一个 Signal，记录当前已经创建的 key；建分区和删分区会通知它，修改某个分区的值则不会。它的值是顺序不定的不可修改快照。
-
-读取尚未使用过的 key、甚至仅调用 `at(key)`，都会创建分区。所以 `keys()` 不能直接当作商品目录或在线玩家名单；这些名单应由业务数据单独维护。
-
-## 按玩家保存状态
-
-Alice 和 Bob 同时打开商店，各自选择购买数量。Alice 加购一件时，Bob 的数量应保持不变；Alice 进入确认页时，则需要保留刚才的选择。
-
-下面在商店服务中保存一份 `PlayerKeyedSignal`，让多个菜单按玩家读取购买数量。`alice` 和 `bob` 是两名在线玩家。
+服务器公告由管理员输入，要去掉首尾空格；撤下公告时要写一条日志。`beforeAdd` 在元素存入之前处理它，`afterRemove` 在元素移除之后收到它。
 
 ```java
-MutablePlayerKeyedSignal<Integer> quantities = PlayerKeyedSignal.of(uuid -> 1);
+MutableListSignal<String> notices = ListSignal.of();
+Subscription trim = notices.beforeAdd(String::strip);
+Subscription log = notices.afterRemove(notice -> {
+    System.out.println("已撤下公告：" + notice);
+});
 
-MutableSignal<Integer> aliceQuantity = quantities.at(alice);
-MutableSignal<Integer> bobQuantity = quantities.at(bob);
+notices.add("  今晚 8 点开放新副本  ");
+System.out.println("[" + notices.get(0) + "]");  // [今晚 8 点开放新副本]
+notices.remove(0);                               // 打印「已撤下公告：今晚 8 点开放新副本」
 
-// Alice 点击加号后, 只更新她的购买数量.
-aliceQuantity.update(value -> value + 1);
-
-System.out.println(aliceQuantity.get());
-System.out.println(bobQuantity.get());
-System.out.println(quantities.get(alice));
+trim.close();
+log.close();
 ```
 
-`quantities.get(alice)` 与 `aliceQuantity.get()` 读取同一分区，Bob 的分区不受影响。
+`beforeAdd` 的返回值才是真正存进去的元素，它没办法拒绝加入。有多个钩子时按注册顺序处理，前一个的返回值交给后一个。`set` 替换元素时，先对旧元素执行 `afterRemove`，再对新元素执行 `beforeAdd`。
 
-`at`、`get`、`set`、`update`、`dirty` 和 `remove` 都提供接收 `Player` 或 UUID 的入口。接收 `Player` 时会立即取出 UUID，内部不会因为传入了玩家对象就持有它。
+## 底层列表
 
-示例中的 `quantities` 应创建一次供多个菜单复用。若状态只属于某一扇窗口，例如这次确认框中的勾选项，直接为窗口创建一个普通 `MutableSignal` 就够了。按商品、队伍等业务 key 划分时用 `KeyedSignal`；按玩家划分且需要离线清理时用 `PlayerKeyedSignal`。
+`ListSignal.of()` 的底层是 `ArrayList`，只在一个线程里修改时最快。需要跨线程读写，要么自己加锁，要么用 `wrap` 包装一个并发列表。
 
-玩家退出时，其分区会自动移除；也可以主动调用 `quantities.remove(alice)`。与普通分区一样，之后的读取或写入仍可能重建它，所以离线清理不能替代业务定时任务和订阅的结束处理。
+```java
+MutableListSignal<String> queue = ListSignal.wrap(new CopyOnWriteArrayList<>());
+```
 
-> **注意：不要让状态长期持有玩家对象**
+## 注意事项
+
+> **注意：get() 返回的是活视图**
 >
-> 集合的元素、映射的 key 和值、分区的值都会被保存。这里应存 UUID、商品编号和业务数据，避免存放 `Player`、`Entity`、`World`，也不要让装载函数捕获这些对象。
+> `queue.get()` 返回的就是列表本身，之后的增删也会反映在这份引用上。派生结果要保存某一刻的内容，就复制一份，比如 `queue.map(List::copyOf)`。
+>
+> 直接修改列表里元素对象的字段，列表察觉不到。元素最好不可变，要改就用 `set(index, newValue)` 替换。
 
-## 按玩家异步查询与轮询
+> **注意：wrap 之后只能经包装器修改**
+>
+> `wrap` 不复制传入的列表。绕过包装器直接改原列表，数据变了，却不会通知任何人。`of()` 创建的列表不保证线程安全。
 
-商店的首页和确认页都需要显示玩家余额。为了让它们共用同一名玩家最近查到的结果，可以把[异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md)中的单个余额来源，改成按玩家保存结果的 `PlayerKeyedSignal`。
+> **注意：batch 不是事务**
+>
+> `batch` 里的每一步修改都立刻生效。中途抛出异常时，已经完成的修改会保留，订阅者照样收到通知。它只合并当前线程对这个列表的通知，其他线程仍可能读到中间状态。
 
-沿用异步页的业务约定，`economy.loadBalance(UUID)` 查询数据库并返回金币余额，`ioExecutor` 是后台 I/O 执行器。下面的 `balances` 在商店服务初始化时创建，随后用正在打开菜单的 `viewer` 获取他的余额文字。
+> **注意：钩子的持有与线程**
+>
+> 钩子返回的 `Subscription` 必须保存。列表只弱引用钩子，丢掉凭证后钩子可能被回收。钩子在修改列表的线程上同步执行，应在列表交给其他代码之前注册，也不要在钩子里修改同一个列表。
+>
+> 按下标或迭代器移除时，`afterRemove` 收到的是列表里存着的对象；`remove(Object)` 收到的是调用方传进来的参数。移除钩子抛出异常时，移除已经发生，不会撤销。
+
+**下一步**：[SetSignal 集合](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/set.md) — 保存不重复的元素，例如玩家已经发现的传送点。
+
+# SetSignal 集合
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/set>
+
+传送点菜单里，玩家到过的传送点显示成地图，没到过的显示成问号，顶上写着发现进度。玩家第一次走到某个传送点时记下来。
+
+问题在于玩家会反复回到主城。用列表记录的话，每次都得先查一遍有没有，不然主城会被记好几次，进度也跟着算错。
+
+## SetSignal 做什么
+
+`SetSignal` 是可以订阅的 `Set`，元素不重复。添加一个已经存在的元素，集合不变，也不会通知任何人。
+
+它的用法和 [ListSignal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/list.md) 基本一样，`SetSignal.of()` 返回 `MutableSetSignal`。适合记录「有没有」的数据，比如解锁的成就、发现的传送点、勾选的选项。
+
+## 记录发现的传送点
+
+菜单里每个传送点按钮用 `discovered.contains(name)` 决定显示地图还是问号。
 
 ```java
-PlayerKeyedSignal<Long> balances = PlayerKeyedSignal.async(
-        (Long) null, ioExecutor, economy::loadBalance);
+MutableSetSignal<String> discovered = SetSignal.of();
+Signal<String> progress = discovered.mapDistinct(set ->
+        "已发现 " + set.size() + " / 4"
+);
 
-Signal<Long> balance = balances.at(viewer);
-Signal<String> balanceText = balance.map(value ->
-        value == null ? "加载中…" : "余额：" + value);
-System.out.println(balanceText.get());
+discovered.add("主城");
+discovered.add("沙漠神殿");
+boolean addedAgain = discovered.add("主城");  // 已经有了，返回 false，不通知
+
+System.out.println(addedAgain);                      // false
+System.out.println(progress.get());                  // 已发现 2 / 4
+System.out.println(discovered.contains("沙漠神殿"));  // true
 ```
 
-创建 `balances` 时还不会查询任何玩家。`balances.at(viewer)` 创建分区并返回句柄，也不会提交查询；最后一行读取派生文字时才会触发首次加载。若查询尚未完成，会输出「加载中…」；完成后再次读取就能得到余额。需要收到更新通知时，像异步页一样订阅 `balanceText`，或把它绑定到菜单。
+1. **第 1-4 行**：一个传送点都没去过。
+2. **第 6 行**
+3. **第 7 行**
+4. **第 8 行**：回到主城又记录了一次。主城已经在集合里，add 返回 false，菜单不刷新，也不用先检查 contains。
+5. **第 10-12 行**：输出「false，已发现 2 / 4，true」。
 
-另一个菜单再调用 `balances.at(viewer)`，取用的是同一个玩家分区；换成另一个玩家，则有各自的占位值和查询结果。这与创建时立即提交查询的 `Signal.async` 不同。
+## 底层集合
 
-数据库写入完成后，调用 `balances.dirty(playerId)` 刷新对应玩家，这里的 `playerId` 是写入操作对应的 UUID。重新查询期间保留上次结果，重复刷新会合并补查，执行器和异常处理沿用[异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md)的规则。
-
-如果余额还会被其他子服修改，可以把上面创建 `balances` 的语句替换为轮询版本，每 `100` tick 重查一次。后面按玩家取用的代码保持相同。
+`SetSignal.of()` 的底层是 `LinkedHashSet`，按加入顺序迭代。需要跨线程读写时，用 `wrap` 包装一个并发集合。
 
 ```java
-PlayerKeyedSignal<Long> balances = PlayerKeyedSignal.polling(
-        (Long) null, ioExecutor, economy::loadBalance, 100L);
+MutableSetSignal<String> discovered = SetSignal.wrap(ConcurrentHashMap.newKeySet());
 ```
 
-**只有句柄存在订阅的玩家分区才会轮询。** 单独取句柄不会启动轮询；一个玩家停止订阅，也不会影响其他玩家。玩家退出时，对应分区的轮询随清理一起停止。
+`MutableSetSignal` 同样提供 `batch`、`beforeAdd` 和 `afterRemove`，用法见 [ListSignal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/list.md#用-batch-合并一批修改)。
 
-按现实时间轮询可用 `PlayerKeyedSignal.pollingMillis(null, ioExecutor, economy::loadBalance, 5000L)`，周期和订阅规则看[定期轮询](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/polling.md)。普通 `KeyedSignal` 也提供 `async`、`polling` 和 `pollingMillis`，适合查询商品库存等非玩家数据。异步来源返回只读分区句柄，结果由查询函数提供，不能通过 `at(key).set(...)` 写入。
+## 注意事项
 
-**下一步**：[Signal 在 UI 中的使用](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md) — 把集合与玩家状态用于物品、分页和窗口显示，让菜单跟随数据更新。
+> **注意：与 ListSignal 相同的规则**
+>
+> `get()` 返回集合本身的活视图；`wrap` 之后只能经包装器修改；`of()` 创建的集合不保证线程安全；钩子凭证必须保存。
+
+> **注意：add 先查重，再执行钩子**
+>
+> `add` 先用原元素判断是否已存在，已经存在就不执行 `beforeAdd`。钩子换出来的元素如果和集合里已有的元素相等，这次加入也不会生效。
+
+> **注意：不要存玩家对象**
+>
+> 集合元素会被长期保存，不要放 `Player`、`Entity`、`World`，用 UUID、名字或编号代替。
+
+**下一步**：[MapSignal 映射](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/map.md) — 按 key 保存数据，例如击杀排行和从配置读取的传送点。
+
+# MapSignal 映射
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/map>
+
+一局团战里，要按玩家名记录击杀数，计分菜单顶部显示当前领先的玩家。
+
+击杀数天然就是「名字 → 数量」的映射。用 `MutableSignal<Map<...>>` 保存的话，每记一次击杀都要复制整张表再 `set` 回去。
+
+## MapSignal 做什么
+
+`MapSignal` 是可以订阅的 `Map`。`put`、`remove`、`merge`、`compute` 等修改都会通知依赖它的地方。`MapSignal.of()` 返回 `MutableMapSignal`。
+
+注意两个 `get` 的区别。`kills.get("Bob")` 是 `Map` 的方法，读取一个值；无参数的 `kills.get()` 是 `Signal` 的方法，返回整张映射。
+
+## 统计击杀排行
+
+领先者取决于所有人的击杀数，正好让它依赖整张映射。
+
+```java
+MutableMapSignal<String, Integer> kills = MapSignal.of();
+Signal<String> leader = kills.map(map -> map.entrySet().stream()
+        .max(Map.Entry.comparingByValue())
+        .map(entry -> entry.getKey() + "（" + entry.getValue() + " 杀）")
+        .orElse("暂无")
+);
+
+kills.merge("Alice", 1, Integer::sum);  // key 不存在时放入 1
+kills.merge("Bob", 1, Integer::sum);
+kills.merge("Bob", 1, Integer::sum);    // 已存在时累加
+
+System.out.println(kills.get("Bob"));   // 2
+System.out.println(leader.get());       // Bob（2 杀）
+```
+
+1. **第 1-6 行**：开局，还没有人击杀。
+2. **第 8 行**
+3. **第 9 行**：平手，max 取到先出现的 Alice。leader 是 map 派生的，结果没变也会通知。
+4. **第 10 行**：Bob 反超。
+5. **第 12-13 行**：输出「2，Bob（2 杀）」。
+
+如果每个显示位置只关心一个 key，比如每个玩家头像下只显示他自己的击杀数，那么 Alice 的变化也会让 Bob 的显示刷新。这种情况改用 [KeyedSignal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/basics.md)，每个 key 单独通知。
+
+## 包装从配置读取的数据
+
+传送点列表从配置文件读取，配置加载器返回一个 `LinkedHashMap`，保留了配置里的顺序。用 `wrap` 包装它，之后添加的传送点排在后面。
+
+```java
+record Waypoint(String world, int x, int y, int z) {}
+
+Map<String, Waypoint> loaded = new LinkedHashMap<>();
+loaded.put("主城", new Waypoint("world", 0, 64, 0));
+loaded.put("矿区", new Waypoint("world", 320, 12, -150));
+
+MutableMapSignal<String, Waypoint> waypoints = MapSignal.wrap(loaded);
+Signal<List<String>> names = waypoints.map(map -> List.copyOf(map.keySet()));
+
+waypoints.put("下界门", new Waypoint("world", -88, 70, 42));
+System.out.println(names.get());  // [主城, 矿区, 下界门]
+```
+
+传送点用世界名和坐标保存，没有用 `Location`，因为 `Location` 会持有 `World` 对象。
+
+## 底层映射与钩子
+
+`MapSignal.of()` 的底层是 `LinkedHashMap`，按插入顺序迭代，允许 `null` key 和值。需要跨线程读写时，包装一个 `ConcurrentHashMap`，它不保证迭代顺序，也不接受 `null`。
+
+```java
+MutableMapSignal<String, Integer> kills = MapSignal.wrap(new ConcurrentHashMap<>());
+```
+
+`MutableMapSignal` 提供 `batch`，用法和 [ListSignal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/list.md#用-batch-合并一批修改) 相同。钩子的名字略有不同。
+
+| 钩子 | 时机 |
+| - | - |
+| `beforePut((key, value) -> ...)` | 值存入之前，返回真正存进去的值 |
+| `afterRemove((key, value) -> ...)` | 映射移除之后，收到被移除的 key 和值 |
+
+例如 `kills.beforePut((name, count) -> Math.max(0, count))` 保证击杀数不会是负数。覆盖已有的 key 时，先对旧值执行 `afterRemove`，再对新值执行 `beforePut`。
+
+## 注意事项
+
+> **注意：wrap 之后只能经包装器修改**
+>
+> `wrap` 不复制原映射。绕过包装器调用 `loaded.put(...)` 不会发出通知。`keySet()`、`values()`、`entrySet()` 和 `Map.Entry.setValue` 的修改会经过包装器，也会通知。`of()` 创建的映射不保证线程安全。
+
+> **注意：钩子在并发映射上的限制**
+>
+> 带钩子的 `put` 会先读再写，在并发映射上不是原子操作。`compute` 一类方法会在重算函数里执行钩子，钩子可能被执行多次，而且不能再操作同一张映射。钩子凭证必须保存。
+
+**下一步**：[只读视图与在线玩家](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/read-only.md) — 对外只提供读取，以及使用 Sparrow UI 内置的在线玩家列表。
+
+# 只读视图与在线玩家
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/read-only>
+
+房间的等待队列只应该由房间自己修改，菜单、计分板、其他插件模块只负责显示。可你把 `MutableListSignal` 交出去，谁都能 `clear()` 一下，排好的队就没了。
+
+另一个常见需求是在线玩家列表。自己监听进服、退服事件维护一份名单，还得处理同一 tick 里好几个人进出的情况。
+
+## 只读视图与在线玩家列表做什么
+
+集合 Signal 都可以通过 `asReadOnly()` 得到一个只读视图，能读取、能订阅、能派生，调用任何修改方法都会抛出 `UnsupportedOperationException`。它是同一个集合的另一个视角，没有复制数据，源集合变了，视图的订阅者也会收到通知。
+
+`Signals.onlinePlayers()` 是 Sparrow UI 内置的在线玩家列表，类型是只读的 `ListSignal<Player>`，玩家进出服务器时自动更新。
+
+## 对外只提供读取
+
+字段用 `MutableListSignal`，对外返回只读视图。
+
+```java
+public final class GameRoom {
+    private final MutableListSignal<UUID> waiting = ListSignal.of();
+
+    // 同一个列表多次调用 asReadOnly()，返回的是同一个视图对象
+    public ListSignal<UUID> waiting() {
+        return this.waiting.asReadOnly();
+    }
+
+    public void join(UUID playerId) {
+        if (!this.waiting.contains(playerId)) {
+            this.waiting.add(playerId);
+        }
+    }
+
+    public void leave(UUID playerId) {
+        this.waiting.remove(playerId);
+    }
+}
+```
+
+其他代码拿到 `waiting()` 之后的样子如下，`alice`、`bob` 是两名玩家的 UUID。
+
+```java
+GameRoom room = new GameRoom();
+ListSignal<UUID> waiting = room.waiting();
+Signal<Integer> waitingCount = waiting.mapDistinct(List::size);
+
+room.join(alice);
+room.join(bob);
+System.out.println(waitingCount.get());  // 2
+
+waiting.clear();  // 抛出 UnsupportedOperationException
+```
+
+1. **第 1-3 行**：拿到的是只读视图，可以照常派生。
+2. **第 5 行**：房间修改自己的队列，视图的订阅者同样收到通知。
+3. **第 6 行**
+4. **第 7 行**：输出「2」。
+5. **第 9 行**：通过视图修改会抛出异常，队列保持不变。输出「UnsupportedOperationException」。
+
+视图的 `get()`、迭代器、`subList` 同样不能用来修改。`SetSignal` 和 `MapSignal` 的 `asReadOnly()` 规则相同，`MapSignal` 视图的 `keySet()`、`values()`、`entrySet()` 和 `Map.Entry.setValue` 也不能修改。
+
+## 显示在线玩家
+
+大厅菜单的标题显示在线人数，下方列出玩家名字。不需要自己监听任何事件。
+
+```java
+ListSignal<Player> online = Signals.onlinePlayers();
+Signal<String> onlineText = online.mapDistinct(players ->
+        "在线：" + players.size() + " 人"
+);
+Signal<List<String>> names = online.mapDistinct(players ->
+        players.stream().map(Player::getName).toList()
+);
+
+// Alice 和 Bob 在同一 tick 里加入服务器
+// 下一 tick，onlineText 和 names 各收到一次通知
+```
+
+1. **第 1-7 行**：服务器上只有 Steve。
+2. **第 9 行**：进服事件处理完，get() 立刻能读到新名单。通知先攒着，合并到下一 tick 发出。
+3. **第 10 行**：下一 tick 只通知一次，两个人进服，菜单只刷新一次。
+
+在菜单格子里显示列表内容的写法见 [列表内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list.md)。
+
+## 注意事项
+
+> **注意：只读的是集合本身**
+>
+> 视图不允许修改集合，但元素如果是可变对象，仍然可以改元素内部的字段。元素最好不可变。
+
+> **注意：在线玩家列表的 get() 返回快照**
+>
+> 名单每变化一次，`get()` 生成一份新的不可修改列表；名单没变时重复返回同一份。已经拿到手的列表不会随之后的进出变化。
+>
+> 通知在 Bukkit 主线程发出，Folia 上是全局区域线程。全服共用一个实例，每次调用返回同一个对象。使用前要先完成 Sparrow UI 的 [初始化](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/getting-started/installation.md#初始化)。
+
+> **注意：不要长期保存 Player**
+>
+> 列表里的 `Player` 由 Sparrow UI 管理，玩家退出时移除。不要把这些 `Player` 复制到自己的集合、映射或分区里长期保存，需要记住玩家时保存 UUID。
+>
+> 派生函数可能在不属于该玩家的线程上执行，只读取名字、UUID 这类不需要所属线程的数据。
+
+**下一步**：[KeyedSignal 分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/basics.md) — 按 key 保存互相独立的状态，每个 key 单独通知。
+
+# KeyedSignal 分区
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/basics>
+
+竞技场列表菜单里，沙漠、森林、雪原三个竞技场各有一个图标，写着当前人数。有人进出某个竞技场，只有那个图标该变。
+
+把所有人数放进一个 [MapSignal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/map.md) 的话，依赖它的每个图标都会在任何竞技场有人进出时刷新。竞技场一多，大部分刷新都是白费的。
+
+## KeyedSignal 做什么
+
+`KeyedSignal` 按 key 保存一组互相独立的值，每个 key 称为一个分区。每个分区单独读取、单独订阅、单独通知，修改一个分区只影响关注它的地方。
+
+`KeyedSignal.of` 的参数是初始化函数。某个 key 第一次被读取时，用它算出初始值，之后缓存起来。
+
+读写有两种等价的写法。
+
+| 写法 | 例子 |
+| - | - |
+| 通过 KeyedSignal 指定 key | `arenaPlayers.get("desert")`、`arenaPlayers.set("desert", 6)`、`arenaPlayers.update("desert", ...)` |
+| 先取分区句柄，再当普通 Signal 用 | `desert.get()`、`desert.set(0)` |
+
+`at(key)` 返回的句柄是普通的 `MutableSignal`，可以 `map`、`combine`，也可以交给菜单绑定。
+
+## 每个竞技场的人数
+
+按竞技场编号分区，初始人数都是 0。菜单里的三个图标各自依赖自己竞技场的分区。
+
+```java
+MutableKeyedSignal<String, Integer> arenaPlayers = KeyedSignal.of(arena -> 0);
+MutableSignal<Integer> desert = arenaPlayers.at("desert");  // 沙漠竞技场的分区句柄
+
+Subscription subscription = desert.onDirty(() -> {
+    System.out.println("沙漠竞技场：" + desert.get() + " 人");
+});
+
+arenaPlayers.update("forest", count -> count + 1);  // 森林的变化与沙漠无关，不打印
+arenaPlayers.update("desert", count -> count + 1);  // 打印「沙漠竞技场：1 人」
+arenaPlayers.update("desert", count -> count + 1);  // 打印「沙漠竞技场：2 人」
+desert.set(0);                                      // 对局结束，打印「沙漠竞技场：0 人」
+
+subscription.close();
+```
+
+1. **第 1-2 行**：三个竞技场都没人。
+2. **第 4-6 行**：订阅沙漠分区。
+3. **第 8 行**：只有森林的图标刷新，沙漠的订阅没有被触发。
+4. **第 9 行**：输出「沙漠竞技场：1 人」。
+5. **第 10 行**：输出「沙漠竞技场：2 人」。
+6. **第 11 行**：通过句柄写入，和 arenaPlayers.set("desert", 0) 效果一样。输出「沙漠竞技场：0 人」。
+
+## 清理分区
+
+竞技场关闭后，它的分区不再需要，可以用 `remove(key)` 清掉缓存。
+
+```java
+MutableKeyedSignal<String, Integer> arenaPlayers = KeyedSignal.of(arena -> 0);
+MutableSignal<Integer> desert = arenaPlayers.at("desert");
+
+desert.set(6);
+arenaPlayers.remove("desert");
+System.out.println(arenaPlayers.keys().get().isEmpty());          // true
+
+System.out.println(desert.get());                                 // 0，用初始化函数重建
+System.out.println(arenaPlayers.keys().get().contains("desert"));  // true
+```
+
+`remove` 之后，之前拿到的 `desert` 句柄仍然能用。再次读取时，分区用初始化函数重建，人数回到 0。已有的订阅和派生关系也会保留，分区重建后继续跟随。`clear()` 清理全部分区。
+
+## 重新读取
+
+分区的值需要按初始化函数重新计算时，调用 `dirty(key)`，下次读取时会重新执行初始化函数。`dirtyAll()` 对所有已存在的分区做同样的事，`dirty(key)` 不会创建还不存在的分区。
+
+需要查询数据库的初始化，用 [异步分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/async.md)。
+
+## 注意事项
+
+> **注意：remove 只清缓存**
+>
+> `remove` 不删除业务数据，也不通知这个分区的订阅者。竞技场被删除时，竞技场列表本身也要更新。
+
+> **注意：keys() 不是业务名单**
+>
+> `keys()` 返回一个 Signal，值是当前已经创建过的 key，顺序不固定。创建和删除分区时它会通知，修改分区的值时不会。
+>
+> 读取一个从没用过的 key，甚至只调用 `at(key)`，都会创建分区。所以 `keys()` 只说明哪些分区被访问过，不能当作竞技场列表或在线玩家名单。
+
+> **注意：初始化函数要快**
+>
+> 初始化函数在读取线程执行，应当快速、没有副作用，可以被重复执行。
+>
+> 分区写入相同的值不会通知，默认用 `Objects.equals` 比较；需要其他规则时，把比较函数作为 `KeyedSignal.of` 的第二个参数。
+
+> **注意：key 和值都不要持有玩家对象**
+>
+> 分区会被长期保存。key 用竞技场编号、UUID 这类轻量值，不要用 `Player` 作 key，初始化函数也不要捕获 `Player`、`Entity`、`World`。按玩家分区的写法见 [玩家分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/player.md)。
+
+**下一步**：[异步与轮询分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/async.md) — 每个分区单独从数据库加载，或者单独定期轮询。
+
+# 异步与轮询分区
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/async>
+
+公会菜单要显示公会名称和等级，资料在数据库里。服务器上有几百个公会，玩家一次只看其中一两个。
+
+每个公会写一个 [Signal.async](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/async.md) 太繁琐，而且它一创建就查询，几百个公会就是几百次查询。跨服菜单要显示各子服的人数，也是一样的问题。
+
+## 异步分区做什么
+
+`KeyedSignal.async` 和 `KeyedSignal.polling` 让每个分区单独在后台加载，相当于按 key 批量创建 async 和 polling，但**只有用到的分区才会查询**。
+
+它们接收占位值、执行器和查询函数，查询函数收到分区的 key，返回这个分区的值。
+
+| 时机 | 是否查询 |
+| - | - |
+| 创建 `KeyedSignal.async(...)` | 不查询 |
+| 调用 `at(key)` 取得句柄 | 不查询 |
+| 第一次读取某个分区 | 提交这个分区的查询 |
+
+## 按公会编号加载资料
+
+假设 `guildRepository.load(String)` 按公会编号查询并返回 `GuildInfo`，`ioExecutor` 是后台 I/O 执行器。
+
+```java
+record GuildInfo(String name, int level, int members) {}
+
+KeyedSignal<String, GuildInfo> guilds = KeyedSignal.async(
+        (GuildInfo) null, ioExecutor, guildRepository::load
+);
+
+Signal<GuildInfo> moon = guilds.at("moon");  // 只取句柄，还不查询
+Signal<String> moonTitle = moon.map(info ->
+        info == null ? "读取中…" : info.name() + " Lv." + info.level()
+);
+
+System.out.println(moonTitle.get());  // 读取中…，第一次读取才提交查询
+// 查询完成后，菜单显示「月影 Lv.5」
+
+guilds.dirty("moon");  // 公会升级后，只重新查询这一个公会
+// 新的结果回来，菜单显示「月影 Lv.6」
+```
+
+1. **第 1-5 行**：创建时不查询任何公会。
+2. **第 7-10 行**：取得句柄、派生文字，仍然不查询。
+3. **第 12 行**：第一次读取 moon 分区，这时才提交查询。其他几百个公会都没被查。输出「读取中…」。
+4. **第 13 行**：结果返回，菜单刷新。另一个菜单再调用 at("moon")，共用这份结果。
+5. **第 15 行**：重新查询期间保留旧结果，连续刷新会合并成一次补查。
+6. **第 16 行**
+
+异步分区的值只能由查询函数提供，`at(key)` 返回的句柄是只读的 `Signal`，没有 `set`。
+
+## 按服务器编号轮询人数
+
+跨服菜单要显示每个子服的在线人数，人数由各子服写入 Redis。假设 `servers.onlineCount(String)` 查询某个子服的人数。
+
+```java
+KeyedSignal<String, Integer> serverOnline = KeyedSignal.polling(
+        (Integer) null, ioExecutor, servers::onlineCount, 100L
+);
+
+Signal<Integer> survival = serverOnline.at("survival");
+```
+
+每个分区单独轮询，只有句柄有订阅的分区才会轮询。玩家打开菜单查看生存服，就只有 `survival` 每 100 tick 查询一次，没人看的子服不会被查。某个分区的订阅全部关闭后，它自己停止轮询，不影响其他分区。
+
+按现实时间轮询用 `pollingMillis`。
+
+```java
+KeyedSignal<String, Integer> serverOnline = KeyedSignal.pollingMillis(
+        (Integer) null, ioExecutor, servers::onlineCount, 5000L
+);
+```
+
+## 注意事项
+
+> **注意：和单个 async、polling 相同的规则**
+>
+> 重新查询期间保留旧结果，连续刷新合并为一次补查，规则见 [async](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/async.md#连续刷新会合并)。轮询周期、共享时钟和补查见 [polling](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/polling.md#注意事项)。
+>
+> 查询函数只访问数据库、网络或线程安全的数据，加载完成的通知从执行查询的线程发出。
+
+> **注意：分区的清理**
+>
+> 异步和轮询分区同样支持 `remove(key)`、`clear()` 和 `keys()`，规则见 [KeyedSignal 分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/basics.md#清理分区)。移除后再读取，会重新提交查询。
+
+**下一步**：[玩家分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/player.md) — 按 UUID 为每名玩家保存状态，并在玩家退出时自动清理。
+
+# 玩家分区
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/player>
+
+技能点由技能树菜单、属性菜单和升级提示共同使用，每名玩家一份。Alice 升级拿到技能点，Bob 的菜单不应该跟着刷新。
+
+每名玩家一份状态，最直接的做法是 `Map<Player, ...>`。可 `Player` 对象和这次连接绑定，玩家退出后它还留在表里，时间一长就是内存泄漏，退出时的清理也得自己写。
+
+## 玩家分区做什么
+
+用 UUID 作为 [KeyedSignal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/basics.md) 的 key，每名玩家就有自己独立的分区。再调用一次 `Signals.evictOnQuit(signal)`，之后任何玩家退出服务器，Sparrow UI 都会对它调用 `remove(uuid)`，清掉这名玩家的分区。
+
+同步、异步、轮询三种分区来源都可以这样登记。
+
+## 每名玩家的技能点
+
+技能点在插件启动时创建一次，放在一个服务类里，多个菜单共用。
+
+```java
+public final class SkillPoints {
+    private final MutableKeyedSignal<UUID, Integer> points = KeyedSignal.of(playerId -> 0);
+
+    public SkillPoints() {
+        Signals.evictOnQuit(this.points);  // 玩家退出时清理他的分区
+    }
+
+    public MutableSignal<Integer> of(Player player) {
+        return this.points.at(player.getUniqueId());
+    }
+
+    public MutableKeyedSignal<UUID, Integer> points() {
+        return this.points;
+    }
+}
+```
+
+下面的演示里，`alice` 和 `bob` 是两名玩家的 UUID，菜单里的两个物品分别依赖他们的分区。
+
+```java
+MutableKeyedSignal<UUID, Integer> points = KeyedSignal.of(playerId -> 0);
+Signals.evictOnQuit(points);
+
+MutableSignal<Integer> alicePoints = points.at(alice);
+alicePoints.update(value -> value + 2);  // Alice 升级，获得两个技能点
+
+System.out.println(alicePoints.get());   // 2
+System.out.println(points.get(bob));     // 0，Bob 的分区不受影响
+
+// Alice 退出服务器，她的分区被移除
+// Alice 重新登录后再读取，分区用初始化函数重建
+```
+
+1. **第 1-2 行**：创建来源并登记退出清理。
+2. **第 4-5 行**：只有 Alice 的物品刷新。Bob 看着的是自己的分区。
+3. **第 7-8 行**：输出「2，0」。
+4. **第 10 行**：Alice 退出，Sparrow UI 调用 remove(alice)。移除分区不会通知订阅者。
+5. **第 11 行**：重建后回到初始值 0。只在线期间有意义的状态适合这样清理；需要持久保存的技能点，应在修改时写入数据库。
+
+## 按玩家异步加载
+
+每名玩家的战绩存在数据库里，用 `KeyedSignal.async` 按 UUID 加载，退出时清理。
+
+```java
+KeyedSignal<UUID, PlayerStats> stats = KeyedSignal.async(
+        (PlayerStats) null, ioExecutor, statsRepository::load
+);
+Signals.evictOnQuit(stats);
+
+Signal<PlayerStats> own = stats.at(viewer.getUniqueId());
+```
+
+`statsRepository.load(UUID)` 和 `PlayerStats` 与 [async](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/async.md) 页相同。资料页和排行榜页对同一名玩家调用 `at`，共用一份查询结果。战绩写入数据库后，调用 `stats.dirty(playerId)` 刷新那名玩家。
+
+需要同步其他子服的修改时，把 `async` 换成 `polling` 或 `pollingMillis`，只有正在被查看的玩家分区才会轮询。
+
+## 在菜单里使用
+
+一个共用的按钮要显示「当前查看者」的技能点，就在 `dependsOn` 里从渲染上下文取出查看者的 UUID。
+
+```java
+Item pointsButton = Item.builder()
+        .dependsOn(points, context -> context.player().getUniqueId())
+        .setItemProvider(context -> {
+            int value = points.get(context.player().getUniqueId());
+            return new ItemStack(Material.EXPERIENCE_BOTTLE, Math.max(1, value));
+        })
+        .addClickHandler(click -> {
+            points.update(click.player().getUniqueId(), value -> value + 1);
+        })
+        .build();
+```
+
+Alice 和 Bob 看着同一个按钮，各自绑定自己的分区，Alice 点击后只刷新她看到的那一个。完整说明见 [玩家与分区显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/player.md)。
+
+## 注意事项
+
+> **注意：来源要由你保存**
+>
+> Sparrow UI 只弱引用登记过的来源，来源本身要由你持有，比如上面的 `points` 字段。来源被回收后，登记也随之失效。重复登记同一个对象只算一次，插件关闭时所有登记自动解除。
+
+> **注意：清理只是移除缓存**
+>
+> 退出后再访问这名玩家的分区，会用初始化函数重建，离线玩家的 UUID 也可以照常读写。需要持久保存的数据，要自己写入数据库。使用前要先完成 Sparrow UI 的 [初始化](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/getting-started/installation.md#初始化)。
+
+> **提示：什么时候用不着玩家分区**
+>
+> 状态只属于某一扇窗口时，比如确认框里的勾选项、这次打开时的页码，直接为这扇窗口创建一个普通的 `MutableSignal` 就够了，窗口关闭，状态也就不要了。需要在多个菜单之间共享，或者菜单关闭后还要保留的每名玩家状态，才放进玩家分区。
+
+**下一步**：[Signal 在 UI 中的使用](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md) — 把前面介绍的各种 Signal 绑定到物品、列表、分页、标题和视觉映射上。
 
 # 物品显示
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item>
 
-玩家在购买菜单中点击钻石，每次把购买数量加一。按钮名称初始为「购买数量：1」，点击后应变为「购买数量：2」。这个数量只属于本次打开的菜单，所以在创建菜单时新建一个普通 Signal。
+属性加点菜单里有一个「力量」按钮，名字写着当前等级和剩余技能点。玩家每点一次，力量加一级，技能点少一点，按钮名字跟着变；技能点用完后，再点也没反应。
 
-示例共用的 `named` 辅助方法见页尾。
+按钮的外观取决于两个 Signal。点击后得有人告诉菜单去重新显示这个格子，还要确保只刷新这一格。
 
-## 数量变了，按钮跟着变
+## dependsOn 做什么
 
-```text title="选择数量"
-####Q####
-```
+`Item.builder().dependsOn(signals...)` 声明这个物品的外观依赖哪些 Signal。其中任何一个发出通知，显示这个物品的格子就会在下一 tick 重新执行 Provider，取得新的外观。
 
-- `Q`：数量按钮（`diamond`）
+订阅由 Sparrow UI 管理。物品显示在窗口里时自动订阅，窗口关闭时自动退订，不用自己保存 `Subscription`。
 
-初始数量为 1。点击后改变的是名称中的数量，钻石堆叠数保持为 1。
+## 属性加点按钮
+
+逐步执行，看按钮名字怎样随点击变化。
 
 ```java
-MutableSignal<Integer> quantity = Signal.of(1);
-Item amountButton = Item.builder()
-        .dependsOn(quantity)
-        .setItemProvider(context -> named(Material.DIAMOND, "购买数量：" + quantity.get()))
-        .addClickHandler(click -> quantity.update(value -> value + 1))
+MutableSignal<Integer> strength = Signal.of(1);
+MutableSignal<Integer> points = Signal.of(2);  // 剩余技能点
+
+Item strengthButton = Item.builder()
+        .dependsOn(strength, points)  // 外观取决于这两个 Signal
+        .setItemProvider(context -> {
+            String name = "力量 Lv." + strength.get() + "（剩余 " + points.get() + " 点）";
+            return named(Material.DIAMOND_SWORD, name);
+        })
+        .addClickGuard((item, click) -> points.get() > 0)  // 没有技能点就不响应
+        .addClickHandler(click -> {
+            points.update(value -> value - 1);
+            strength.update(value -> value + 1);
+        })
         .build();
 
-Pane pane = Pane.builder("####Q####")
-        .addIngredient('Q', amountButton)
+Pane pane = Pane.builder("####S####")
+        .addIngredient('S', strengthButton)
         .build();
-Window.builder(pane).setTitle("选择数量").open(viewer);
+Window.builder(pane).setTitle("属性加点").open(viewer);
 ```
 
-`dependsOn(quantity)` 声明这个 Item 的显示依赖数量。点击只更新数据，Sparrow UI 会刷新显示这个 Item 的格子，再次执行 Provider 取得新名称，不用调用 `updateOnClick()`。
+1. **第 1-2 行**：力量 1 级，还有 2 点技能点。
+2. **第 4-15 行**：按钮声明依赖 strength 和 points。守卫在没有技能点时拦下点击。
+3. **第 17-20 行**：打开窗口，Provider 执行一次，显示初始名字。
+4. **第 11-14 行**：玩家点了一下。两个 Signal 都变了，但同一 tick 里的多次通知只会让这一格重新显示一次。
+5. **第 11-14 行**：再点一下，技能点用完。
+6. **第 10 行**：第三次点击被守卫拦下，处理器不执行，数据不变，按钮也不刷新。
 
-只在 Provider 中读取 `quantity.get()` 不会自动建立依赖。外观同时取决于多个独立状态时，可以传入 `dependsOn(quantity, price)`；如果已用 `combine` 派生出总价，也可以直接依赖总价 Signal。
+点击处理器只修改数据，不需要调用 `updateOnClick()`。刷新哪个格子，由 `dependsOn` 的依赖关系决定。
+
+## 注意事项
+
+> **注意：只在 Provider 里读取不会建立依赖**
+>
+> Provider 里调用 `strength.get()` 只是读一次值。忘了写 `dependsOn(strength)`，数据变了按钮也不会刷新。外观取决于几个 Signal，就把它们都传给 `dependsOn`；已经用 [combine](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/combine.md) 组合好的，依赖组合结果就行。
+
+> **注意：点击守卫要和外观读同一份数据**
+>
+> 按钮看起来能点，守卫却拦下，或者反过来，玩家会困惑。让守卫和 Provider 读取同一个 Signal，两边的判断就不会对不上。
 
 **示例共用的物品命名方法**
 
@@ -6776,66 +7766,92 @@ Window.builder(pane).setTitle("选择数量").open(viewer);
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md) 中的写法相同。
 
-**下一步**：[玩家与分区显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/player.md) — 让多个窗口共用按钮，同时显示各自玩家的数据。
+**下一步**：[玩家与分区显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/player.md) — 多个窗口共用一个按钮，各自显示查看者自己的数据。
 
 # 玩家与分区显示
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/player>
 
-Alice 在商店选择购买两件，Bob 仍选择一件，两人可以共用同一个 Item。区别在于这次依赖的是玩家分区，Provider 要读取当前查看者的值，点击时也更新点击者的分区。
+小游戏大厅里有一个「准备」按钮。Alice 点了之后，她看到的按钮变成「已准备」，Bob 看到的还是「点击准备」。
 
-示例共用的 `named` 辅助方法见页尾。
+每次打开菜单都新建一个按钮、捕获当时的 `viewer`，能做到，但按钮就没法在多个窗口之间共用了。想共用同一个按钮，它就得在渲染时知道「现在是谁在看」。
 
-## 共用按钮，各自显示玩家的数据
+## 按查看者绑定分区做什么
 
-下面的 `quantities` 和 `amountButton` 可以在商店服务中创建一次，让多个窗口复用。每次打开菜单时，把这个按钮放进对应 Pane 就行。
+`dependsOn(signal, keyOf)` 接收一个 [KeyedSignal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/basics.md) 和一个取 key 的函数。函数收到当前显示位置的渲染上下文，返回这个位置要绑定的分区 key。
 
-```text title="选择数量"
-####Q####
-```
+按玩家分区时，取 `context.player().getUniqueId()`，每个查看者就绑定自己的分区。Alice 的分区变化，只有 Alice 看到的按钮刷新。
 
-- `Q`：当前玩家的数量（`diamond`）
+## 共用的准备按钮
 
-Alice 和 Bob 初次打开时都显示 1。Alice 点击一次后，她的按钮名称显示 2，Bob 仍显示 1。
+`ready` 按玩家 UUID 保存准备状态，见 [玩家分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/player.md)。演示里上一行是 Alice 看到的按钮，下一行是 Bob 看到的，它们是同一个 `readyButton`。
 
 ```java
-MutablePlayerKeyedSignal<Integer> quantities = PlayerKeyedSignal.of(uuid -> 1);
-Item amountButton = Item.builder()
-        .dependsOn(quantities)
-        .setItemProvider(context -> named(Material.DIAMOND,
-                "购买数量：" + quantities.get(context.player())))
-        .addClickHandler(click -> quantities.update(click.player(), value -> value + 1))
+MutableKeyedSignal<UUID, Boolean> ready = KeyedSignal.of(playerId -> false);
+Signals.evictOnQuit(ready);
+
+// 按钮只创建一次，放进每名玩家打开的大厅菜单
+Item readyButton = Item.builder()
+        .dependsOn(ready, context -> context.player().getUniqueId())
+        .setItemProvider(context -> {
+            boolean isReady = ready.get(context.player().getUniqueId());
+            return isReady
+                    ? named(Material.LIME_DYE, "已准备")
+                    : named(Material.GRAY_DYE, "点击准备");
+        })
+        .addClickHandler(click -> {
+            ready.update(click.player().getUniqueId(), value -> !value);
+        })
         .build();
 
-Pane pane = Pane.builder("####Q####")
-        .addIngredient('Q', amountButton)
+Pane pane = Pane.builder("####R####")
+        .addIngredient('R', readyButton)
         .build();
-Window.builder(pane).setTitle("选择数量").open(viewer);
+Window.builder(pane).setTitle("小游戏大厅").open(viewer);
 ```
 
-`dependsOn(PlayerKeyedSignal)` 会按每个查看者的 UUID 绑定分区。Alice 改变数量时，只通知使用她的分区的显示位置，Bob 的按钮仍读取一件。不要在共用 Provider 里捕获创建菜单时的某个 `viewer`，应使用 `context.player()`。
+1. **第 1-2 行**：每名玩家的准备状态默认是 false，退出时自动清理。
+2. **第 5-16 行**：按钮用渲染上下文里的查看者 UUID 选择分区，Provider 也用它读取。
+3. **第 18-21 行**：Alice 和 Bob 各自打开大厅。同一个按钮在两扇窗口里分别绑定了两人的分区。
+4. **第 13-15 行**：Alice 点击，只更新她自己的分区，只有她看到的按钮刷新。
+5. **第 13-15 行**：Bob 也点了准备。
+6. **第 13-15 行**：Alice 取消准备，Bob 不受影响。
 
-### 按其他业务 key 绑定
+## 按业务 key 绑定
 
-若一个共用按钮显示的是钻石库存，可以使用 `KeyedSignal` 的重载。这里 `stock` 是商店持有的库存来源，演示初始库存为十件；所有查看者都绑定商品编号 `"diamond"`。
+key 不一定来自玩家。竞技场入口按钮显示沙漠竞技场的人数，所有查看者都绑定同一个分区 `"desert"`。
 
 ```java
-MutableKeyedSignal<String, Integer> stock = KeyedSignal.of(productId -> 10);
-Item stockButton = Item.builder()
-        .dependsOn(stock, player -> "diamond")
-        .setItemProvider(context -> named(Material.DIAMOND,
-                "剩余库存：" + stock.get("diamond")))
+MutableKeyedSignal<String, Integer> arenaPlayers = KeyedSignal.of(arena -> 0);
+
+Item desertButton = Item.builder()
+        .dependsOn(arenaPlayers, context -> "desert")  // 所有查看者都绑定 desert 分区
+        .setItemProvider(context -> {
+            String name = "沙漠竞技场：" + arenaPlayers.get("desert") + " 人";
+            return named(Material.SAND, name);
+        })
         .build();
 ```
 
-将 `stockButton` 放进 Pane 后，业务代码调用 `stock.set("diamond", 9)`，所有查看它的人都会看到新库存。`keyOf` 也可以根据玩家计算队伍编号等业务 key，但它在挂载时求值；玩家中途切换队伍，不会仅因函数的返回值变了就自动重新绑定。需要动态切换来源时，可以使用 [`switching`](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive.md)。
+业务代码调用 `arenaPlayers.update("desert", count -> count + 1)` 后，所有看着这个按钮的人都会看到新人数；森林竞技场的变化不会惊动它。
+
+## 注意事项
+
+> **注意：不要捕获创建菜单时的 viewer**
+>
+> 共用的 Provider 和点击处理器里，查看者用 `context.player()`，点击者用 `click.player()`。捕获创建菜单时的某个 `viewer`，所有人看到的都会是那个人的数据。
+
+> **注意：keyOf 在挂载时求值**
+>
+> 取 key 的函数在物品挂到格子上时执行一次。玩家中途换了队伍，函数现在会返回别的 key，但已经挂上的格子不会自动改绑。需要跟着选择切换来源时，用 [switching](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/switching.md)。
 
 **示例共用的物品命名方法**
 
@@ -6843,59 +7859,82 @@ Item stockButton = Item.builder()
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md) 中的写法相同。
 
-**下一步**：[列表内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list.md) — 把不断增删的商品列表映射到菜单格子。
+**下一步**：[列表内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list.md) — 把会增减的列表映射到一组格子上。
 
 # 列表内容
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list>
 
-管理员上架钻石时，已打开的目录应多出一个物品。此时变化的是一组格子的内容，用 `addIngredient` 绑定列表就行。
+队伍菜单的第一行显示每名队员的头颅。有人入队，后面多出一个；有人离队，后面的人向前补位，末尾空出来。
 
-示例共用的 `named` 辅助方法见页尾。
+变化的是一整组格子。给每个格子单独写物品再挨个更新太麻烦，队伍人数一变，格子和人的对应关系也全乱了。
 
-## 商品增删后，重新填充格子
+## 用列表填充格子做什么
 
-下面初始只有苹果和面包，九个 `M` 从左到右接收列表中的商品。点击右下角的钻石按钮可以模拟上架，最多添加到九组。
+`addIngredient(identifier, list, toElement)` 把一个列表 Signal 绑定到模板里某个标志符的全部格子上。列表的第 n 项，经 `toElement` 转换后放进这个标志符第 n 次出现的格子。
 
-```text title="商品目录"
-AB#######
-########D
-```
+列表变化时，格子内容跟着更新。新增的补到后面，删除的让后面的向前补位，多出来的格子清空。`ListSignal`、`Signal<List<T>>` 都能直接传入。
 
-- `A`：苹果（`apple`）
-- `B`：面包（`bread`）
-- `D`：上架一组钻石（`diamond`）
+## 队伍成员列表
 
-预览为初始内容：第一行只有苹果和面包，右下角是上架按钮。
+示例里队伍存的是名字；实际项目中应存 UUID，在 `toElement` 里再取名字。
 
 ```java
-ListSignal<Material> products = ListSignal.of();
-products.addAll(List.of(Material.APPLE, Material.BREAD));
+MutableListSignal<String> party = ListSignal.of();
+party.add("Alice");
 
-Pane pane = Pane.builder("MMMMMMMMM", "########A")
-        .addIngredient('M', products,
-                material -> Element.item(Item.simple(new ItemStack(material))))
-        .addIngredient('A', Item.builder()
-                .setItemProviderConstant(named(Material.DIAMOND, "上架一组钻石"))
-                .addClickGuard((item, click) -> products.size() < 9)
-                .addClickHandler(click -> products.add(Material.DIAMOND))
-                .build())
+Pane pane = Pane.builder("MMMMM####")
+        .addIngredient('M', party, name ->
+                Element.item(Item.simple(named(Material.PLAYER_HEAD, name)))
+        )
         .build();
-Window.builder(pane).setTitle("商品目录").open(viewer);
+Window.builder(pane).setTitle("我的队伍").open(viewer);
+
+// 之后队伍变化时，只改列表
+party.add("Bob");       // 第二格出现 Bob
+party.add("Carol");     // 第三格出现 Carol
+party.remove("Alice");  // 后面的人向前补位，第三格清空
 ```
 
-首次显示时，第一、二格分别是苹果和面包，后面为空。点击上架按钮后，第三格出现钻石。删除列表第一项时，后面的商品向前补位，末尾空出来的格子会清空。
+1. **第 1-2 行**：队伍里只有 Alice。
+2. **第 4-9 行**：五个 M 从左到右接收列表内容。打开窗口时第一格是 Alice，其余为空。
+3. **第 12 行**：只改列表，第二格出现 Bob。
+4. **第 13 行**
+5. **第 14 行**：Alice 离队，Bob 和 Carol 向前补位，第三格清空。
 
-`toElement` 把一条业务数据转换成放进格子的 `Element`，不能返回 `null`。默认首次转换在 `build()` 的调用线程执行，后续更新在 Paper 全局异步调度器执行；转换函数应只处理准备好的数据。列表超出九项时，只能显示前九项，更多内容应使用分页或滚动。
+## 显示在线玩家
 
-若业务已提供合适的 `Executor`，也可以将它作为第四个参数传给 `addIngredient('M', products, toElement, executor)`。它决定后续转换在哪个执行器上运行，首次仍在构建线程完成。异步查询结果只要是 `Signal<List<T>>`，也能使用相同入口。
+[Signals.onlinePlayers()](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/read-only.md#显示在线玩家) 也是一个列表 Signal，可以直接填进格子，玩家进出服务器时格子自动更新。
+
+```java
+Pane pane = Pane.builder("MMMMMMMMM")
+        .addIngredient('M', Signals.onlinePlayers(), player ->
+                Element.item(Item.simple(named(Material.PLAYER_HEAD, player.getName())))
+        )
+        .build();
+```
+
+在线人数超过九个时只显示前九个，更多的用 [分页](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/page.md) 或 [滚动](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/scroll.md)。
+
+## 注意事项
+
+> **注意：toElement 的线程**
+>
+> `toElement` 把一条数据转换成放进格子的 `Element`，不能返回 `null`。第一次转换在 `build()` 的调用线程执行，之后的更新在 Sparrow UI 的异步工作执行器上执行。函数里只处理已经准备好的数据，不要读取玩家背包、世界这类需要所属线程的状态。
+>
+> 业务已有合适的 `Executor` 时，可以作为第四个参数传入 `addIngredient('M', party, toElement, executor)`，之后的转换就在它上面执行，第一次仍在构建线程完成。
+
+> **注意：格子数量有限**
+>
+> 列表超出格子数量时，只显示前面放得下的部分。
 
 **示例共用的物品命名方法**
 
@@ -6903,12 +7942,13 @@ Window.builder(pane).setTitle("商品目录").open(viewer);
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md) 中的写法相同。
 
 **下一步**：[分页与筛选](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/page.md) — 让分页内容、箭头和页码一起跟随数据更新。
 
@@ -6916,163 +7956,217 @@ private static ItemStack named(Material material, String name) {
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/page>
 
-[翻页 Page](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md)里的箭头始终显示为可用。这次让上一页在首页变灰，下一页在末页变灰，并在中间显示「1 / 2」这样的页码。
+任务日志里有十二个任务，一页放九个。翻到第一页时「上一页」应该变灰，翻到最后一页时「下一页」变灰，中间还要显示「1 / 2」这样的页码。
 
-示例共用的 `named` 辅助方法见页尾。
+[翻页 Page](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md) 里的箭头一直是可用的样子，因为它们不知道当前是第几页。玩家在第一页点「上一页」，什么都不会发生，按钮却看起来能点。
 
-## 翻页时更新箭头、页码和内容
+## Page 的 Signal 做什么
 
-沿用翻页示例的十二组钻石，每页九组。`amounts` 改用 `ListSignal`，所以商品数量变化后，分页内容和总页数都会更新。
+`Page` 本身提供两个 Signal。`page()` 是当前页码，从 0 开始；`count()` 是总页数。按钮依赖它们，翻页时就会刷新。
 
-```text title="钻石目录"
-MMMMMMMMM
-P###C###N
-```
+`Page.of` 也可以直接接收 `ListSignal` 或 `Signal<List<T>>`。列表变化后，当前页的内容和总页数都会跟着更新。
 
-- `M`：当前页内容（`diamond`）
-- `P`：上一页（`gray_dye`）
-- `C`：页码（`paper`）
-- `N`：下一页（`arrow`）
+## 任务日志
 
-初始为第一页。翻到第二页后，上方显示 10、11、12 三组钻石，右侧按钮变灰。
+`Quest` 是一个 record，`questIcon` 把已完成的任务画成书、未完成的画成书与笔，两个辅助方法见页尾。
 
 ```java
-ListSignal<Integer> amounts = ListSignal.of();
-amounts.addAll(IntStream.rangeClosed(1, 12).boxed().toList());
-Page<Integer> page = Page.of(amounts, 9);
+MutableListSignal<Quest> quests = ListSignal.of();
+for (int i = 1; i <= 12; i++) {
+    quests.add(new Quest("任务 " + i, i <= 4));  // 前四个已完成
+}
+Page<Quest> page = Page.of(quests, 9);  // 每页 9 个
+
 Signal<Boolean> hasPrevious = page.page().map(index -> index > 0);
 Signal<Boolean> hasNext = Signals.combine(page.page(), page.count(),
-        (index, count) -> index + 1 < count);
+        (index, count) -> index + 1 < count
+);
 
 Item previous = Item.builder()
         .dependsOn(hasPrevious)
-        .setItemProvider(context -> hasPrevious.get()
-                ? named(Material.ARROW, "上一页") : named(Material.GRAY_DYE, "已是第一页"))
+        .setItemProvider(context -> {
+            return hasPrevious.get()
+                    ? named(Material.ARROW, "上一页")
+                    : named(Material.GRAY_DYE, "已是第一页");
+        })
         .addClickGuard((item, click) -> hasPrevious.get())
         .addClickHandler(click -> page.advance(-1))
         .build();
 Item next = Item.builder()
         .dependsOn(hasNext)
-        .setItemProvider(context -> hasNext.get()
-                ? named(Material.ARROW, "下一页") : named(Material.GRAY_DYE, "已是最后一页"))
+        .setItemProvider(context -> {
+            return hasNext.get()
+                    ? named(Material.ARROW, "下一页")
+                    : named(Material.GRAY_DYE, "已是最后一页");
+        })
         .addClickGuard((item, click) -> hasNext.get())
         .addClickHandler(click -> page.advance(1))
         .build();
 Item pageNumber = Item.builder()
         .dependsOn(page.page(), page.count())
-        .setItemProvider(context -> named(Material.PAPER,
-                (page.page().get() + 1) + " / " + page.count().get()))
+        .setItemProvider(context -> {
+            String text = (page.page().get() + 1) + " / " + page.count().get();  // 页码从 0 开始
+            return named(Material.PAPER, text);
+        })
         .build();
 
 Pane pane = Pane.builder("MMMMMMMMM", "P###C###N")
-        .addIngredient('M', page,
-                amount -> Element.item(Item.simple(new ItemStack(Material.DIAMOND, amount))))
+        .addIngredient('M', page, quest -> Element.item(Item.simple(questIcon(quest))))
         .addIngredient('P', previous)
         .addIngredient('C', pageNumber)
         .addIngredient('N', next)
         .build();
-Window.builder(pane).setTitle("钻石目录").open(viewer);
+Window.builder(pane).setTitle("任务日志").open(viewer);
 ```
 
-`page()` 的页码从零开始，显示时加一。下一页是否可用同时取决于当前页和总页数，所以 `hasNext` 组合了两者。按钮外观与点击守卫读取同一个判断，变灰时也停止执行翻页动作。
+1. **第 1-5 行**：十二个任务，每页九个，一共两页。
+2. **第 7-10 行**：能不能往前翻只看页码；能不能往后翻要同时看页码和总页数，所以用 combine。
+3. **第 40-46 行**：打开第一页。上一页是灰的，守卫也读同一个判断，点了不会翻页。
+4. **第 29-30 行**：点下一页。第二页只有任务 10 到 12，两个箭头的样子互换。
+5. **第 19-20 行**：点上一页，回到第一页。
 
-列表缩短到只剩九组后，总页数变成一，当前页会落回有效范围，两个箭头都变灰。空列表仍按一页处理，中间显示「1 / 1」，内容区为空。
+列表缩短到只剩九个时，总页数变成 1，当前页落回有效范围，两个箭头都变灰。空列表按一页处理，页码显示「1 / 1」，内容区为空。
 
-### 换成筛选结果或数据库分页
+## 只看未完成的任务
 
-如果商品列表来自筛选结果，把完整列表 Signal 传给 `Page.of` 就行。下面接着使用前面的 `amounts`，演示开启筛选后只保留数量不超过五的钻石组。构建 Pane 时，将 `filteredPage` 放到前面 `page` 的位置，箭头也依赖这份分页。
+筛选时，把完整列表和筛选开关组合成一个新的列表 Signal，再交给 `Page.of`。
 
 ```java
-MutableSignal<Boolean> smallOnly = Signal.of(false);
-Signal<List<Integer>> filtered = Signals.combine(amounts, smallOnly,
-        (values, enabled) -> values.stream().filter(value -> !enabled || value <= 5).toList());
-Page<Integer> filteredPage = Page.of(filtered, 9);
+MutableSignal<Boolean> unfinishedOnly = Signal.of(false);
+Signal<List<Quest>> shown = Signals.combine(quests, unfinishedOnly, (all, enabled) ->
+        all.stream().filter(quest -> !enabled || !quest.done()).toList()
+);
+Page<Quest> page = Page.of(shown, 9);
 ```
 
-`smallOnly.set(true)` 后只剩五条，页数自动变为一。这里要传 Signal 本身；传入 `filtered.get()` 得到的是普通 List，`Page.of(List, ...)` 会复制那一刻的内容。
+`unfinishedOnly.set(true)` 后只剩八个未完成的任务，总页数自动变成 1。箭头和页码的写法不用改。
 
-数据库按页加载时，箭头和页码的写法也可以保留，只更换分页来源。以下是两种替换方案，`repository` 为业务仓库，`findAmounts(offset, limit)` 返回钻石组数量列表，`count()` 返回记录总数，`ioExecutor` 是已有的 I/O 执行器。
+## 从数据库按页加载
+
+任务存在数据库里时，箭头和页码的写法保持不变，只换分页来源。`repository.findQuests(offset, limit)` 返回一页任务，`repository.count()` 返回任务总数。
 
 **两种按页加载的来源**
 
 ```java
-Page<Integer> page = Page.async(ioExecutor,
-        index -> repository.findAmounts(index * 9, 9),
-        () -> (repository.count() + 8) / 9);
+Page<Quest> page = Page.async(ioExecutor,
+        index -> repository.findQuests(index * 9, 9),
+        () -> (repository.count() + 8) / 9
+);
 ```
 
-`Page.async` 管理按页缓存，也支持 `refresh()` 和 `prefetch()`，具体流程看[数据库分页](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md#从数据库懒加载数据)。
+`Page.async` 管理按页缓存，也支持 `refresh()` 和 `prefetch()`，具体流程看 [数据库分页](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/page.md#从数据库懒加载数据)。
 
-如果业务层已经提供了按页分区的数据源，可以直接交给 `Page.of`。下面用异步分区和独立的总页数来源说明它们的对应关系。
+业务层已经有按页分区的数据源时，可以直接交给 `Page.of`。
 
 ```java
-KeyedSignal<Integer, List<Integer>> rowsByPage = KeyedSignal.async(
-        List.of(), ioExecutor, index -> repository.findAmounts(index * 9, 9));
-AsyncSignal<Integer> totalPages = Signal.async(1, ioExecutor,
-        () -> (repository.count() + 8) / 9);
-Page<Integer> page = Page.of(rowsByPage, totalPages);
+KeyedSignal<Integer, List<Quest>> questsByPage = KeyedSignal.async(
+        List.of(), ioExecutor, index -> repository.findQuests(index * 9, 9)
+);
+AsyncSignal<Integer> totalPages = Signal.async(
+        1, ioExecutor, () -> (repository.count() + 8) / 9
+);
+Page<Quest> page = Page.of(questsByPage, totalPages);
 ```
 
-这时刷新由来源负责，例如 `rowsByPage.dirty(page.page().get())` 和 `totalPages.dirty()`；`Page.of` 的 `refresh()` 不负责重新加载。只有当前页分区参与分页内容的订阅。
+这时刷新由来源负责，比如 `questsByPage.dirty(page.page().get())` 和 `totalPages.dirty()`；`Page.of` 的 `refresh()` 不会重新加载。只有当前页的分区参与订阅。
 
-每名玩家应有自己的 `Page` 对象，才能独立翻页；底层商品列表或数据库分区可以共享。
+## 注意事项
 
-**示例共用的物品命名方法**
+> **注意：传 Signal，不要传 get() 的结果**
+>
+> `Page.of(shown, 9)` 要传 Signal 本身。传入 `shown.get()` 得到的是普通 List，`Page.of(List, ...)` 会复制那一刻的内容，之后筛选怎么变都不会更新。
+
+> **注意：每名玩家一个 Page**
+>
+> 当前页码保存在 `Page` 对象里。每名玩家要有自己的 `Page` 才能独立翻页；底层的任务列表或数据库分区可以共用。
+
+**示例共用的辅助方法**
 
 ```java
+record Quest(String name, boolean done) {}
+
+private static ItemStack questIcon(Quest quest) {
+    return quest.done()
+            ? named(Material.BOOK, "✔ " + quest.name())
+            : named(Material.WRITABLE_BOOK, quest.name());
+}
+
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md) 中的写法相同。
 
-**下一步**：[滚动内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/scroll.md) — 通过滚动显示动态列表，并更新当前位置。
+**下一步**：[滚动内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/scroll.md) — 滚动显示会变长的列表，并显示当前位置。
 
 # 滚动内容
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/scroll>
 
-滚动菜单也能直接接收 `ListSignal`。下面十二组钻石按三列排列，一次显示两行。点击向下按钮后，显示范围从第 1～6 组移到第 4～9 组，按钮名称里的行号也会变化。
+成就菜单用三列显示已解锁的成就，一次只看得到两行。玩家往下滚动时，按钮上要显示现在滚到了第几行；滚到底以后，按钮不再响应。
 
-示例共用的 `named` 辅助方法见页尾。
+成就还会随时解锁新的。列表变长了，能滚动的范围也要跟着变大。
 
-## 滚动列表与位置显示
+## Scroll 的 Signal 做什么
 
-```text title="滚动目录"
-###MMM###
-###MMM###
-########D
-```
+`Scroll.vertical(list, width, rows)` 可以直接接收 `ListSignal`，列表变化时，可见内容和可滚动范围一起更新。
 
-- `M`：当前可见内容（`diamond`）
-- `D`：向下滚动（`arrow`）
+它提供两个 Signal。`line()` 是当前停在第几行，从 0 开始；`maxLine()` 是最多能滚到第几行，内容不足一屏时为 0。按钮依赖它们，滚动或列表变化时就会刷新。
 
-初始显示第 1～6 组。向下滚动一行后，显示第 4～9 组。
+## 成就列表
 
 ```java
-ListSignal<Integer> amounts = ListSignal.of();
-amounts.addAll(IntStream.rangeClosed(1, 12).boxed().toList());
-Scroll<Integer> scroll = Scroll.vertical(amounts, 3, 2);
+MutableListSignal<String> achievements = ListSignal.of();
+achievements.addAll(List.of(
+        "初次挖矿", "获得铁锭", "钻石！", "附魔师", "下界之旅", "烈焰人猎手",
+        "末影之眼", "进入末地", "屠龙前夜", "信标", "海底神殿", "满级附魔"
+));
+Scroll<String> scroll = Scroll.vertical(achievements, 3, 2);  // 3 列，一次显示 2 行
+
 Item down = Item.builder()
         .dependsOn(scroll.line(), scroll.maxLine())
-        .setItemProvider(context -> named(Material.ARROW,
-                "向下滚动，当前第 " + (scroll.line().get() + 1) + " 行"))
+        .setItemProvider(context -> {
+            String text = "向下滚动（第 " + (scroll.line().get() + 1) + " 行）";
+            return named(Material.ARROW, text);
+        })
         .addClickGuard((item, click) -> scroll.line().get() < scroll.maxLine().get())
         .addClickHandler(click -> scroll.advance(1))
         .build();
+
 Pane pane = Pane.builder("###MMM###", "###MMM###", "########D")
-        .addIngredient('M', scroll,
-                amount -> Element.item(Item.simple(new ItemStack(Material.DIAMOND, amount))))
+        .addIngredient('M', scroll, name ->
+                Element.item(Item.simple(named(Material.GOLD_INGOT, name)))
+        )
         .addIngredient('D', down)
         .build();
-Window.builder(pane).setTitle("滚动目录").open(viewer);
+Window.builder(pane).setTitle("成就").open(viewer);
+
+achievements.add("屠龙者");  // 列表变长，可以多滚一行
 ```
 
-向 `amounts` 增删数据，当前内容和可滚动范围也会更新。需要上下两个按钮时，按同样方式给向上按钮设置 `scroll.advance(-1)` 和 `line() > 0` 的守卫。
+1. **第 1-6 行**：十二个成就排成四行，一次显示两行，最多滚到第 2 行（从 0 数）。
+2. **第 18-24 行**：打开菜单，显示前六个成就。
+3. **第 14-15 行**：向下滚一行，显示第 4 到第 9 个成就。相邻两屏是重叠的，一次只换一行。
+4. **第 14-15 行**：滚到底了。
+5. **第 14 行**：再点被守卫拦下，位置不变。
+6. **第 26 行**：解锁了新成就。列表变成五行，maxLine 变成 3，按钮又能继续往下滚了。
+
+需要上下两个按钮时，向上按钮用 `scroll.advance(-1)`，守卫写成 `scroll.line().get() > 0`。
+
+## 注意事项
+
+> **注意：滚动位置属于这个 Scroll**
+>
+> 和 `Page` 一样，当前行保存在 `Scroll` 对象里。每名玩家要有自己的 `Scroll` 才能独立滚动，底层的成就列表可以共用。
+
+> **注意：列表缩短时位置会回退**
+>
+> 列表变短、可滚动的范围变小时，当前行会自动落回 `[0, maxLine]` 之内。内容不足一屏时，哪边都滚不动。
 
 **示例共用的物品命名方法**
 
@@ -7080,65 +8174,80 @@ Window.builder(pane).setTitle("滚动目录").open(viewer);
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md) 中的写法相同。
 
-**下一步**：[标签选中态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/tab.md) — 切换分类内容，同时标出当前选中的标签。
+**下一步**：[标签选中态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/tab.md) — 切换标签内容，同时标出当前选中的标签。
 
 # 标签选中态
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/tab>
 
-分类菜单既要切换内容，也要标出当前选中的分类。`Tab.selected()` 提供选中 key 的 Signal，按钮依赖它就能改变名称。
+技能菜单左右各有一个职业标签，战士和法师，中间显示当前职业的技能。玩家切到法师，中间要换成法师的技能，法师标签前面也要加上「▶」，表示正在看它。
 
-示例共用的 `named` 辅助方法见页尾。
+[标签 Tab](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/pagination/tab.md) 负责切换中间的内容，但两个标签按钮不知道现在选中的是谁，外观一直不变。
 
-## 切换分类与更新按钮
+## Tab.selected() 做什么
 
-下面食品分类显示苹果，材料分类显示钻石，中间的 `C` 放当前子 Pane。初始选中食品，点击材料后，中间变为钻石，右侧按钮名称加上「已选」。
+`Tab.selected()` 是当前选中 key 的 Signal。标签按钮依赖它，切换标签时就会刷新；按钮自己比较一下 `selected().get()` 是不是自己的 key，决定显示成什么样子。
 
-```text title="选择分类"
-F###C###M
-```
+中间的内容区通过 `addIngredient(identifier, tabs)` 跟随选中项，不需要额外绑定。
 
-- `F`：食品分类（`apple`）
-- `C`：当前分类内容（`apple`）
-- `M`：材料分类（`diamond`）
-
-初始选中食品，中间显示苹果。切换材料后，中间显示钻石，材料按钮名称标注已选。
+## 职业标签
 
 ```java
-Pane food = Pane.builder("X")
-        .addIngredient('X', Item.simple(new ItemStack(Material.APPLE))).build();
-Pane material = Pane.builder("X")
-        .addIngredient('X', Item.simple(new ItemStack(Material.DIAMOND))).build();
-Tab<String> tabs = Tab.of(Map.of("food", food, "material", material), "food");
+Pane warrior = Pane.builder("S")
+        .addIngredient('S', Item.simple(named(Material.DIAMOND_SWORD, "旋风斩")))
+        .build();
+Pane mage = Pane.builder("S")
+        .addIngredient('S', Item.simple(named(Material.BLAZE_POWDER, "火球术")))
+        .build();
+Tab<String> tabs = Tab.of(Map.of("warrior", warrior, "mage", mage), "warrior");
 
-Item foodButton = Item.builder()
+Item warriorButton = Item.builder()
         .dependsOn(tabs.selected())
-        .setItemProvider(context -> named(Material.APPLE,
-                tabs.selected().get().equals("food") ? "食品（已选）" : "食品"))
-        .addClickHandler(click -> tabs.select("food"))
+        .setItemProvider(context -> {
+            boolean selected = tabs.selected().get().equals("warrior");
+            return named(Material.DIAMOND_SWORD, selected ? "▶ 战士" : "战士");
+        })
+        .addClickHandler(click -> tabs.select("warrior"))
         .build();
-Item materialButton = Item.builder()
+Item mageButton = Item.builder()
         .dependsOn(tabs.selected())
-        .setItemProvider(context -> named(Material.DIAMOND,
-                tabs.selected().get().equals("material") ? "材料（已选）" : "材料"))
-        .addClickHandler(click -> tabs.select("material"))
+        .setItemProvider(context -> {
+            boolean selected = tabs.selected().get().equals("mage");
+            return named(Material.BLAZE_POWDER, selected ? "▶ 法师" : "法师");
+        })
+        .addClickHandler(click -> tabs.select("mage"))
         .build();
-Pane pane = Pane.builder("F###C###M")
-        .addIngredient('F', foodButton)
-        .addIngredient('C', tabs)
-        .addIngredient('M', materialButton)
+
+Pane pane = Pane.builder("W###C###M")
+        .addIngredient('W', warriorButton)
+        .addIngredient('C', tabs)  // 内容区跟随选中的标签
+        .addIngredient('M', mageButton)
         .build();
-Window.builder(pane).setTitle("选择分类").open(viewer);
+Window.builder(pane).setTitle("技能").open(viewer);
 ```
 
-内容区通过 `addIngredient('C', tabs)` 跟随选中项，两个分类按钮则各自依赖 `selected()`。使用 `Tab.lazy` 时也采用这套绑定方式。
+1. **第 1-7 行**：两个职业各有一个子 Pane，默认选中战士。
+2. **第 9-24 行**：两个按钮都依赖 selected()，各自判断选中的是不是自己。
+3. **第 26-31 行**：打开菜单，中间是战士的旋风斩。
+4. **第 23 行**：点法师标签。中间换成火球术，两个按钮的名字一起刷新。
+5. **第 23 行**：再点一次法师，选中项没变，什么都不刷新。
+6. **第 15 行**：切回战士。
+
+使用 `Tab.lazy` 延迟创建子 Pane 时，也是这套绑定方式。
+
+## 注意事项
+
+> **注意：选中态属于这个 Tab**
+>
+> 选中的标签保存在 `Tab` 对象里。每名玩家要有自己的 `Tab` 才能独立切换；各个职业的子 Pane 可以共用。
 
 **示例共用的物品命名方法**
 
@@ -7146,51 +8255,67 @@ Window.builder(pane).setTitle("选择分类").open(viewer);
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md) 中的写法相同。
 
-**下一步**：[窗口标题](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/title.md) — 数量变化时自动更新窗口标题。
+**下一步**：[窗口标题](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/title.md) — 数据变化时自动更新窗口标题。
 
 # 窗口标题
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/title>
 
-要在窗口标题中显示购买数量，可以用 `setTitleSupplier` 读取数量，再通过 `window.bind` 在数量变化时调用 `updateTitle()`。
+副本大厅的窗口标题写着「副本大厅 · 已准备 1 / 4」。每有一名队员点了准备，标题里的数字就要加一。
 
-示例共用的 `named` 辅助方法见页尾。
+标题不是格子里的物品，`dependsOn` 管不到它。窗口打开后标题就固定了，除非有人主动让它重新计算。
 
-## 让标题跟随数量
+## setTitleSupplier 和 window\.bind 做什么
 
-下面初始标题为「购买 1 件」，点击钻石后变为「购买 2 件」。绑定在打开窗口之前声明。
+`setTitleSupplier` 让标题由一个函数算出，窗口打开时调用一次。`window.bind(signal, callback)` 在 Signal 通知时执行回调，把回调设为 `Window::updateTitle`，标题就会重新计算并发给玩家。
 
-```text title="购买 1 件"
-####Q####
-```
+绑定跟着窗口走。窗口打开时启用，关闭时暂停，重新打开时恢复。
 
-- `Q`：增加数量（`diamond`）
-
-初始标题为购买 1 件。点击钻石后标题变为购买 2 件，物品名称保持增加数量。
+## 标题显示准备人数
 
 ```java
-MutableSignal<Integer> quantity = Signal.of(1);
-Pane pane = Pane.builder("####Q####")
-        .addIngredient('Q', Item.builder()
-                .setItemProviderConstant(named(Material.DIAMOND, "增加数量"))
-                .addClickHandler(click -> quantity.update(value -> value + 1))
-                .build())
+MutableSignal<Integer> readyCount = Signal.of(0);
+
+Pane pane = Pane.builder("####R####")
+        .addIngredient('R', Item.builder()
+                .setItemProviderConstant(named(Material.LIME_DYE, "准备"))
+                .addClickHandler(click -> readyCount.update(value -> Math.min(value + 1, 4)))
+                .build()
+        )
         .build();
+
 Window window = Window.builder(pane)
-        .setTitleSupplier(() -> Component.text("购买 " + quantity.get() + " 件"))
+        .setTitleSupplier(() -> Component.text("副本大厅 · 已准备 " + readyCount.get() + " / 4"))
         .build(viewer);
-window.bind(quantity, Window::updateTitle);
+window.bind(readyCount, Window::updateTitle);  // 在 open 之前声明
 window.open();
 ```
 
-首次打开时会计算标题。`window.bind` 不立即调用回调，之后收到 Signal 通知才请求更新；绑定随窗口打开而启用，关闭后暂停，重新打开时恢复。`updateTitle()` 会将标题更新交给玩家线程，普通 `bind` 回调本身并不会自动切换线程。
+1. **第 1 行**：还没有人准备。
+2. **第 11-13 行**：标题由函数计算。这时窗口还没打开，函数也还没执行。
+3. **第 14 行**：声明绑定。bind 不会立刻执行回调，收到通知后才请求更新标题。
+4. **第 15 行**：打开窗口，第一次计算标题。
+5. **第 6 行**：有人点了准备，updateTitle 重新计算标题。
+6. **第 6 行**
+7. **第 6 行**：全员准备完毕。
+
+## 注意事项
+
+> **注意：bind 的回调不会切换线程**
+>
+> `updateTitle()` 会把标题更新交给玩家的线程执行。自己写的其他 `bind` 回调不会自动切换线程，需要操作玩家时要自己调度。
+
+> **注意：先绑定再打开**
+>
+> 绑定写在 `open()` 之前，窗口打开时它就生效。标题函数只读取数据，不要在里面修改状态。
 
 **示例共用的物品命名方法**
 
@@ -7198,61 +8323,72 @@ window.open();
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md) 中的写法相同。
 
-**下一步**：[视觉映射](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/visual.md) — 通过 Signal 切换商品的视觉标记。
+**下一步**：[视觉映射](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/visual.md) — 用 Signal 切换格子的显示，不改变它的实际内容和点击行为。
 
 # 视觉映射
 
 原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/visual>
 
-商品菜单的第五格原本是钻石。点击右下角的标记开关后，第五格应显示为绿宝石；再点击一次，则恢复钻石。这里只改变显示，点击第五格时仍执行原钻石按钮的处理器。
+寻宝菜单的第五格是一块普通地板。玩家打开右下角的「宝藏探测」后，这一格要显示成绿宝石，提示宝藏就在这里；关掉探测，又变回地板。无论显示成什么，点它都应该执行原来那块地板的处理器。
 
-示例共用的 `named` 辅助方法见页尾。
+把地板换成另一个物品，点击行为也跟着换了。这里想改的只有「看起来是什么」。
 
-## 切换商品标记
+## 视觉映射绑定做什么
 
-下面创建一扇独立的菜单。`highlighted` 初始为 `false`，表示尚未标记商品。
+`window.setVisualizerItem(slot, mapper)` 给某个槽位设置一个显示映射，映射函数收到这个格子的实际物品，返回要给玩家看的物品。它只改变显示，不改变格子的实际内容和点击行为。
 
-```text title="商品标记"
-####Q###H
-```
+`window.visual().bind(signal)` 让 Signal 变化时重新计算视觉层。映射函数里读取 Signal 的当前值，就能按开关切换显示。
 
-- `Q`：商品（`diamond`）
-- `H`：标记开关（`lime_dye`）
-
-初始显示钻石。开启标记后，第五格显示名为重点商品的绿宝石。
+## 宝藏探测
 
 ```java
-MutableSignal<Boolean> highlighted = Signal.of(false);
-Pane pane = Pane.builder("####Q###H")
-        .addIngredient('Q', Item.builder()
-                .setItemProviderConstant(named(Material.DIAMOND, "选择钻石"))
-                .addClickHandler(click -> click.player().sendMessage(Component.text("选择了钻石")))
-                .build())
-        .addIngredient('H', Item.builder()
-                .setItemProviderConstant(named(Material.LIME_DYE, "切换商品标记"))
-                .addClickHandler(click -> highlighted.update(value -> !value))
-                .build())
-        .build();
-Window window = Window.builder(pane).setTitle("商品标记").build(viewer);
+MutableSignal<Boolean> detecting = Signal.of(false);
 
-ItemStack mark = named(Material.EMERALD, "重点商品");
-window.setVisualizerItem(4, actual -> highlighted.get() ? mark : actual);
-window.visual().bind(highlighted);
+Pane pane = Pane.builder("####T###D")
+        .addIngredient('T', Item.builder()
+                .setItemProviderConstant(named(Material.GRAY_STAINED_GLASS_PANE, "一块地板"))
+                .addClickHandler(click -> {
+                    click.player().sendMessage(Component.text("你挖开了地板"));
+                })
+                .build()
+        )
+        .addIngredient('D', Item.builder()
+                .setItemProviderConstant(named(Material.MAP, "开关宝藏探测"))
+                .addClickHandler(click -> detecting.update(value -> !value))
+                .build()
+        )
+        .build();
+Window window = Window.builder(pane).setTitle("寻宝").build(viewer);
+
+ItemStack mark = named(Material.EMERALD, "宝藏就在这里");
+window.setVisualizerItem(4, actual -> detecting.get() ? mark : actual);  // 槽位 4 就是 T
+window.visual().bind(detecting);
 window.open();
 ```
 
-`visual().bind` 会在 Signal 变化时请求刷新视觉层，映射函数再读取当前值。槽位从零开始，`4` 对应模板里的 `Q`。显示换成绿宝石后，点击它仍会收到「选择了钻石」的消息，视觉映射不改变实际内容或点击行为。
+1. **第 1-17 行**：菜单里有一块地板和一个探测开关。
+2. **第 19-22 行**：槽位从 0 开始，4 对应模板里的 T。探测关闭，映射原样返回地板。
+3. **第 13 行**：打开探测，视觉层重新计算，第五格显示成绿宝石。
+4. **第 6-8 行**：点击绿宝石，执行的仍是地板的处理器。视觉映射不改变点击行为。输出「你挖开了地板」。
+5. **第 13 行**：关闭探测，变回地板。
 
-绑定属于这一扇 Window，所以只影响它的查看者。若要让同一个 Pane 的多个查看者一起看到映射变化，可以在 Pane 的视觉层配置映射并绑定来源；各层范围看[视觉映射](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/visual/layers.md)。
+## 注意事项
 
-窗口上的视觉绑定在打开时启用，关闭时暂停，返回的 `Subscription` 可用于提前解绑。共享 Pane 的列表绑定则可能在没有窗口查看时仍保持活动，关闭一扇窗口并不等于停止所有共享来源的查询。
+> **注意：窗口上的映射只影响这名玩家**
+>
+> 绑定在这一扇 Window 上，所以只有它的查看者看得到变化。要让同一个 Pane 的所有查看者一起看到，就在 Pane 的视觉层设置映射并绑定来源，各层的范围见 [视觉映射](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/visual/layers.md)。
+
+> **注意：绑定的启停**
+>
+> 窗口上的视觉绑定在打开时启用，关闭时暂停，`bind` 返回的 `Subscription` 可以用来提前解绑。共享 Pane 上的绑定在没有窗口查看时也可能保持活动，关掉一扇窗口不等于停止了所有共享来源。
 
 **示例共用的物品命名方法**
 
@@ -7260,12 +8396,13 @@ window.open();
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与[物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md)中的写法相同。
+这里使用 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component`、`TextDecoration`，与 [物品渲染](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/item/render.md) 中的写法相同。
 
 **下一步**：[监听数据包（可选）](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/network/listen.md) — 了解额外的数据包监听能力，只编写菜单时可以跳过。
 

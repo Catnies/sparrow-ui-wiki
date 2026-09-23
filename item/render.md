@@ -159,7 +159,7 @@ The Item from `PointsItem.create()` goes straight into a Pane's `addIngredient`.
 >
 > `setItemProviderAsync` does not move your callback onto an async thread for you. In the example, `delayedExecutor` runs the task a second later, so nothing blocks the render thread. In a real async task, do not touch players, worlds, or Bukkit container state; read player UUIDs and similar inputs before submitting the task and pass them in.
 >
-> `ItemProvider.async(renderer)` is also available: it runs the whole renderer on Paper's global async scheduler. With that variant, the renderer equally must not read Bukkit player or world state.
+> `ItemProvider.async(renderer)` is also available: it runs the whole renderer on Sparrow UI's async worker executor. With that variant, the renderer equally must not read Bukkit player or world state.
 
 Once the future completes there is nothing to refresh by hand. When the Window closes or the display source has been replaced, an old task's result is no longer applied to its original slot; that does not cancel the database query itself.
 

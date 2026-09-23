@@ -62,23 +62,55 @@ Every link below points to the Markdown version of that page. All pages combined
 ## Signal (Optional)
 
 - [Why Signals](https://catnies.github.io/sparrow-ui-wiki/signal/why.md): The data a menu shows changes: a boss's health is dropping, a player's coins just arrived, a few units of a product sold. A Signal holds a changing value and notifies its dependents when it changes, so they can redraw. The menus built from fixed data in the previous chapters follow the data automatically once a Signal is attached.
-- [Signal basics](https://catnies.github.io/sparrow-ui-wiki/signal/basics.md): A Signal holds changing data and can compute new values from it. It works fine in plain business code, with menus reading and displaying it on top.
-- [Deriving and combining](https://catnies.github.io/sparrow-ui-wiki/signal/derive.md): A buy button may depend on the quantity, the unit price, and the balance all at once; switching a category makes the menu read a different source. Derived Signals can combine these inputs and also control when change notifications fire.
-- [Async loading](https://catnies.github.io/sparrow-ui-wiki/signal/async.md): A player opens the shop and the menu needs to show the account balance, but the balance lives in a database and the query can take a few hundred milliseconds. The menu should show "Loading" first and the balance once the query lands; code reading the menu's state meanwhile keeps running.
-- [Polling](https://catnies.github.io/sparrow-ui-wiki/signal/polling.md): The shop shows the server-wide remaining stock, which lives in a database that other subservers also sell from. This server never sees every purchase event, so relying on local dirty() calls alone cannot keep the display current.
-- [Collection state](https://catnies.github.io/sparrow-ui-wiki/signal/collections.md): A shop menu starts out selling apples and bread. An admin lists diamonds and the product list gains an entry while the "number of products" counter moves with it; removing apples updates both places again.
-- [Partition state](https://catnies.github.io/sparrow-ui-wiki/signal/partitions.md): The shop's apples and bread each have their own stock. Viewing the apple detail page cares about apples only; selling one bread should not force a re-read of apple stock.
+
+### Getting started
+
+- [Mutable state: Signal.of](https://catnies.github.io/sparrow-ui-wiki/signal/basics/mutable.md): The arena menu has a score item. Every kill adds a point, and the number in the menu has to follow.
+- [Subscribing: onDirty](https://catnies.github.io/sparrow-ui-wiki/signal/basics/subscribe.md): Once the boss fight starts, the BossBar at the top of the screen has to follow the boss's health. Health changes in the damage event; the BossBar lives somewhere else. The two need a way to talk.
+
+### Derivation
+
+- [map](https://catnies.github.io/sparrow-ui-wiki/signal/derive/map.md): A player's health lives in a Signal<Integer>, but the menu needs to show text like "❤ 14 / 20", plus a ten-segment health bar.
+- [mapDistinct](https://catnies.github.io/sparrow-ui-wiki/signal/derive/map-distinct.md): The status menu has an icon that shows "Healthy", "Wounded", or "Dying" depending on health. In a fight, health drops almost every second, but the icon only changes once in a while.
+- [combine](https://catnies.github.io/sparrow-ui-wiki/signal/derive/combine.md): The Fireball button on the skill bar is lit when it can be cast and gray when it cannot. That depends on three things: whether there is enough mana, how much mana it costs, and whether the player is silenced.
+- [lens](https://catnies.github.io/sparrow-ui-wiki/signal/derive/lens.md): A player's HUD settings live in a record with two fields, "show coordinates" and "interface scale". The settings menu has one button that toggles coordinates and another that adjusts the scale.
+- [switching](https://catnies.github.io/sparrow-ui-wiki/signal/derive/switching.md): The skill menu has two class tabs at the top, Warrior and Mage, and shows the remaining skill points of the current class below. Each class's skill points live in their own Signal.
+- [merging](https://catnies.github.io/sparrow-ui-wiki/signal/derive/merging.md): The party menu shows the party's total health. Each member's health is its own Signal, and members join and leave at any time.
+
+### Timing
+
+- [debounce](https://catnies.github.io/sparrow-ui-wiki/signal/time/debounce.md): In an item search menu, the player types into an anvil input box and matching items are listed below. Every keystroke changes the Signal.
+- [throttle](https://catnies.github.io/sparrow-ui-wiki/signal/time/throttle.md): While a schematic is pasted, the placed block count goes up with every block. The progress menu shows "Placed 800 / 5000", but the count changes thousands of times per second.
+- [Clocks](https://catnies.github.io/sparrow-ui-wiki/signal/time/clock.md): Once a minigame room is full, the menu shows "Starting in 10 seconds" and counts down every second. Skill cooldowns are the same: the remaining time has to refresh every second.
+
+### Data sources
+
+- [async](https://catnies.github.io/sparrow-ui-wiki/signal/source/async.md): A player opens their profile menu and expects to see their kills and deaths. The stats live in a database.
+- [polling](https://catnies.github.io/sparrow-ui-wiki/signal/source/polling.md): In the lobby's minigame menu, the Bed Wars icon says "128 playing". The count lives in Redis and is updated by each game server.
+
+### Collections
+
+- [ListSignal](https://catnies.github.io/sparrow-ui-wiki/signal/collection/list.md): In a minigame room's waiting menu, each slot shows one queued player and a corner item says "Waiting 3 / 8". Players join and leave at any time.
+- [SetSignal](https://catnies.github.io/sparrow-ui-wiki/signal/collection/set.md): In the waypoint menu, places the player has visited show as maps and the rest show as question marks, with discovery progress at the top. The first time a player reaches a waypoint, it is recorded.
+- [MapSignal](https://catnies.github.io/sparrow-ui-wiki/signal/collection/map.md): During a team fight, kills are recorded per player name, and the scoreboard menu shows who is leading at the top.
+- [Read-only views and online players](https://catnies.github.io/sparrow-ui-wiki/signal/collection/read-only.md): A room's waiting queue should only be changed by the room itself; menus, scoreboards, and other modules just display it. Hand out the MutableListSignal, though, and anyone can call clear() and wipe the queue.
+
+### Partitions
+
+- [KeyedSignal](https://catnies.github.io/sparrow-ui-wiki/signal/keyed/basics.md): The arena list menu has an icon for each of the desert, forest, and tundra arenas, showing its current player count. When someone enters or leaves an arena, only that icon should change.
+- [Async and polling partitions](https://catnies.github.io/sparrow-ui-wiki/signal/keyed/async.md): The guild menu shows each guild's name and level, stored in a database. The server has hundreds of guilds, and a player looks at one or two at a time.
+- [Player partitions](https://catnies.github.io/sparrow-ui-wiki/signal/keyed/player.md): Skill points are shared by the skill tree menu, the attribute menu, and the level-up prompt, one set per player. When Alice levels up and gains points, Bob's menus should not refresh.
 
 ### Binding Signals to Menus
 
-- [Item display](https://catnies.github.io/sparrow-ui-wiki/signal-ui/item.md): In the purchase menu, the player clicks the diamond and the quantity rises by one each time. The button's name starts at "Quantity: 1" and should read "Quantity: 2" after the click. The quantity belongs to this menu open alone, so the menu creates a plain Signal at build time.
-- [Per-player display](https://catnies.github.io/sparrow-ui-wiki/signal-ui/player.md): Alice picks two in the shop while Bob stays at one, and both can share the same Item. The difference is that the dependency is now a player partition: the provider reads the current viewer's value, and a click updates the clicker's partition.
-- [List contents](https://catnies.github.io/sparrow-ui-wiki/signal-ui/list.md): When an admin lists diamonds, an already open catalog should gain an item right away. A group of slots changes together here, so bind the list with addIngredient.
-- [Pagination and filtering](https://catnies.github.io/sparrow-ui-wiki/signal-ui/page.md): The arrows in Pagination Page always look usable. This time the previous arrow grays out on the first page, the next on the last, and a "1 / 2" style page number sits in the middle.
-- [Scrolling contents](https://catnies.github.io/sparrow-ui-wiki/signal-ui/scroll.md): A scrolling menu takes a ListSignal directly. Twelve diamond stacks below sit in three columns, two rows visible at a time. One click of the down button moves the visible range from stacks 1-6 to 4-9, and the button's row number updates with it.
-- [Tab selection state](https://catnies.github.io/sparrow-ui-wiki/signal-ui/tab.md): A category menu has to switch content and mark the active category. Tab.selected() exposes a Signal for the selected key, and buttons that depend on it can change their names.
-- [Window titles](https://catnies.github.io/sparrow-ui-wiki/signal-ui/title.md): Sometimes the player's chosen quantity belongs in the Window's title. setTitleSupplier computes the title, and window.bind connects quantity changes to updateTitle().
-- [Visual layers](https://catnies.github.io/sparrow-ui-wiki/signal-ui/visual.md): Slot five of the product menu normally shows a diamond. Clicking the marking toggle in the bottom-right should turn slot five into an emerald; clicking again restores the diamond. Only the display changes: clicking slot five still runs the original diamond button's handler.
+- [Item display](https://catnies.github.io/sparrow-ui-wiki/signal-ui/item.md): The attribute menu has a "Strength" button whose name shows the current level and the remaining skill points. Each click raises Strength by one and spends a point, and the name follows; once the points run out, clicking does nothing.
+- [Per-player display](https://catnies.github.io/sparrow-ui-wiki/signal-ui/player.md): The minigame lobby has a "Ready" button. After Alice clicks it, her button says "Ready", while Bob's still says "Click to ready".
+- [List contents](https://catnies.github.io/sparrow-ui-wiki/signal-ui/list.md): The first row of the party menu shows a head for each member. When someone joins, another head appears at the end; when someone leaves, the others move up and the last slot empties.
+- [Pagination and filtering](https://catnies.github.io/sparrow-ui-wiki/signal-ui/page.md): The quest log has twelve quests, nine per page. On the first page "Previous" should be gray, on the last page "Next" should be gray, and a page number like "1 / 2" sits in the middle.
+- [Scrolling contents](https://catnies.github.io/sparrow-ui-wiki/signal-ui/scroll.md): The achievements menu shows unlocked achievements in three columns, two rows at a time. When the player scrolls down, the button should show which row they are on; at the bottom, it should stop responding.
+- [Tab selection state](https://catnies.github.io/sparrow-ui-wiki/signal-ui/tab.md): The skill menu has a class tab on each side, Warrior and Mage, with the current class's skill in the middle. When the player switches to Mage, the middle should show the Mage skill and the Mage tab should get a "▶" in front of it.
+- [Window titles](https://catnies.github.io/sparrow-ui-wiki/signal-ui/title.md): The dungeon lobby's window title reads "Dungeon lobby · 1 / 4 ready". Each time a party member clicks ready, the number in the title should go up.
+- [Visual layers](https://catnies.github.io/sparrow-ui-wiki/signal-ui/visual.md): The fifth slot of the treasure hunt menu is plain floor. When the player turns on "Treasure detector" in the bottom right, that slot should show an emerald saying the treasure is here; turning it off brings the floor back. Whatever it looks like, clicking it should still run the floor's own handler.
 
 ## Network (Optional)
 

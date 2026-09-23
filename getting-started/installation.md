@@ -6,9 +6,13 @@ Source: <https://catnies.github.io/sparrow-ui-wiki/getting-started/installation>
 
 | Item | Requirement |
 | - | - |
-| Server | Paper or Folia |
+| Server | Paper or Folia; Spigot support is experimental |
 | Minecraft | `1.21.4` \~ `26.3`. **One artifact covers the whole range**, no per-version dependencies |
-| Java | The library is compiled for Java 21; at runtime use the Java version your Paper or Folia build requires |
+| Java | The library is compiled for Java 21; at runtime use the Java version your server build requires |
+
+> **Note: Running on Spigot**
+>
+> Spigot support is still experimental. The examples in this wiki use Paper APIs such as Paper's `DataComponentTypes` and Adventure's `Component`; on Spigot, replace them with `ItemMeta` and the other APIs Spigot provides.
 
 ## Adding the dependency
 
@@ -108,7 +112,7 @@ public final class MyPlugin extends JavaPlugin {
 }
 ```
 
-This installs the reflection proxies, creates the window and network managers, and binds the library's scheduler to your plugin.
+This installs the reflection proxies, creates the window and network managers, starts tracking online players, and binds the library's scheduler to your plugin. Sparrow UI does not infer its owning plugin; using its scheduler, windows, or Signal timers before `setUp` throws `IllegalStateException`.
 
 **Your plugin has nothing to do on disable.** Sparrow UI listens for the plugin disable event itself: it shuts down the window and network managers and stops its scheduler.
 

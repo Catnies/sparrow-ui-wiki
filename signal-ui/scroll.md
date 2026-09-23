@@ -2,55 +2,78 @@
 
 Source: <https://catnies.github.io/sparrow-ui-wiki/signal-ui/scroll>
 
-A scrolling menu takes a `ListSignal` directly. Twelve diamond stacks below sit in three columns, two rows visible at a time. One click of the down button moves the visible range from stacks 1-6 to 4-9, and the button's row number updates with it.
+The achievements menu shows unlocked achievements in three columns, two rows at a time. When the player scrolls down, the button should show which row they are on; at the bottom, it should stop responding.
 
-`viewer` in the examples is the player opening the menu, and Sparrow UI initialization must have completed beforehand. `named` builds an item with a name; drop the method below into your menu class.
+New achievements keep unlocking. As the list grows, the scrollable range has to grow too.
 
-**The item naming helper shared by the examples**
+## What Scroll's Signals do
+
+`Scroll.vertical(list, width, rows)` accepts a `ListSignal` directly, and when the list changes, the visible contents and the scrollable range update together.
+
+It provides two Signals. `line()` is the current row, starting at 0; `maxLine()` is the furthest row you can scroll to, 0 when the contents fit on one screen. Buttons that depend on them refresh when scrolling or when the list changes.
+
+## Achievement list
+
+```java
+MutableListSignal<String> achievements = ListSignal.of();
+achievements.addAll(List.of(
+        "Stone Age", "Acquire Hardware", "Diamonds!", "Enchanter", "Nether", "Into Fire",
+        "Eye Spy", "The End?", "Free the End", "Beaconator", "Ocean Monument", "Max Enchant"
+));
+Scroll<String> scroll = Scroll.vertical(achievements, 3, 2);  // 3 columns, 2 rows visible
+
+Item down = Item.builder()
+        .dependsOn(scroll.line(), scroll.maxLine())
+        .setItemProvider(context -> {
+            String text = "Scroll down (row " + (scroll.line().get() + 1) + ")";
+            return named(Material.ARROW, text);
+        })
+        .addClickGuard((item, click) -> scroll.line().get() < scroll.maxLine().get())
+        .addClickHandler(click -> scroll.advance(1))
+        .build();
+
+Pane pane = Pane.builder("###MMM###", "###MMM###", "########D")
+        .addIngredient('M', scroll, name ->
+                Element.item(Item.simple(named(Material.GOLD_INGOT, name)))
+        )
+        .addIngredient('D', down)
+        .build();
+Window.builder(pane).setTitle("Achievements").open(viewer);
+
+achievements.add("Dragon Slayer");  // the list grows, so there is one more row to scroll
+```
+
+1. **lines 1-6**: Twelve achievements make four rows. Two rows show at a time, so you can scroll to row 2 (counting from 0).
+2. **lines 18-24**: Open the menu; the first six achievements show.
+3. **lines 14-15**: Scroll down one row to show achievements 4 to 9. Neighboring screens overlap; each scroll moves one row.
+4. **lines 14-15**: At the bottom.
+5. **lines 14**: Another click is blocked by the guard; the position stays.
+6. **lines 26**: A new achievement unlocks. The list becomes five rows, maxLine becomes 3, and the button can scroll again.
+
+For up and down buttons, the up button uses `scroll.advance(-1)` with the guard `scroll.line().get() > 0`.
+
+## Caveats
+
+> **Warning: The position belongs to this Scroll**
+>
+> As with `Page`, the current row lives in the `Scroll` object. Each player needs their own `Scroll` to scroll independently; the underlying achievement list can be shared.
+
+> **Warning: Shrinking lists pull the position back**
+>
+> When the list shrinks and the scrollable range gets smaller, the current row falls back into `[0, maxLine]` automatically. When the contents fit on one screen, you cannot scroll either way.
+
+**The naming helper used in the examples**
 
 ```java
 private static ItemStack named(Material material, String name) {
     ItemStack stack = new ItemStack(material);
     stack.setData(DataComponentTypes.CUSTOM_NAME,
-            Component.text(name).decoration(TextDecoration.ITALIC, false));
+            Component.text(name).decoration(TextDecoration.ITALIC, false)
+    );
     return stack;
 }
 ```
 
-It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching the style in [Item rendering](https://catnies.github.io/sparrow-ui-wiki/item/render.md).
+It uses Paper's `DataComponentTypes` with Adventure's `Component` and `TextDecoration`, matching [Item rendering](https://catnies.github.io/sparrow-ui-wiki/item/render.md).
 
-## A scrolling list with a position readout
-
-```text title="Scrolling catalog"
-###MMM###
-###MMM###
-########D
-```
-
-- `M`: currently visible (`diamond`)
-- `D`: scroll down (`arrow`)
-
-Stacks 1-6 show initially. One downward scroll brings stacks 4-9 into view.
-
-```java
-ListSignal<Integer> amounts = ListSignal.of();
-amounts.addAll(IntStream.rangeClosed(1, 12).boxed().toList());
-Scroll<Integer> scroll = Scroll.vertical(amounts, 3, 2);
-Item down = Item.builder()
-        .dependsOn(scroll.line(), scroll.maxLine())
-        .setItemProvider(context -> named(Material.ARROW,
-                "Scroll down, now at row " + (scroll.line().get() + 1)))
-        .addClickGuard((item, click) -> scroll.line().get() < scroll.maxLine().get())
-        .addClickHandler(click -> scroll.advance(1))
-        .build();
-Pane pane = Pane.builder("###MMM###", "###MMM###", "########D")
-        .addIngredient('M', scroll,
-                amount -> Element.item(Item.simple(new ItemStack(Material.DIAMOND, amount))))
-        .addIngredient('D', down)
-        .build();
-Window.builder(pane).setTitle("Scrolling catalog").open(viewer);
-```
-
-Adding or removing entries from `amounts` updates both the visible content and the scrollable range. For up and down buttons, give the up button `scroll.advance(-1)` and a guard on `line() > 0` the same way.
-
-**Next**: [Tab selection state](https://catnies.github.io/sparrow-ui-wiki/signal-ui/tab.md) — Switch category content while marking the selected tab.
+**Next**: [Tab selection state](https://catnies.github.io/sparrow-ui-wiki/signal-ui/tab.md) — Switch tab contents and mark the selected tab.

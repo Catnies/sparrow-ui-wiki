@@ -1,0 +1,97 @@
+# KeyedSignal 分区
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/basics>
+
+竞技场列表菜单里，沙漠、森林、雪原三个竞技场各有一个图标，写着当前人数。有人进出某个竞技场，只有那个图标该变。
+
+把所有人数放进一个 [MapSignal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/map.md) 的话，依赖它的每个图标都会在任何竞技场有人进出时刷新。竞技场一多，大部分刷新都是白费的。
+
+## KeyedSignal 做什么
+
+`KeyedSignal` 按 key 保存一组互相独立的值，每个 key 称为一个分区。每个分区单独读取、单独订阅、单独通知，修改一个分区只影响关注它的地方。
+
+`KeyedSignal.of` 的参数是初始化函数。某个 key 第一次被读取时，用它算出初始值，之后缓存起来。
+
+读写有两种等价的写法。
+
+| 写法 | 例子 |
+| - | - |
+| 通过 KeyedSignal 指定 key | `arenaPlayers.get("desert")`、`arenaPlayers.set("desert", 6)`、`arenaPlayers.update("desert", ...)` |
+| 先取分区句柄，再当普通 Signal 用 | `desert.get()`、`desert.set(0)` |
+
+`at(key)` 返回的句柄是普通的 `MutableSignal`，可以 `map`、`combine`，也可以交给菜单绑定。
+
+## 每个竞技场的人数
+
+按竞技场编号分区，初始人数都是 0。菜单里的三个图标各自依赖自己竞技场的分区。
+
+```java
+MutableKeyedSignal<String, Integer> arenaPlayers = KeyedSignal.of(arena -> 0);
+MutableSignal<Integer> desert = arenaPlayers.at("desert");  // 沙漠竞技场的分区句柄
+
+Subscription subscription = desert.onDirty(() -> {
+    System.out.println("沙漠竞技场：" + desert.get() + " 人");
+});
+
+arenaPlayers.update("forest", count -> count + 1);  // 森林的变化与沙漠无关，不打印
+arenaPlayers.update("desert", count -> count + 1);  // 打印「沙漠竞技场：1 人」
+arenaPlayers.update("desert", count -> count + 1);  // 打印「沙漠竞技场：2 人」
+desert.set(0);                                      // 对局结束，打印「沙漠竞技场：0 人」
+
+subscription.close();
+```
+
+1. **第 1-2 行**：三个竞技场都没人。
+2. **第 4-6 行**：订阅沙漠分区。
+3. **第 8 行**：只有森林的图标刷新，沙漠的订阅没有被触发。
+4. **第 9 行**：输出「沙漠竞技场：1 人」。
+5. **第 10 行**：输出「沙漠竞技场：2 人」。
+6. **第 11 行**：通过句柄写入，和 arenaPlayers.set("desert", 0) 效果一样。输出「沙漠竞技场：0 人」。
+
+## 清理分区
+
+竞技场关闭后，它的分区不再需要，可以用 `remove(key)` 清掉缓存。
+
+```java
+MutableKeyedSignal<String, Integer> arenaPlayers = KeyedSignal.of(arena -> 0);
+MutableSignal<Integer> desert = arenaPlayers.at("desert");
+
+desert.set(6);
+arenaPlayers.remove("desert");
+System.out.println(arenaPlayers.keys().get().isEmpty());          // true
+
+System.out.println(desert.get());                                 // 0，用初始化函数重建
+System.out.println(arenaPlayers.keys().get().contains("desert"));  // true
+```
+
+`remove` 之后，之前拿到的 `desert` 句柄仍然能用。再次读取时，分区用初始化函数重建，人数回到 0。已有的订阅和派生关系也会保留，分区重建后继续跟随。`clear()` 清理全部分区。
+
+## 重新读取
+
+分区的值需要按初始化函数重新计算时，调用 `dirty(key)`，下次读取时会重新执行初始化函数。`dirtyAll()` 对所有已存在的分区做同样的事，`dirty(key)` 不会创建还不存在的分区。
+
+需要查询数据库的初始化，用 [异步分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/async.md)。
+
+## 注意事项
+
+> **注意：remove 只清缓存**
+>
+> `remove` 不删除业务数据，也不通知这个分区的订阅者。竞技场被删除时，竞技场列表本身也要更新。
+
+> **注意：keys() 不是业务名单**
+>
+> `keys()` 返回一个 Signal，值是当前已经创建过的 key，顺序不固定。创建和删除分区时它会通知，修改分区的值时不会。
+>
+> 读取一个从没用过的 key，甚至只调用 `at(key)`，都会创建分区。所以 `keys()` 只说明哪些分区被访问过，不能当作竞技场列表或在线玩家名单。
+
+> **注意：初始化函数要快**
+>
+> 初始化函数在读取线程执行，应当快速、没有副作用，可以被重复执行。
+>
+> 分区写入相同的值不会通知，默认用 `Objects.equals` 比较；需要其他规则时，把比较函数作为 `KeyedSignal.of` 的第二个参数。
+
+> **注意：key 和值都不要持有玩家对象**
+>
+> 分区会被长期保存。key 用竞技场编号、UUID 这类轻量值，不要用 `Player` 作 key，初始化函数也不要捕获 `Player`、`Entity`、`World`。按玩家分区的写法见 [玩家分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/player.md)。
+
+**下一步**：[异步与轮询分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/async.md) — 每个分区单独从数据库加载，或者单独定期轮询。

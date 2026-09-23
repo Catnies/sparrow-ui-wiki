@@ -134,12 +134,14 @@ CompletableFuture.supplyAsync(() -> database.loadCoins(uuid), executor)
 
 ```java
 // One coin Signal per player, queried on the executor at first read, showing 0 until then
-PlayerKeyedSignal<Long> coins = PlayerKeyedSignal.async(0L, executor, database::loadCoins);
+KeyedSignal<UUID, Long> coins = KeyedSignal.async(0L, executor, database::loadCoins);
+// Drop a player's cache when they quit
+Signals.evictOnQuit(coins);
 
 // Each viewer reads their own coins
 Item coinsItem = Item.builder()
-        .setItemProvider(context -> coinsIcon(coins.get(context.player())))
-        .dependsOn(coins)
+        .setItemProvider(context -> coinsIcon(coins.get(context.player().getUniqueId())))
+        .dependsOn(coins, context -> context.player().getUniqueId())
         .build();
 
 // Coins changed elsewhere: mark stale, re-query in the background, and open menus update
@@ -159,7 +161,7 @@ A Signal is a value that changes and notifies its dependents when it does. Worki
 
 | Role | What it is | Examples |
 | - | - | - |
-| Source | Holds the value and accepts writes | `Signal.of`, `Signal.async`, `PlayerKeyedSignal` |
+| Source | Holds the value and accepts writes | `Signal.of`, `Signal.async`, `KeyedSignal` |
 | Derived | Computed from other Signals, following them when they change | `map`, `Signals.combine` |
 | Consumer | Reads Signals and updates the UI | Item's `dependsOn`, the `bind` of Windows, Panes, and inventories |
 
@@ -175,4 +177,4 @@ This style buys a few things:
 - With no menu watching, deriveds stop computing and polling sources stop querying
 - Closing a menu unwinds its subscriptions; no unsubscribe code to write
 
-**Next**: [Signal basics](https://catnies.github.io/sparrow-ui-wiki/signal/basics.md) — Create, read, and write Signals, derive new values, and subscribe to changes.
+**Next**: [Mutable state](https://catnies.github.io/sparrow-ui-wiki/signal/basics/mutable.md) — Create a state you can read and write with Signal.of.

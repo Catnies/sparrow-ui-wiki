@@ -1,0 +1,124 @@
+# ListSignal 列表
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/list>
+
+小游戏房间的等待菜单里，每个格子显示一名排队的玩家，角落里写着「等待中 3 / 8」。玩家随时加入、离开。
+
+用 `MutableSignal<List<String>>` 保存队列也能做到，但每加一个人都得复制出一份新列表再 `set` 回去。直接改里面的列表，Signal 察觉不到，菜单不会刷新。
+
+## ListSignal 做什么
+
+`ListSignal` 既是一个 `List`，也是一个 `Signal`。`add`、`remove`、`clear` 这些操作和普通列表一样，每次修改都会通知依赖它的地方。
+
+`ListSignal.of()` 返回 `MutableListSignal`，它有全部修改方法，还有后面会讲到的 `batch` 和元素钩子。只想让别人读取时，对外返回 `ListSignal` 或 [只读视图](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/read-only.md)。
+
+## 玩家排队与离开
+
+房间状态文字从队列派生，不需要单独维护。示例为了输出好读，队列里存的是名字；实际项目中应存玩家的 UUID。
+
+```java
+MutableListSignal<String> queue = ListSignal.of();
+Signal<String> queueText = queue.mapDistinct(list ->
+        "等待中 " + list.size() + " / 8"
+);
+
+queue.add("Alice");
+queue.add("Bob");
+queue.add("Carol");
+System.out.println(queueText.get());  // 等待中 3 / 8
+
+queue.remove("Bob");
+System.out.println(queue.get());      // [Alice, Carol]
+System.out.println(queueText.get());  // 等待中 2 / 8
+```
+
+1. **第 1-4 行**：房间刚开，队列是空的。
+2. **第 6 行**：像普通列表一样 add，菜单跟着刷新。
+3. **第 7 行**
+4. **第 8 行**
+5. **第 9 行**：输出「等待中 3 / 8」。
+6. **第 11 行**：Bob 离开，后面的 Carol 向前补位，末尾空出来的格子清空。
+7. **第 12-13 行**：输出「\[Alice, Carol]，等待中 2 / 8」。
+
+在菜单格子里显示列表内容的写法见 [列表内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list.md)。
+
+## 用 batch 合并一批修改
+
+一局结束后重置房间，先清空队列，再放入下一批排队的玩家。逐条修改的话，订阅者会先看到一个空队列，紧接着又看到新队列，菜单闪一下。用 `batch` 包起来，只在结束时通知一次。
+
+```java
+MutableListSignal<String> queue = ListSignal.of();
+queue.addAll(List.of("Alice", "Bob", "Carol"));
+
+Subscription subscription = queue.onDirty(() -> {
+    System.out.println("队列：" + queue.get());
+});
+
+// 一局结束，换下一批玩家
+queue.batch(() -> {
+    queue.clear();
+    queue.addAll(List.of("Dave", "Eve"));
+});  // 只打印一次「队列：[Dave, Eve]」
+
+subscription.close();
+```
+
+1. **第 1-6 行**：上一局的三名玩家。
+2. **第 9-10 行**：batch 里清空了队列，数据已经变了，但通知先压着不发，菜单还显示旧内容。
+3. **第 11 行**：放入新的两名玩家，仍然不通知。
+4. **第 12 行**：batch 结束，只通知一次。菜单直接从旧队列变成新队列，中间的空队列没有显示过。输出「队列：\[Dave, Eve]」。
+
+嵌套调用 `batch` 时，通知推迟到最外层结束。期间没有任何修改，就不通知。
+
+## 元素加入前后的钩子
+
+服务器公告由管理员输入，要去掉首尾空格；撤下公告时要写一条日志。`beforeAdd` 在元素存入之前处理它，`afterRemove` 在元素移除之后收到它。
+
+```java
+MutableListSignal<String> notices = ListSignal.of();
+Subscription trim = notices.beforeAdd(String::strip);
+Subscription log = notices.afterRemove(notice -> {
+    System.out.println("已撤下公告：" + notice);
+});
+
+notices.add("  今晚 8 点开放新副本  ");
+System.out.println("[" + notices.get(0) + "]");  // [今晚 8 点开放新副本]
+notices.remove(0);                               // 打印「已撤下公告：今晚 8 点开放新副本」
+
+trim.close();
+log.close();
+```
+
+`beforeAdd` 的返回值才是真正存进去的元素，它没办法拒绝加入。有多个钩子时按注册顺序处理，前一个的返回值交给后一个。`set` 替换元素时，先对旧元素执行 `afterRemove`，再对新元素执行 `beforeAdd`。
+
+## 底层列表
+
+`ListSignal.of()` 的底层是 `ArrayList`，只在一个线程里修改时最快。需要跨线程读写，要么自己加锁，要么用 `wrap` 包装一个并发列表。
+
+```java
+MutableListSignal<String> queue = ListSignal.wrap(new CopyOnWriteArrayList<>());
+```
+
+## 注意事项
+
+> **注意：get() 返回的是活视图**
+>
+> `queue.get()` 返回的就是列表本身，之后的增删也会反映在这份引用上。派生结果要保存某一刻的内容，就复制一份，比如 `queue.map(List::copyOf)`。
+>
+> 直接修改列表里元素对象的字段，列表察觉不到。元素最好不可变，要改就用 `set(index, newValue)` 替换。
+
+> **注意：wrap 之后只能经包装器修改**
+>
+> `wrap` 不复制传入的列表。绕过包装器直接改原列表，数据变了，却不会通知任何人。`of()` 创建的列表不保证线程安全。
+
+> **注意：batch 不是事务**
+>
+> `batch` 里的每一步修改都立刻生效。中途抛出异常时，已经完成的修改会保留，订阅者照样收到通知。它只合并当前线程对这个列表的通知，其他线程仍可能读到中间状态。
+
+> **注意：钩子的持有与线程**
+>
+> 钩子返回的 `Subscription` 必须保存。列表只弱引用钩子，丢掉凭证后钩子可能被回收。钩子在修改列表的线程上同步执行，应在列表交给其他代码之前注册，也不要在钩子里修改同一个列表。
+>
+> 按下标或迭代器移除时，`afterRemove` 收到的是列表里存着的对象；`remove(Object)` 收到的是调用方传进来的参数。移除钩子抛出异常时，移除已经发生，不会撤销。
+
+**下一步**：[SetSignal 集合](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/set.md) — 保存不重复的元素，例如玩家已经发现的传送点。

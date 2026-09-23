@@ -6,9 +6,13 @@
 
 | 项目 | 要求 |
 | - | - |
-| 服务端 | Paper 或 Folia |
+| 服务端 | Paper 或 Folia；Spigot 为实验性支持 |
 | Minecraft | `1.21.4` \~ `26.3`，**同一个构件覆盖全部版本**，不需要按版本分别引入依赖 |
-| Java | Sparrow UI 以 Java 21 编译；运行时用对应 Paper 或 Folia 版本要求的 Java 环境就行 |
+| Java | Sparrow UI 以 Java 21 编译；运行时用对应服务端版本要求的 Java 环境就行 |
+
+> **备注：在 Spigot 上使用**
+>
+> Spigot 支持仍处于实验阶段。本 wiki 的示例使用了 Paper 的 `DataComponentTypes` 和 Adventure 的 `Component` 等 Paper API，在 Spigot 上需要换成 `ItemMeta` 等 Spigot 提供的写法。
 
 ## 添加依赖
 
@@ -108,7 +112,7 @@ public final class MyPlugin extends JavaPlugin {
 }
 ```
 
-这一步会安装反射代理、创建窗口管理器与网络管理器，并让 Sparrow UI 的调度器使用你的插件实例。
+这一步会安装反射代理、创建窗口管理器与网络管理器，开始跟踪在线玩家，并让 Sparrow UI 的调度器使用你的插件实例。Sparrow UI 不会自动推断所属插件，没有调用 `setUp` 就使用它的调度器、窗口或 Signal 定时功能，会抛出 `IllegalStateException`。
 
 插件禁用时，Sparrow UI 会监听禁用事件，关闭窗口管理器、网络管理器和自己的调度器。你不需要额外调用 Sparrow UI 的关闭方法。
 

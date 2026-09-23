@@ -1,0 +1,80 @@
+# 时钟
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/clock>
+
+小游戏房间满员后，菜单上要显示「10 秒后开始」，然后每秒减一。技能冷却也一样，要每秒刷新剩余时间。
+
+这段时间里没有任何数据发生变化，只是时间在走。没有东西通知菜单刷新，数字就一直停在 10。
+
+## 时钟做什么
+
+时钟是按固定间隔自动通知的 Signal，用它来驱动这类只跟时间有关的刷新。
+
+| API | 通知间隔 | `get()` 的值 |
+| - | - | - |
+| `Signals.ticking()` | 每 tick | 时钟运行以来经过的 tick 数 |
+| `Signals.everyTicks(20)` | 每 20 tick | 经过了多少个 20 tick 周期 |
+| `Signals.everyMillis(1000)` | 每 1000 毫秒 | 经过了多少个 1000 毫秒周期 |
+
+时钟的值只是一个计数，不代表当前时间。它的用处是告诉依赖它的地方，到点了，该刷新了。
+
+## 开局倒计时
+
+记下订阅时的计数作为起点，每经过一个 20 tick 周期，剩余秒数减一。倒计时物品依赖 `remaining`。
+
+```java
+Signal<Long> clock = Signals.everyTicks(20);
+long start = clock.get();  // 记下起点，时钟可能早就在运行
+Signal<Long> remaining = clock.mapDistinct(value ->
+        Math.max(0L, 10L - (value - start))
+);
+
+Subscription subscription = remaining.onDirty(() -> {
+    System.out.println("距离开局：" + remaining.get());
+});
+// 之后每 20 tick 打印一次，从 9 数到 0
+
+// 开局或房间解散时关闭，时钟不会因为数到 0 自己停下
+subscription.close();
+```
+
+1. **第 1-5 行**：时钟早就在运行，计数不是 0。记下 37 作为起点，剩余 10 秒。
+2. **第 7-9 行**：订阅后开始接收时钟的通知。
+3. **第 10 行**：过了 20 tick。输出「距离开局：9」。
+4. **第 10 行**：又过了 20 tick。输出「距离开局：8」。
+5. **第 10 行**：第 10 个周期，倒数结束。输出「距离开局：0」。
+6. **第 10 行**：时钟还在走，但剩余秒数一直是 0，mapDistinct 不再通知。
+7. **第 12-13 行**：关闭订阅。
+
+## 按现实时间显示冷却
+
+服务器卡顿时 tick 时钟会变慢。技能冷却这类按现实时间算的东西，应该保存截止时间，时钟只负责触发刷新。
+
+```java
+static Signal<Long> cooldownSeconds(Signal<Long> readyAt) {
+    return Signals.combine(Signals.everyMillis(1000), readyAt, (ignored, deadline) -> {
+        long left = deadline - System.currentTimeMillis();
+        return Math.max(0L, (left + 999) / 1000);  // 向上取整成秒
+    }).mapDistinct(value -> value);
+}
+```
+
+`readyAt` 是技能可以再次释放的时间戳，单位毫秒。释放技能时写入 `System.currentTimeMillis() + 8000`，冷却显示就从 8 开始每秒减一。时钟的计数在这里没用上，只借它的通知重新计算。
+
+重新写入 `readyAt` 时，`combine` 立刻通知，不用等下一秒。
+
+## 注意事项
+
+> **注意：时钟是共享的**
+>
+> 相同周期的时钟全服只有一个。第一个订阅者到来时启动，最后一个离开时停止，再有人订阅时从原来的计数接着走。
+>
+> 所以 `get()` 不代表玩家打开菜单多久了，倒计时要自己记起点。时钟已经在运行时，第一次通知可能不到一个完整周期就来了，倒计时的第一秒可能偏短。
+
+> **注意：线程与限制**
+>
+> tick 时钟在 Bukkit 主线程通知，Folia 上是全局区域线程。毫秒时钟在 Sparrow UI 的异步工作线程通知。手动订阅的回调里不要直接操作玩家或方块。在菜单里使用时钟时，刷新由 Sparrow UI 调度到正确的线程。
+>
+> `everyTicks` 的周期必须为正数，`everyMillis` 的周期不能小于 50 毫秒。
+
+**下一步**：[async 异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/async.md) — 在后台线程读取数据库，查询完成前先显示占位内容。

@@ -1,0 +1,69 @@
+# throttle 节流
+
+原文：<https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/throttle>
+
+粘贴一座建筑时，每放下一个方块，已放置数量就加一。进度菜单要显示「已放置 800 / 5000」，可数量每秒会变上千次。
+
+每次变化都刷新菜单太浪费。[防抖](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/debounce.md) 也不行，粘贴过程中数量一直在变，防抖要等到粘贴结束才会通知，玩家在这之前看不到任何进度。
+
+## throttle 做什么
+
+`throttle(ticks)` 返回一个限制通知频率的 Signal。第一次变化立刻通知，之后两次通知之间至少隔指定的 tick 数。间隔内的变化会合并起来，间隔结束时补发一次，读到的是那一刻的最新值。
+
+间隔内读取它，拿到的是上一次通知时的值。
+
+## 限制进度刷新的频率
+
+粘贴逻辑不停写入 `placedBlocks`，进度物品只依赖节流后的 `limited`。
+
+```java
+MutableSignal<Integer> placedBlocks = Signal.of(0);
+Signal<Integer> limited = placedBlocks.throttle(10);
+
+Subscription subscription = limited.onDirty(() -> {
+    System.out.println("已放置 " + limited.get() + " / 5000");
+});
+
+placedBlocks.set(100);  // tick 0，立刻打印「已放置 100 / 5000」
+placedBlocks.set(400);  // tick 4，还在间隔内，暂不通知
+placedBlocks.set(800);  // tick 8，暂不通知
+// tick 10，间隔结束，打印「已放置 800 / 5000」
+// tick 20，这段间隔里没有新变化，不打印
+```
+
+1. **第 1-6 行**：订阅节流后的进度。
+2. **第 8 行**：第一次变化立刻通知，同时开始 10 tick 的间隔。输出「已放置 100 / 5000」。
+3. **第 9 行**：还在间隔内，先记下有变化，暂不通知。limited 仍返回 100。
+4. **第 10 行**
+5. **第 11 行**：补发一次，读到最新的 800。两次变化合并成了一次刷新。输出「已放置 800 / 5000」。
+6. **第 12 行**：没有新变化，就不再通知。
+
+同样的写入交给防抖和节流，结果对比如下。
+
+| 时间 | 写入 | `debounce(10)` | `throttle(10)` |
+| - | - | - | - |
+| tick 0 | 100 | 开始等待 | 立刻通知 100 |
+| tick 4 | 400 | 重新等待 | 暂不通知 |
+| tick 8 | 800 | 重新等待 | 暂不通知 |
+| tick 10 | 没有写入 | 继续等待 | 补发，读到 800 |
+| tick 18 | 没有写入 | 通知，读到 800 | 不通知 |
+
+## 按毫秒限制
+
+要按现实时间限制频率，用 `throttleMillis`。
+
+```java
+Signal<Integer> limited = placedBlocks.throttleMillis(500);
+```
+
+## 注意事项
+
+> **注意：通知可能来自不同线程**
+>
+> 立刻发出的通知在写入原 Signal 的线程上执行。补发的通知在调度线程执行，tick 版是 Bukkit 主线程或 Folia 全局区域线程，毫秒版是 Sparrow UI 的异步工作线程。同一个订阅的回调可能先后来自不同线程，要线程安全。
+
+> **注意：没有订阅时不会限流**
+>
+> 和防抖一样，只有存在订阅者时才安排定时任务，最后一个订阅关闭后取消。间隔必须大于 0，否则抛出 `IllegalArgumentException`。
+
+**下一步**：[时钟](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/clock.md) — 用定期通知的时钟驱动倒计时和冷却显示。

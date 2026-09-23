@@ -27,13 +27,14 @@ public static void openBarrel(Player viewer, Barrel barrel) {
 
 这个方法一般在玩家右键木桶的事件处理器中调用，线程方面的要求看 [线程要求](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/referencing.md#线程要求)。窗口下方默认显示玩家背包，玩家可以在木桶与背包之间 Shift 转移、双击收集。
 
-创建映射有三种写法，区别在于映射容器的哪些格子：
+创建映射有四种写法，区别在于映射容器的哪些格子：
 
 | 方法 | 映射的格子 |
 | - | - |
 | `fromContents(inventory)` | 全部格子，与 `getContents()` 相同。玩家背包包括盔甲栏和副手 |
 | `fromStorageContents(inventory)` | 只含存储格，与 `getStorageContents()` 相同。玩家背包为 36 格 |
 | `fromPlayerStorageContents(playerInventory)` | 玩家背包的 36 格，重新排成主背包 27 格在前、快捷栏 9 格在后 |
+| `fromMountContents(mount)` | 马、驴、羊驼等坐骑的完整背包：第 0 格为鞍，第 1 格为身体装备，之后是储物格 |
 
 Sparrow UI 会按容器的种类选择读写方式，下列容器可以直接映射：
 
@@ -41,9 +42,11 @@ Sparrow UI 会按容器的种类选择读写方式，下列容器可以直接映
 | - | - | - |
 | 箱子、木桶、漏斗、熔炉等方块的容器 | 方块所在的位置，大箱子的两半各自对应自己的方块 | 方块被破坏，或所在区块卸载 |
 | 运输矿车、运输船等实体的容器 | 这个实体 | 实体被移除或卸载 |
-| 马、驴、羊驼等坐骑的背包 | 这只坐骑。第 0 格为鞍，第 1 格为护甲，之后是储物格 | 坐骑被移除或卸载 |
+| 马、驴、羊驼等坐骑的背包 | 这只坐骑。用 `fromMountContents` 创建时，第 0 格为鞍，第 1 格为护甲，之后是储物格 | 坐骑被移除或卸载 |
 | 玩家背包 | 这名玩家，重生后仍对应这名玩家当前的背包 | 玩家离线 |
 | `Bukkit.createInventory` 创建的容器 | 这个容器 | 不会自动退役 |
+
+映射坐骑时建议使用 `fromMountContents(mount)`。在 Paper 上它与 `fromContents(mount.getInventory())` 相同；Spigot 的坐骑装备不在 Bukkit 的内容数组里，只有这个方法能得到上表的格子布局。
 
 其他插件自己实现的 `Inventory` 通过 Bukkit 的 `getItem`、`setItem` 读写，不会自动退役。退役的含义看 [退役](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/inventory/referencing.md#退役)。
 

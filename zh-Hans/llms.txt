@@ -62,23 +62,55 @@ English：[llms.txt](https://catnies.github.io/sparrow-ui-wiki/llms.txt)
 ## 响应式 Signal（可选）
 
 - [为什么需要 Signal](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/why.md): Boss 受到伤害后，菜单里的血量要更新；商品卖出后，库存和购买按钮也要更新。用 Signal 保存这些数据，Item 声明依赖后，数据变化就会触发刷新。
-- [Signal 基础](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics.md): Signal 保存会变化的数据，也可以根据这些数据计算新的值。它可以独立用于业务代码，再由菜单读取和显示。
-- [Signal 派生](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive.md): 购买按钮可能同时依赖数量、单价和余额；切换分类后，菜单又要改为读取另一份数据。派生 Signal 可以组合这些来源，也可以控制变化通知的时机。
-- [异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/async.md): 打开商店时，余额需要从数据库查询。菜单可以先显示「加载中」，查询完成后再显示余额，避免等待查询阻塞玩家线程。
-- [定期轮询](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/polling.md): 全服商店的库存保存在数据库中，其他子服也可能售出商品。本服收不到这些购买事件时，可以定期查询库存，更新当前菜单。Signal.polling 在有人订阅期间重复执行查询，最后一个订阅者离开后停止自动轮询。首次加载、占位值和异常处理与异步加载相同。
-- [集合状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collections.md): 一个商店菜单最初出售苹果和面包。管理员上架钻石后，商品列表和商品种类数都要更新；下架苹果时，两处也要保持一致。
-- [分区状态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/partitions.md): 商店中的苹果和面包各有库存。苹果详情页只需要订阅苹果库存，面包售出时不应触发它的刷新。
+
+### 入门
+
+- [可写状态：Signal.of](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics/mutable.md): 竞技场菜单上有一个积分物品。每击杀一名对手，积分加一，菜单上的数字也要跟着变。
+- [订阅变化：onDirty](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/basics/subscribe.md): Boss 战开始后，屏幕顶部的 BossBar 要一直跟着 Boss 的血量走。血量在伤害事件里被修改，BossBar 在另一个地方，两边得有个办法联系起来。
+
+### 派生
+
+- [map 转换](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/map.md): 玩家的血量存在一个 Signal<Integer> 里，菜单上要显示的却是「❤ 14 / 20」这样的文字，还想再画一条十格的血条。
+- [mapDistinct 去重](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/map-distinct.md): 状态菜单上有一个图标，按血量显示「健康」「受伤」「濒死」三种样子。战斗中血量几乎每秒都在掉，图标却很久才换一次。
+- [combine 组合](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/combine.md): 技能栏上的火球术按钮，能释放时是亮的，不能释放时是灰的。能不能释放看三件事，法力够不够、法力消耗是多少、有没有被沉默。
+- [lens 字段读写](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/lens.md): 玩家的 HUD 设置存在一个 record 里，有「显示坐标」和「界面缩放」两个字段。设置菜单上一个按钮切换坐标显示，另一个按钮调缩放。
+- [switching 切换来源](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/switching.md): 技能菜单顶部有两个职业标签，战士和法师，下面显示当前职业的剩余技能点。两个职业的技能点各存在一个 Signal 里。
+- [merging 汇合成员](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/derive/merging.md): 队伍菜单要显示全队的总血量。每名队员的血量各是一个 Signal，队员还会随时加入和离开。
+
+### 时间控制
+
+- [debounce 防抖](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/debounce.md): 物品搜索菜单里，玩家在铁砧输入框打字，下方列出匹配的物品。输入框每变一个字符，Signal 就变一次。
+- [throttle 节流](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/throttle.md): 粘贴一座建筑时，每放下一个方块，已放置数量就加一。进度菜单要显示「已放置 800 / 5000」，可数量每秒会变上千次。
+- [时钟](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/time/clock.md): 小游戏房间满员后，菜单上要显示「10 秒后开始」，然后每秒减一。技能冷却也一样，要每秒刷新剩余时间。
+
+### 数据来源
+
+- [async 异步加载](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/async.md): 玩家打开个人资料菜单，要看到自己的击杀数和死亡数。这些战绩存在数据库里。
+- [polling 定期轮询](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/source/polling.md): 大厅服的小游戏菜单上，起床战争图标写着「128 人游戏中」。这个人数存在 Redis 里，由各个游戏子服更新。
+
+### 集合
+
+- [ListSignal 列表](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/list.md): 小游戏房间的等待菜单里，每个格子显示一名排队的玩家，角落里写着「等待中 3 / 8」。玩家随时加入、离开。
+- [SetSignal 集合](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/set.md): 传送点菜单里，玩家到过的传送点显示成地图，没到过的显示成问号，顶上写着发现进度。玩家第一次走到某个传送点时记下来。
+- [MapSignal 映射](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/map.md): 一局团战里，要按玩家名记录击杀数，计分菜单顶部显示当前领先的玩家。
+- [只读视图与在线玩家](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/collection/read-only.md): 房间的等待队列只应该由房间自己修改，菜单、计分板、其他插件模块只负责显示。可你把 MutableListSignal 交出去，谁都能 clear() 一下，排好的队就没了。
+
+### 分区
+
+- [KeyedSignal 分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/basics.md): 竞技场列表菜单里，沙漠、森林、雪原三个竞技场各有一个图标，写着当前人数。有人进出某个竞技场，只有那个图标该变。
+- [异步与轮询分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/async.md): 公会菜单要显示公会名称和等级，资料在数据库里。服务器上有几百个公会，玩家一次只看其中一两个。
+- [玩家分区](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal/keyed/player.md): 技能点由技能树菜单、属性菜单和升级提示共同使用，每名玩家一份。Alice 升级拿到技能点，Bob 的菜单不应该跟着刷新。
 
 ### Signal 在 UI 中的使用
 
-- [物品显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md): 玩家在购买菜单中点击钻石，每次把购买数量加一。按钮名称初始为「购买数量：1」，点击后应变为「购买数量：2」。这个数量只属于本次打开的菜单，所以在创建菜单时新建一个普通 Signal。
-- [玩家与分区显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/player.md): Alice 在商店选择购买两件，Bob 仍选择一件，两人可以共用同一个 Item。区别在于这次依赖的是玩家分区，Provider 要读取当前查看者的值，点击时也更新点击者的分区。
-- [列表内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list.md): 管理员上架钻石时，已打开的目录应多出一个物品。此时变化的是一组格子的内容，用 addIngredient 绑定列表就行。
-- [分页与筛选](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/page.md): 翻页 Page里的箭头始终显示为可用。这次让上一页在首页变灰，下一页在末页变灰，并在中间显示「1 / 2」这样的页码。
-- [滚动内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/scroll.md): 滚动菜单也能直接接收 ListSignal。下面十二组钻石按三列排列，一次显示两行。点击向下按钮后，显示范围从第 1～6 组移到第 4～9 组，按钮名称里的行号也会变化。
-- [标签选中态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/tab.md): 分类菜单既要切换内容，也要标出当前选中的分类。Tab.selected() 提供选中 key 的 Signal，按钮依赖它就能改变名称。
-- [窗口标题](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/title.md): 要在窗口标题中显示购买数量，可以用 setTitleSupplier 读取数量，再通过 window.bind 在数量变化时调用 updateTitle()。
-- [视觉映射](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/visual.md): 商品菜单的第五格原本是钻石。点击右下角的标记开关后，第五格应显示为绿宝石；再点击一次，则恢复钻石。这里只改变显示，点击第五格时仍执行原钻石按钮的处理器。
+- [物品显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/item.md): 属性加点菜单里有一个「力量」按钮，名字写着当前等级和剩余技能点。玩家每点一次，力量加一级，技能点少一点，按钮名字跟着变；技能点用完后，再点也没反应。
+- [玩家与分区显示](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/player.md): 小游戏大厅里有一个「准备」按钮。Alice 点了之后，她看到的按钮变成「已准备」，Bob 看到的还是「点击准备」。
+- [列表内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/list.md): 队伍菜单的第一行显示每名队员的头颅。有人入队，后面多出一个；有人离队，后面的人向前补位，末尾空出来。
+- [分页与筛选](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/page.md): 任务日志里有十二个任务，一页放九个。翻到第一页时「上一页」应该变灰，翻到最后一页时「下一页」变灰，中间还要显示「1 / 2」这样的页码。
+- [滚动内容](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/scroll.md): 成就菜单用三列显示已解锁的成就，一次只看得到两行。玩家往下滚动时，按钮上要显示现在滚到了第几行；滚到底以后，按钮不再响应。
+- [标签选中态](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/tab.md): 技能菜单左右各有一个职业标签，战士和法师，中间显示当前职业的技能。玩家切到法师，中间要换成法师的技能，法师标签前面也要加上「▶」，表示正在看它。
+- [窗口标题](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/title.md): 副本大厅的窗口标题写着「副本大厅 · 已准备 1 / 4」。每有一名队员点了准备，标题里的数字就要加一。
+- [视觉映射](https://catnies.github.io/sparrow-ui-wiki/zh-Hans/signal-ui/visual.md): 寻宝菜单的第五格是一块普通地板。玩家打开右下角的「宝藏探测」后，这一格要显示成绿宝石，提示宝藏就在这里；关掉探测，又变回地板。无论显示成什么，点它都应该执行原来那块地板的处理器。
 
 ## 网络 Network（可选）
 
